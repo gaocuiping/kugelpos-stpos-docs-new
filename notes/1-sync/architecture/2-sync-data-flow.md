@@ -16,16 +16,104 @@
 
 これらのデータは定期的にクラウドからエッジに同期され、各店舗で最新の情報を保持します。
 
+```mermaid
+flowchart TB
+    subgraph Cloud["Cloud Environment"]
+        direction LR
+        CMD2[Cloud Master Data] --> CS2[Cloud Sync]
+    end
+
+    subgraph Edge["Edge Environment"]
+        direction LR
+        ES2[Edge Sync] --> EMD2[Edge Master Data]
+    end
+
+    CS2 -->|Master Data<br/>Products, Payment Methods<br/>Tax Rules, Staff| ES2
+
+    style Cloud fill:#e1f5fe
+    style Edge fill:#fff3e0
+```
+
 ### エッジ → クラウド（トランザクションデータ）
 店舗で発生したトランザクションデータはエッジからクラウドへ送信されます：
 
 - **Transactions（取引データ）**: 売上、返品、取消などの取引情報
 - **Open/Close Logs（開設精算ログ）**: 開店・閉店処理、精算情報
 - **Cash In/Out Logs（入出金ログ）**: 現金の入出金記録
-- **Journals（ジャーナル）**: 電子ジャーナル
-- **App Logs（アプリケーションログ）**: システムログ、エラーログ、操作ログ、パフォーマンスログ
 
 これらのデータは、リアルタイムまたはバッチで集約され、クラウドで分析・保管されます。
+
+```mermaid
+flowchart BT
+    subgraph Edge["Edge Environment"]
+        direction LR
+        ECA2[Edge Cart] --> ES3[Edge Sync]
+        ET3[Edge Terminal] --> ES3
+    end
+
+    subgraph Cloud["Cloud Environment"]
+        direction LR
+        CS3[Cloud Sync] --> CCA2[Cloud Cart]
+        CS3 --> CT3[Cloud Terminal]
+    end
+
+    ES3 -->|Transaction Data<br/>Transactions from Cart<br/>Open/Close Logs, Cash In/Out Logs from Terminal| CS3
+
+    style Cloud fill:#e1f5fe
+    style Edge fill:#fff3e0
+```
+
+### エッジ → クラウド（ジャーナルデータ）
+店舗で記録されたジャーナルデータはエッジからクラウドへ送信されます：
+
+- **Electronic Journals（電子ジャーナル）**: 取引の詳細な記録
+- **Audit Logs（監査ログ）**: 監査用の操作履歴
+
+これらのデータは、コンプライアンスと監査要件を満たすために、確実にクラウドに保管されます。
+
+```mermaid
+flowchart BT
+    subgraph Edge["Edge Environment"]
+        direction LR
+        EJ2[Edge Journal] --> ES5[Edge Sync]
+    end
+
+    subgraph Cloud["Cloud Environment"]
+        direction LR
+        CS5[Cloud Sync] --> CJ2[Cloud Journal]
+    end
+
+    ES5 -->|Journal Data<br/>Electronic Journals<br/>Audit Logs| CS5
+
+    style Cloud fill:#e1f5fe
+    style Edge fill:#fff3e0
+```
+
+### エッジ → クラウド（アプリケーションログ）
+各サービスから生成されるログデータはエッジからクラウドへ送信されます：
+
+- **App Logs（アプリログ）**: 各サービスのアプリケーションログ（システムイベント、エラー、デバッグ情報）
+- **Request Logs（リクエストログ）**: 各サービスのAPIリクエスト/レスポンスログ
+
+これらのログは、account、terminal、master-data、cart、report、journal、stock、syncの各サービスごとに生成され、システムの監視、トラブルシューティング、パフォーマンス分析に使用されます。
+
+```mermaid
+flowchart BT
+    subgraph Edge["Edge Environment"]
+        direction LR
+        EA2[Edge Services<br/>All Services] --> ES6[Edge Sync]
+    end
+
+    subgraph Cloud["Cloud Environment"]
+        direction LR
+        CS6[Cloud Sync] --> CJ3[Cloud Journal ※仮]
+    end
+
+    ES6 -->|Application Logs<br/>App Logs, Request Logs<br/>per service| CS6
+
+    style Cloud fill:#e1f5fe
+    style Edge fill:#fff3e0
+```
 
 ### 双方向同期（ターミナルデータ）
 ターミナル関連のデータは双方向で同期される必要があります：
@@ -38,44 +126,19 @@
 これらのデータは、管理と運用の両面から双方向の同期が必要となります。
 
 ```mermaid
-flowchart LR
-    subgraph "Cloud → Edge (Master Data)"
-        CMD2[Cloud Master Data] --> CS2[Cloud Sync]
-        CS2 --> ES2[Edge Sync]
-        ES2 --> EMD2[Edge Master Data]
-        
-        subgraph "Data Types"
-            P[Products]
-            PM[Payment Methods]
-            TR[Tax Rules]
-            S[Staff]
-        end
-    end
-    
-    subgraph "Edge → Cloud (Transaction Data)"
-        ECA2[Edge Cart] --> ES3[Edge Sync]
-        ES3 --> CS3[Cloud Sync]
-        CS3 --> CCA2[Cloud Cart]
-        
-        subgraph "Data Types "
-            T[Transactions]
-            OCL[Open/Close Logs]
-            CIO[Cash In/Out Logs]
-            J[Journals]
-            L[App Logs]
-        end
-    end
-    
-    subgraph "Bidirectional (Terminal Data)"
+flowchart TB
+    subgraph Cloud["Cloud Environment"]
+        direction LR
         CT2[Cloud Terminal] <--> CS4[Cloud Sync]
-        CS4 <--> ES4[Edge Sync]
-        ES4 <--> ET2[Edge Terminal]
-        
-        subgraph "Data Types  "
-            TN[Tenant Info]
-            ST[Store Info]
-            TM[Terminal Info]
-            TS[Terminal Status]
-        end
     end
+
+    subgraph Edge["Edge Environment"]
+        direction LR
+        ES4[Edge Sync] <--> ET2[Edge Terminal]
+    end
+
+    CS4 <-->|Terminal Data<br/>Tenant Info, Store Info<br/>Terminal Info, Terminal Status| ES4
+
+    style Cloud fill:#e1f5fe
+    style Edge fill:#fff3e0
 ```
