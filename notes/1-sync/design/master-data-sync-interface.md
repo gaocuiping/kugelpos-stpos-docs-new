@@ -4,7 +4,9 @@
 
 エッジ側のMaster DataサービスがSyncサービスからDapr Service Invocation経由でデータを受け取り、DBに反映する処理方法について、既存のインターフェースを活用した設計を提案します。
 
-**重要**: エッジ内のSync-Master Data間は同一マシン内通信のため、サイズ制限を考慮する必要はありません。
+**重要**: 
+- エッジ内のSync-Master Data間は同一マシン内通信のため、サイズ制限を考慮する必要はありません
+- ファイル収集機能はMaster Dataサービスの対象外です（Syncサービスが直接ファイルシステムにアクセス）
 
 ## 2. 既存インターフェース分析
 
@@ -30,6 +32,8 @@ master-data/
 - **バルク操作なし**: `insert_many`、`bulk_write`などのメソッドが未実装
 - **トランザクション管理なし**: MongoDBトランザクションのサポートなし
 - **単一ドキュメント操作のみ**: create、update、delete、replaceは1件ずつ
+
+**注記**: アプリケーションログの収集はSyncサービスのファイル収集機能で統合管理されるため、Master Dataサービスでの特別な処理は不要です。
 
 ## 3. データ反映戦略
 
@@ -101,6 +105,8 @@ async def apply_sync_data(
     """
     Syncサービスから転送されたマスターデータを適用
     同一マシン内通信なのでサイズは問題なし
+    
+    注記: アプリケーションログは含まれません（ファイル収集で別途処理）
     """
     try:
         # データ適用（バージョニング or 差分更新）
@@ -138,17 +144,19 @@ import asyncio
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 class MasterDataSyncService:
-    """マスターデータ同期処理サービス"""
+    """マスターデータ同期処理サービス（ファイル収集機能除く）"""
 
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
+        # ファイル収集は対象外のため、マスターデータのみマッピング
         self.collection_map = {
             "items_common": "item_common_master",
-            "items_store": "item_store_master",
+            "items_store": "item_store_master", 
             "staff": "staff_master",
             "payments": "payment_master",
             "taxes": "tax_master",
             "settings": "settings_master"
+            # 注記: アプリケーションログ関連は含まれない
         }
 
     async def apply_sync_data(
@@ -164,7 +172,7 @@ class MasterDataSyncService:
         Args:
             sync_id: 同期処理ID
             sync_type: differential（差分）またはbulk（一括）
-            records: コレクション別のレコード
+            records: コレクション別のレコード（マスターデータのみ）
             version: データバージョン
         """
 
@@ -428,7 +436,7 @@ import httpx
 from typing import Dict, Any
 
 class EdgeSyncEngine:
-    """エッジ側同期エンジン（簡潔版）"""
+    """エッジ側同期エンジン（マスターデータ + ファイル収集対応）"""
 
     def __init__(self, config):
         self.config = config
@@ -437,18 +445,27 @@ class EdgeSyncEngine:
     async def pull_and_apply_master_data(self) -> Dict[str, Any]:
         """
         クラウドからマスターデータを取得してMaster-Dataサービスに適用
+        ファイル収集指示がある場合は並行処理
         """
         try:
-            # Step 1: クラウドAPIから圧縮データ取得
-            compressed_data = await self._pull_from_cloud()
+            # Step 1: クラウドAPIから圧縮データ取得（ファイル収集指示を含む可能性）
+            response_data = await self._pull_from_cloud()
 
-            # Step 2: 解凍と検証
-            master_data = await self._decompress_and_validate(compressed_data)
+            # Step 2: マスターデータの解凍と検証
+            master_data = await self._decompress_and_validate(response_data.get("sync_data"))
 
             # Step 3: Master-Dataサービスへ直接転送（サイズ制限なし）
-            result = await self._transfer_to_master_data(master_data)
+            sync_result = await self._transfer_to_master_data(master_data)
 
-            return result
+            # Step 4: ファイル収集処理（指示がある場合、Master Dataサービスとは独立）
+            if "file_collection_request" in response_data:
+                # ファイル収集はSyncサービスが直接処理（Master Dataサービス不関与）
+                collection_result = await self._handle_file_collection(
+                    response_data["file_collection_request"]
+                )
+                sync_result["file_collection"] = collection_result
+
+            return sync_result
 
         except Exception as e:
             logger.error(f"Master data sync failed: {e}")
@@ -458,12 +475,13 @@ class EdgeSyncEngine:
         """
         Master-Dataサービスへ直接転送
         同一マシン内なのでサイズ制限を考慮する必要なし
+        ファイル収集データは含まれない
         """
         request_data = {
             "sync_id": master_data.get("sync_id"),
             "sync_type": master_data.get("sync_type", "differential"),
             "version": master_data.get("version", 1),
-            "records": master_data["records"],  # 全データをそのまま送信
+            "records": master_data["records"],  # マスターデータのみ
             "timestamp": master_data.get("timestamp")
         }
 
@@ -471,7 +489,7 @@ class EdgeSyncEngine:
         async with get_dapr_client() as client:
             response = await client.invoke_method(
                 app_id="master-data",
-                method_name="sync/apply",
+                method_name="sync/apply", 
                 data=json.dumps(request_data),
                 http_verb="POST"
             )
@@ -482,60 +500,17 @@ class EdgeSyncEngine:
                 return result
             else:
                 raise Exception(f"Master-Data service returned {response.status_code}")
-```
 
-### 5.2 一括同期（Bulk Sync）のフロー
-
-```mermaid
-flowchart TB
-    subgraph Preparation["準備フェーズ"]
-        A[sync-apply-dataメッセージ受信]
-        B[データ検証・パース]
-        C[バージョン番号確認]
-    end
-
-    subgraph Insertion["挿入フェーズ"]
-        D[新バージョンデータ挿入<br/>active=false]
-        E[インデックス作成]
-    end
-
-    subgraph Switching["切り替えフェーズ"]
-        F[トランザクション開始]
-        G[新バージョンをactive=true]
-        H[旧バージョンをactive=false]
-        I[トランザクションコミット]
-    end
-
-    subgraph Cleanup["クリーンアップフェーズ"]
-        J[5分待機]
-        K[旧バージョンデータ削除]
-        L[完了通知]
-    end
-
-    A --> B --> C --> D --> E
-    E --> F --> G --> H --> I
-    I --> J --> K --> L
-
-    style Preparation fill:#e1f5fe
-    style Insertion fill:#fff3e0
-    style Switching fill:#f3e5f5
-    style Cleanup fill:#e8f5e9
-```
-
-### 5.3 差分同期（Differential Sync）のフロー
-
-```python
-# 差分同期の処理例
-async def apply_differential_update(item_data: dict):
-    """
-    1件ずつの差分更新処理
-
-    1. プライマリキーで既存レコードを検索
-    2. updated_atタイムスタンプを比較
-    3. 新しい場合のみ更新（upsert）
-    4. キャッシュクリア
-    """
-    pass
+    async def _handle_file_collection(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        ファイル収集処理（Master Dataサービスとは独立）
+        
+        注記: この処理はSyncサービスが直接ファイルシステムにアクセスし、
+        Master Dataサービスは関与しません
+        """
+        # ファイル収集実装（前回の設計通り）
+        # ...existing code...
+        pass
 ```
 
 ## 6. メモリ考慮事項
@@ -550,6 +525,8 @@ async def apply_differential_update(item_data: dict):
 | **合計** | 40,000+ | **50-60MB** |
 
 **結論**: 現代のコンテナ環境では問題にならないレベル
+
+**注記**: ファイル収集のメモリ使用量はSyncサービス側で管理され、Master Dataサービスには影響しません。
 
 ## 7. エラーハンドリング
 
@@ -694,6 +671,7 @@ async def test_end_to_end_sync():
 - Dapr Service Invocationでの直接転送
 - 差分同期の基本実装
 - エラーハンドリング
+- **ファイル収集機能はSyncサービス側で並行実装**
 
 ### Phase 2: 一括同期
 - バージョニング機能実装
@@ -714,16 +692,21 @@ async def test_end_to_end_sync():
    - チャンク分割も不要
    - GridFS/State Store経由も不要
 
-2. **シンプルな実装**
+2. **責任の明確な分離**
+   - Master Dataサービス: マスターデータの同期のみ
+   - Syncサービス: ファイル収集とマスターデータ同期の統合管理
+   - アプリケーションログはファイル収集で統合処理
+
+3. **シンプルな実装**
    - Dapr Service Invocationで直接転送
    - 複雑な分割・組み立てロジック不要
    - エラーハンドリングも簡潔
 
-3. **必要十分なメモリ**
+4. **必要十分なメモリ**
    - 50-60MBのデータは問題なし
    - 通常のコンテナメモリ（256-512MB）で十分
 
-4. **24時間営業対応**
+5. **24時間営業対応**
    - バージョニング方式によるノーダウンタイム更新
    - MongoDBトランザクションで瞬時切り替え
 

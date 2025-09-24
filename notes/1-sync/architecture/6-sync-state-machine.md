@@ -2,7 +2,7 @@
 
 ## 6. Synchronization State Machine
 
-このステートマシン図は、同期処理のライフサイクルと状態遷移を示しています。各状態は特定の処理段階を表し、エラー処理とリトライメカニズムも含まれています。
+このステートマシン図は、同期処理のライフサイクルと状態遷移を示しています。各状態は特定の処理段階を表し、エラー処理とリトライメカニズム、そしてファイル収集機能も含まれています。
 
 ### 主要な状態
 
@@ -29,7 +29,24 @@
 #### ConfirmingSync（同期確認中）
 - クラウドに同期完了を通知
 - 同期ステータスを更新
+- ファイル収集指示がある場合はCollectingFilesへ
 - 確認完了でIdleへ戻り、失敗でErrorへ
+
+#### CollectingFiles（ファイル収集中）
+- ファイル収集指示を処理
+- 指定されたパス（ファイル/ディレクトリ）を検証
+- セキュリティチェック（ホワイトリスト確認）
+- 収集準備完了でCompressingFilesへ、失敗でErrorへ
+
+#### CompressingFiles（ファイル圧縮中）
+- 収集対象ファイルをzip形式で圧縮
+- 最大アーカイブサイズ制限の確認
+- 圧縮完了でUploadingArchiveへ、失敗でErrorへ
+
+#### UploadingArchive（アーカイブアップロード中）
+- 圧縮ファイルをクラウドにアップロード
+- チャンク分割による大容量ファイル対応
+- アップロード完了でIdleへ、失敗でErrorへ
 
 ### エラー処理
 
@@ -81,8 +98,18 @@ stateDiagram-v2
     ApplyingChanges --> ConfirmingSync: Changes Applied
     ApplyingChanges --> Error: Apply Failed
     
-    ConfirmingSync --> Idle: Sync Confirmed
+    ConfirmingSync --> CollectingFiles: File Collection Requested
+    ConfirmingSync --> Idle: Sync Confirmed (No File Collection)
     ConfirmingSync --> Error: Confirm Failed
+    
+    CollectingFiles --> CompressingFiles: Files Validated
+    CollectingFiles --> Error: Validation Failed
+    
+    CompressingFiles --> UploadingArchive: Archive Created
+    CompressingFiles --> Error: Compression Failed
+    
+    UploadingArchive --> Idle: Upload Complete
+    UploadingArchive --> Error: Upload Failed
     
     Error --> Retry: Retry Logic
     Error --> Idle: Max Retries
@@ -98,5 +125,23 @@ stateDiagram-v2
         LogError --> CheckCircuitBreaker
         CheckCircuitBreaker --> OpenCircuit: Threshold Exceeded
         CheckCircuitBreaker --> AllowRetry: Under Threshold
+    }
+    
+    state CollectingFiles {
+        [*] --> ValidatePaths
+        ValidatePaths --> CheckSecurity
+        CheckSecurity --> PrepareCollection
+    }
+    
+    state CompressingFiles {
+        [*] --> CreateArchive
+        CreateArchive --> CheckSize
+        CheckSize --> FinalizeArchive
+    }
+    
+    state UploadingArchive {
+        [*] --> InitiateUpload
+        InitiateUpload --> TransferChunks
+        TransferChunks --> ConfirmUpload
     }
 ```

@@ -2,7 +2,7 @@
 
 ## 3. Sync Mechanisms
 
-このセクションでは、Sync Serviceが採用している3つの主要な同期メカニズムについて説明します。各メカニズムはデータの種類と要件に応じて使い分けられます。
+このセクションでは、Sync Serviceが採用している4つの主要な同期メカニズムについて説明します。各メカニズムはデータの種類と要件に応じて使い分けられます。
 
 ### 差分同期メカニズム（Differential Sync）
 最も一般的な同期方式で、変更があったデータのみを転送します：
@@ -49,10 +49,40 @@
 - 途中からの再開が可能
 - ログやジャーナルなどの追記型データに最適
 
+### ファイル収集メカニズム（File Collection）
+エッジ環境のファイル（アプリケーションログ含む）をzip形式で圧縮収集します：
+
+**動作フロー：**
+1. エッジ側の定期同期リクエストを送信
+2. クラウド側が同期レスポンスに収集指示を含めて返却（オプション）
+3. エッジ側が収集指示を受信した場合、ファイル収集処理を開始
+4. 指定されたパス（ファイル/ディレクトリ）をzip形式で圧縮
+5. 圧縮ファイルをクラウドの専用APIに送信
+6. クラウド側でアーカイブを受信・保存
+7. 次回の同期時に収集完了を通知
+
+**対象ファイル：**
+- アプリケーションログ（各サービスのログファイル、APIリクエストログ）
+- システム設定ファイル
+- データベースファイル
+- その他のシステムファイル
+
+**セキュリティ制限：**
+- 収集可能パスのホワイトリスト制御
+- システムディレクトリの収集禁止
+- 最大アーカイブサイズ制限
+
+**使用シーン：**
+- トラブルシューティング時のログ収集
+- コンプライアンス監査対応
+- システム診断・メンテナンス
+
 ```mermaid
 sequenceDiagram
     participant ES as Edge Sync
     participant CS as Cloud Sync
+    participant EFS as Edge File System
+    participant CFS as Cloud File Storage
     participant ED as Edge Database
     participant CD as Cloud Database
     
@@ -62,8 +92,17 @@ sequenceDiagram
             ES->>CS: Check for updates (last_sync_timestamp)
             CS->>CD: Query changed data
             CD-->>CS: Changed records
-            CS-->>ES: Delta data
+            CS-->>ES: Delta data + File collection request (optional)
             ES->>ED: Apply changes
+            
+            alt File collection requested
+                ES->>EFS: Collect specified files
+                EFS-->>ES: Files to collect
+                ES->>ES: Create zip archive
+                ES->>CS: Upload zip archive
+                CS->>CFS: Store archive
+            end
+            
             ES->>CS: Confirm sync status
         end
     end
@@ -88,5 +127,16 @@ sequenceDiagram
             ES->>ED: Append chunk
         end
         ES->>CS: Confirm stream complete
+    end
+    
+    rect rgb(255, 240, 220)
+        Note over ES,CFS: File Collection Mechanism
+        Note right of ES: Triggered by sync response
+        ES->>EFS: Access target files/directories
+        EFS-->>ES: File contents
+        ES->>ES: Create zip archive
+        ES->>CS: Upload archive via file collection API
+        CS->>CFS: Store compressed archive
+        CS-->>ES: Collection confirmation
     end
 ```

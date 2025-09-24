@@ -11,6 +11,7 @@
 - Mongoデータベースによるデータ永続化
 - Daprを活用したサービス間通信
 - エッジ・クラウド間の効率的な差分同期
+- ファイル収集機能によるアプリケーションログ統合管理
 
 ## 2. サービスアーキテクチャ
 
@@ -23,6 +24,7 @@
 - 同期リクエストの受信と処理
 - マスターデータの配信
 - トランザクションデータの収集
+- ファイル収集指示の管理とアーカイブ保存
 - 同期状態の一元管理
 - 同期履歴の記録
 ```
@@ -33,6 +35,7 @@
 - クラウドへの定期ポーリング
 - 差分データの取得と適用
 - ローカルデータの収集と送信
+- ファイル収集とzip圧縮
 - オフライン時のキューイング
 - 同期結果のレポート
 ```
@@ -50,6 +53,7 @@ services/sync/
 │   │       ├── __init__.py
 │   │       ├── auth.py                  # 認証エンドポイント
 │   │       ├── sync.py                  # 同期エンドポイント
+│   │       ├── file_collection.py       # ファイル収集エンドポイント
 │   │       ├── status.py                # ステータス管理エンドポイント
 │   │       ├── schemas.py               # APIスキーマ定義
 │   │       └── schemas_transformer.py   # スキーマ変換
@@ -62,6 +66,7 @@ services/sync/
 │   │   ├── sync_orchestrator.py         # 同期処理オーケストレータ
 │   │   ├── cloud_sync_engine.py         # クラウド側同期エンジン
 │   │   ├── edge_sync_engine.py          # エッジ側同期エンジン
+│   │   ├── file_collection_engine.py    # ファイル収集エンジン
 │   │   ├── data_collector.py            # データ収集モジュール
 │   │   └── data_applier.py              # データ適用モジュール
 │   ├── database/
@@ -83,23 +88,27 @@ services/sync/
 │   │   │   ├── sync_history_document.py     # 同期履歴ドキュメント
 │   │   │   ├── sync_request_document.py     # 同期リクエストドキュメント
 │   │   │   ├── edge_device_document.py      # エッジ端末ドキュメント
-│   │   │   └── sync_queue_document.py       # 同期キュードキュメント
+│   │   │   ├── sync_queue_document.py       # 同期キュードキュメント
+│   │   │   ├── file_collection_request_document.py    # ファイル収集リクエスト
+│   │   │   ├── file_collection_history_document.py    # ファイル収集履歴
+│   │   │   └── file_collection_instruction_document.py # ファイル収集指示
 │   │   └── repositories/
 │   │       ├── __init__.py
 │   │       ├── sync_status_repository.py    # 同期状態リポジトリ
 │   │       ├── sync_history_repository.py   # 同期履歴リポジトリ
 │   │       ├── edge_device_repository.py    # エッジ端末リポジトリ
-│   │       └── sync_queue_repository.py     # 同期キューリポジトリ
+│   │       ├── sync_queue_repository.py     # 同期キューリポジトリ
+│   │       └── file_collection_repository.py # ファイル収集リポジトリ
 │   ├── services/
 │   │   ├── __init__.py
 │   │   ├── auth_service.py              # 認証サービス
 │   │   ├── sync_service.py              # 同期サービス
+│   │   ├── file_collection_service.py   # ファイル収集サービス
 │   │   ├── data_services/
 │   │   │   ├── __init__.py
 │   │   │   ├── master_data_service.py   # マスターデータ同期
 │   │   │   ├── transaction_service.py   # トランザクション同期
-│   │   │   ├── journal_service.py       # ジャーナル同期
-│   │   │   └── log_service.py          # ログ同期
+│   │   │   └── journal_service.py       # ジャーナル同期
 │   │   └── strategies/
 │   │       ├── __init__.py
 │   │       ├── differential_sync.py     # 差分同期戦略
@@ -107,6 +116,7 @@ services/sync/
 │   └── utils/
 │       ├── __init__.py
 │       ├── compression.py               # データ圧縮ユーティリティ
+│       ├── file_compression.py          # ファイル圧縮ユーティリティ（zip）
 │       ├── encryption.py                # 暗号化ユーティリティ
 │       ├── retry_handler.py             # リトライハンドラ
 │       ├── queue_manager.py             # キュー管理
@@ -285,6 +295,125 @@ class SyncQueueDocument(BaseDocumentModel):
         ]
 ```
 
+#### 3.1.5 file_collection_request Collection
+```python
+from datetime import datetime
+from typing import Optional, List, Dict, Any
+from pydantic import Field
+from kugel_common.models.documents.base_document import BaseDocumentModel
+
+class FileCollectionRequestDocument(BaseDocumentModel):
+    """ファイル収集リクエストドキュメント"""
+
+    # 識別情報
+    collection_id: str = Field(description="収集ID (COLLECT_{tenant_id}_{edge_id}_{ulid})")
+    edge_id: str = Field(description="エッジ端末ID")
+
+    # 収集情報
+    collection_name: str = Field(description="収集名（管理用）")
+    target_paths: List[str] = Field(description="収集対象パス配列")
+    exclude_patterns: List[str] = Field(default=[], description="除外パターン配列")
+    max_archive_size_mb: int = Field(default=100, description="最大アーカイブサイズ（MB）")
+
+    # 状態情報
+    status: str = Field(default="queued", description="状態: queued|processing|completed|failed|expired")
+    requested_by: str = Field(description="要求者")
+
+    # 実行情報
+    start_time: Optional[datetime] = Field(None, description="開始時刻")
+    end_time: Optional[datetime] = Field(None, description="終了時刻")
+    error_details: Optional[Dict[str, Any]] = Field(None, description="エラー詳細")
+
+    class Config:
+        collection = "file_collection_request"
+        indexes = [
+            {"keys": [("collection_id", 1)], "unique": True},
+            {"keys": [("edge_id", 1), ("status", 1)]},
+            {"keys": [("status", 1), ("created_at", -1)]},
+        ]
+```
+
+#### 3.1.6 file_collection_history Collection
+```python
+from datetime import datetime
+from typing import Optional, List, Dict, Any
+from pydantic import Field
+from kugel_common.models.documents.base_document import BaseDocumentModel
+
+class FileCollectionHistoryDocument(BaseDocumentModel):
+    """ファイル収集履歴ドキュメント"""
+
+    # 識別情報
+    collection_id: str = Field(description="収集ID")
+    edge_id: str = Field(description="エッジ端末ID")
+
+    # 収集情報
+    collection_name: str = Field(description="収集名")
+    target_paths: List[str] = Field(description="収集対象パス配列")
+    exclude_patterns: List[str] = Field(default=[], description="除外パターン配列")
+
+    # 実行情報
+    start_time: datetime = Field(description="開始時刻")
+    end_time: datetime = Field(description="終了時刻")
+    processing_time_ms: int = Field(description="処理時間（ミリ秒）")
+
+    # 結果情報
+    status: str = Field(description="最終状態: completed|failed")
+    file_count: int = Field(description="収集ファイル数")
+    archive_size_bytes: int = Field(description="アーカイブサイズ（バイト）")
+    archive_path: str = Field(description="アーカイブ保存パス")
+
+    # エラー情報
+    error_details: Optional[Dict[str, Any]] = Field(None, description="エラー詳細")
+
+    # 管理情報
+    requested_by: str = Field(description="要求者")
+
+    class Config:
+        collection = "file_collection_history"
+        indexes = [
+            {"keys": [("collection_id", 1)], "unique": True},
+            {"keys": [("edge_id", 1), ("start_time", -1)]},
+            {"keys": [("status", 1)]},
+        ]
+```
+
+#### 3.1.7 file_collection_instruction Collection（クラウド側のみ）
+```python
+from datetime import datetime
+from typing import Optional, List
+from pydantic import Field
+from kugel_common.models.documents.base_document import BaseDocumentModel
+
+class FileCollectionInstructionDocument(BaseDocumentModel):
+    """ファイル収集指示ドキュメント"""
+
+    # 識別情報
+    collection_id: str = Field(description="収集ID")
+    edge_id: str = Field(description="対象エッジ端末ID")
+
+    # 収集指示
+    collection_name: str = Field(description="収集名")
+    target_paths: List[str] = Field(description="収集対象パス配列")
+    exclude_patterns: List[str] = Field(default=[], description="除外パターン配列")
+    max_archive_size_mb: int = Field(default=100, description="最大アーカイブサイズ（MB）")
+
+    # 管理情報
+    status: str = Field(default="pending", description="状態: pending|sent|processing|completed|failed|expired")
+    priority: str = Field(default="normal", description="優先度: low|normal|high|urgent")
+    requested_by: str = Field(description="要求者")
+    expires_at: datetime = Field(description="有効期限")
+
+    class Config:
+        collection = "file_collection_instruction"
+        indexes = [
+            {"keys": [("collection_id", 1)], "unique": True},
+            {"keys": [("edge_id", 1), ("status", 1)]},
+            {"keys": [("status", 1), ("priority", -1)]},
+            {"keys": [("expires_at", 1)]},  # TTLインデックス
+        ]
+```
+
 ## 4. API実装デザイン
 
 ### 4.1 認証API
@@ -397,9 +526,116 @@ async def push_data(
     )
 ```
 
+### 4.3 ファイル収集API
+
+#### 4.3.1 ファイル収集指示（Cloud Mode）
+```python
+# app/api/v1/file_collection.py
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from app.api.v1.schemas import (
+    FileCollectionRequest,
+    FileCollectionResponse,
+    ApiResponse
+)
+from app.services.file_collection_service import FileCollectionService
+from app.dependencies.auth import get_current_edge_device
+from app.models.documents.edge_device_document import EdgeDeviceDocument
+
+router = APIRouter(prefix="/sync/file-collection", tags=["file-collection"])
+
+@router.post("/", response_model=ApiResponse[FileCollectionResponse])
+async def create_file_collection(
+    request: FileCollectionRequest,
+    file_collection_service: FileCollectionService = Depends(get_file_collection_service)
+) -> ApiResponse[FileCollectionResponse]:
+    """
+    ファイル収集指示の作成（管理者向け）
+
+    - エッジ端末に対するファイル収集指示を作成
+    - 次回の同期リクエストで指示を配信
+    """
+    result = await file_collection_service.create_collection_request(
+        edge_id=request.edge_id,
+        collection_name=request.collection_name,
+        target_paths=request.target_paths,
+        exclude_patterns=request.exclude_patterns,
+        max_archive_size_mb=request.max_archive_size_mb,
+        requested_by=request.requested_by
+    )
+
+    return ApiResponse[FileCollectionResponse](
+        success=True,
+        data=result
+    )
+
+@router.post("/{collection_id}/upload")
+async def upload_collection_archive(
+    collection_id: str,
+    archive: UploadFile = File(...),
+    edge_device: EdgeDeviceDocument = Depends(get_current_edge_device),
+    file_collection_service: FileCollectionService = Depends(get_file_collection_service)
+) -> ApiResponse:
+    """
+    エッジからのファイルアーカイブアップロード
+
+    - zip形式の圧縮ファイルを受信
+    - ファイル検証と保存
+    """
+    # ファイル形式チェック
+    if not archive.filename.endswith('.zip'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only ZIP files are allowed"
+        )
+
+    # ファイルサイズチェック
+    if archive.size > 100 * 1024 * 1024:  # 100MB制限
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File size exceeds maximum limit"
+        )
+
+    result = await file_collection_service.receive_archive(
+        collection_id=collection_id,
+        edge_id=edge_device.edge_id,
+        archive_file=archive
+    )
+
+    return ApiResponse(
+        success=True,
+        data=result,
+        message="Archive uploaded successfully"
+    )
+
+@router.get("/{collection_id}")
+async def get_collection_status(
+    collection_id: str,
+    file_collection_service: FileCollectionService = Depends(get_file_collection_service)
+) -> ApiResponse:
+    """
+    ファイル収集状態の確認
+    """
+    result = await file_collection_service.get_collection_status(collection_id)
+
+    return ApiResponse(
+        success=True,
+        data=result
+    )
+
+@router.get("/{collection_id}/download")
+async def download_collection_archive(
+    collection_id: str,
+    file_collection_service: FileCollectionService = Depends(get_file_collection_service)
+):
+    """
+    収集済みアーカイブのダウンロード
+    """
+    return await file_collection_service.download_archive(collection_id)
+```
+
 ## 5. 同期フロー実装
 
-### 5.1 差分同期フロー
+### 5.1 差分同期フロー（ファイル収集対応）
 
 #### 5.1.1 エッジ側処理（Edge Sync Engine）
 ```python
@@ -412,12 +648,13 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 class EdgeSyncEngine:
-    """エッジ側同期エンジン"""
+    """エッジ側同期エンジン（ファイル収集対応）"""
 
-    def __init__(self, config, http_client, queue_manager):
+    def __init__(self, config, http_client, queue_manager, file_collection_engine):
         self.config = config
         self.http_client = http_client
         self.queue_manager = queue_manager
+        self.file_collection_engine = file_collection_engine
         self.sync_interval = config.SYNC_POLL_INTERVAL
         self.is_running = False
 
@@ -458,7 +695,7 @@ class EdgeSyncEngine:
             await asyncio.sleep(self.sync_interval)
 
     async def _pull_sync(self, data_type: str):
-        """Pullモードでの同期"""
+        """Pullモードでの同期（ファイル収集指示を含む可能性）"""
         # 最終同期タイムスタンプを取得
         last_sync = await self._get_last_sync_timestamp(data_type)
 
@@ -470,48 +707,52 @@ class EdgeSyncEngine:
         }
 
         response = await self.http_client.post(
-            f"{self.config.CLOUD_SYNC_URL}/pull",
+            f"{self.config.CLOUD_SYNC_URL}/request",
             json=request,
             headers=self._get_auth_headers()
         )
 
         if response.status_code == 200:
-            # 受信データを適用
-            await self._apply_received_data(
-                data_type,
-                response.json()["data"]
-            )
+            response_data = response.json()["data"]
+            
+            # 通常の同期データを適用
+            if "sync_data" in response_data:
+                await self._apply_received_data(
+                    data_type,
+                    response_data["sync_data"]
+                )
+            
+            # ファイル収集指示がある場合は処理
+            if "file_collection_request" in response_data:
+                await self._handle_file_collection_request(
+                    response_data["file_collection_request"]
+                )
+            
             # 同期状態を更新
             await self._update_sync_status(data_type, "completed")
         else:
             raise Exception(f"Pull sync failed: {response.status_code}")
 
-    async def _push_sync(self, data_type: str):
-        """Pushモードでの同期"""
-        # 送信対象データを収集
-        data = await self._collect_local_data(data_type)
-
-        if not data:
-            return
-
-        # データ送信
-        request = {
-            "data_type": data_type,
-            "data": data
-        }
-
-        response = await self.http_client.post(
-            f"{self.config.CLOUD_SYNC_URL}/push",
-            json=request,
-            headers=self._get_auth_headers()
-        )
-
-        if response.status_code == 200:
-            # 送信済みデータをマーク
-            await self._mark_as_synced(data_type, data)
-        else:
-            # 失敗時はキューに追加
-            await self.queue_manager.add_to_queue(data_type, data)
+    async def _handle_file_collection_request(self, collection_request: Dict[str, Any]):
+        """
+        ファイル収集指示の処理
+        """
+        try:
+            # ファイル収集エンジンに処理を委譲
+            result = await self.file_collection_engine.process_collection_request(
+                collection_request
+            )
+            
+            logger.info(f"File collection completed: {result}")
+            
+        except Exception as e:
+            logger.error(f"File collection failed: {e}")
+            
+            # エラー状態をクラウドに通知
+            await self._notify_collection_error(
+                collection_request["collection_id"],
+                str(e)
+            )
 
     def _should_pull(self, data_type: str) -> bool:
         """Pull同期が必要か判定"""
@@ -531,7 +772,196 @@ class EdgeSyncEngine:
         ]
 ```
 
-#### 5.1.2 クラウド側処理（Cloud Sync Engine）
+#### 5.1.2 ファイル収集エンジン
+```python
+# app/core/file_collection_engine.py
+import zipfile
+import os
+import tempfile
+import fnmatch
+from pathlib import Path
+from typing import Dict, Any, List
+from logging import getLogger
+
+logger = getLogger(__name__)
+
+class FileCollectionEngine:
+    """ファイル収集専用エンジン"""
+
+    def __init__(self, config, http_client):
+        self.config = config
+        self.http_client = http_client
+        self.allowed_paths = config.FILE_COLLECTION_ALLOWED_PATHS.split(',')
+        self.forbidden_paths = ["/etc", "/root", "/sys", "/proc", "/dev"]
+
+    async def process_collection_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        ファイル収集リクエストの処理
+        """
+        collection_id = request["collection_id"]
+        target_paths = request["target_paths"]
+        exclude_patterns = request.get("exclude_patterns", [])
+        max_size_mb = request.get("max_archive_size_mb", 100)
+
+        # Step 1: パス検証
+        validated_paths = await self._validate_paths(target_paths)
+
+        # Step 2: ファイル収集
+        collected_files = await self._collect_files(validated_paths, exclude_patterns)
+
+        # Step 3: zip圧縮
+        archive_path = await self._create_zip_archive(
+            collected_files, collection_id, max_size_mb
+        )
+
+        # Step 4: クラウドにアップロード
+        upload_result = await self._upload_archive(collection_id, archive_path)
+
+        # Step 5: 一時ファイル削除
+        os.unlink(archive_path)
+
+        return {
+            "collection_id": collection_id,
+            "status": "completed",
+            "file_count": len(collected_files),
+            "archive_size_bytes": upload_result["size"]
+        }
+
+    async def _validate_paths(self, target_paths: List[str]) -> List[str]:
+        """
+        収集対象パスのセキュリティ検証
+        """
+        validated_paths = []
+
+        for path in target_paths:
+            # パストラバーサル攻撃対策
+            normalized_path = os.path.normpath(path)
+            if ".." in normalized_path:
+                raise ValueError(f"Invalid path detected: {path}")
+
+            # 禁止パスチェック
+            is_forbidden = any(
+                normalized_path.startswith(forbidden)
+                for forbidden in self.forbidden_paths
+            )
+            if is_forbidden:
+                raise ValueError(f"Forbidden path: {path}")
+
+            # ホワイトリストチェック
+            is_allowed = any(
+                normalized_path.startswith(allowed.strip())
+                for allowed in self.allowed_paths
+            )
+            if not is_allowed:
+                raise ValueError(f"Path not in allowed list: {path}")
+
+            # 存在チェック
+            if os.path.exists(normalized_path):
+                validated_paths.append(normalized_path)
+            else:
+                logger.warning(f"Path not found: {path}")
+
+        return validated_paths
+
+    async def _collect_files(
+        self, 
+        paths: List[str], 
+        exclude_patterns: List[str]
+    ) -> List[str]:
+        """
+        ファイル収集（ディレクトリの場合は再帰的に処理）
+        """
+        collected_files = []
+
+        for path in paths:
+            if os.path.isfile(path):
+                if not self._should_exclude(path, exclude_patterns):
+                    collected_files.append(path)
+            elif os.path.isdir(path):
+                for root, dirs, files in os.walk(path):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        if not self._should_exclude(file_path, exclude_patterns):
+                            collected_files.append(file_path)
+
+        return collected_files
+
+    async def _create_zip_archive(
+        self, 
+        files: List[str], 
+        collection_id: str, 
+        max_size_mb: int
+    ) -> str:
+        """
+        ファイルをzip形式で圧縮
+        """
+        with tempfile.NamedTemporaryFile(
+            suffix=f"_{collection_id}.zip",
+            delete=False
+        ) as temp_file:
+            archive_path = temp_file.name
+
+        total_size = 0
+        max_size_bytes = max_size_mb * 1024 * 1024
+
+        with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for file_path in files:
+                try:
+                    file_size = os.path.getsize(file_path)
+
+                    if total_size + file_size > max_size_bytes:
+                        logger.warning(f"Archive size limit reached: {max_size_mb}MB")
+                        break
+
+                    # アーカイブ内でのパス名を設定
+                    arcname = os.path.relpath(file_path, '/')
+                    zipf.write(file_path, arcname)
+                    total_size += file_size
+
+                except (OSError, PermissionError) as e:
+                    logger.warning(f"Cannot read file {file_path}: {e}")
+
+        logger.info(f"Created archive: {archive_path} ({total_size} bytes)")
+        return archive_path
+
+    async def _upload_archive(self, collection_id: str, archive_path: str) -> Dict[str, Any]:
+        """
+        圧縮アーカイブをクラウドにアップロード
+        """
+        headers = {"Authorization": f"Bearer {self.config.EDGE_TOKEN}"}
+
+        with open(archive_path, 'rb') as f:
+            files = {
+                'archive': (
+                    f"{collection_id}.zip",
+                    f,
+                    'application/zip'
+                )
+            }
+
+            response = await self.http_client.post(
+                f"{self.config.CLOUD_SYNC_URL}/file-collection/{collection_id}/upload",
+                files=files,
+                headers=headers,
+                timeout=600.0  # 10分タイムアウト
+            )
+
+            if response.status_code != 200:
+                raise Exception(f"Upload failed: {response.status_code}")
+
+            return response.json()["data"]
+
+    def _should_exclude(self, filepath: str, exclude_patterns: List[str]) -> bool:
+        """
+        ファイルが除外パターンにマッチするかチェック
+        """
+        return any(
+            fnmatch.fnmatch(filepath, pattern)
+            for pattern in exclude_patterns
+        )
+```
+
+#### 5.1.3 クラウド側処理（Cloud Sync Engine）
 ```python
 # app/core/cloud_sync_engine.py
 from datetime import datetime
@@ -541,12 +971,13 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 class CloudSyncEngine:
-    """クラウド側同期エンジン"""
+    """クラウド側同期エンジン（ファイル収集対応）"""
 
-    def __init__(self, db, dapr_client, config):
+    def __init__(self, db, dapr_client, config, file_collection_service):
         self.db = db
         self.dapr_client = dapr_client
         self.config = config
+        self.file_collection_service = file_collection_service
 
     async def process_pull_request(
         self,
@@ -555,7 +986,7 @@ class CloudSyncEngine:
         last_sync_timestamp: datetime,
         sync_type: str = "differential"
     ) -> Dict[str, Any]:
-        """Pull リクエスト処理"""
+        """Pull リクエスト処理（ファイル収集指示を含む）"""
 
         # 同期開始を記録
         sync_id = await self._start_sync_session(
@@ -563,23 +994,43 @@ class CloudSyncEngine:
         )
 
         try:
+            response_data = {}
+
+            # 通常の同期データ取得
             if sync_type == "differential":
-                # 差分データを取得
-                data = await self._get_differential_data(
+                sync_data = await self._get_differential_data(
                     data_type, last_sync_timestamp
                 )
             else:
-                # 一括データを取得
-                data = await self._get_bulk_data(data_type)
+                sync_data = await self._get_bulk_data(data_type)
 
-            # データ圧縮
-            compressed_data = self._compress_data(data)
+            if sync_data:
+                compressed_data = self._compress_data(sync_data)
+                response_data["sync_data"] = {
+                    "records": sync_data,
+                    "compressed_data": compressed_data,
+                    "record_count": len(sync_data)
+                }
+
+            # ファイル収集指示があるかチェック
+            collection_request = await self.file_collection_service.get_pending_collection(edge_id)
+            if collection_request:
+                response_data["file_collection_request"] = {
+                    "collection_id": collection_request.collection_id,
+                    "collection_name": collection_request.collection_name,
+                    "target_paths": collection_request.target_paths,
+                    "exclude_patterns": collection_request.exclude_patterns,
+                    "max_archive_size_mb": collection_request.max_archive_size_mb
+                }
+
+                # 指示を送信済みにマーク
+                await self.file_collection_service.mark_as_sent(collection_request.collection_id)
 
             # 同期成功を記録
             await self._complete_sync_session(
                 sync_id,
-                len(data),
-                len(compressed_data),
+                len(sync_data) if sync_data else 0,
+                len(compressed_data) if sync_data else 0,
                 "success"
             )
 
@@ -587,9 +1038,8 @@ class CloudSyncEngine:
                 "sync_id": sync_id,
                 "data_type": data_type,
                 "sync_type": sync_type,
-                "record_count": len(data),
-                "compressed_data": compressed_data,
-                "timestamp": datetime.utcnow()
+                "timestamp": datetime.utcnow(),
+                **response_data
             }
 
         except Exception as e:
@@ -598,172 +1048,188 @@ class CloudSyncEngine:
                 sync_id, 0, 0, "failed", str(e)
             )
             raise
-
-    async def process_push_request(
-        self,
-        edge_id: str,
-        data_type: str,
-        data: List[Dict[str, Any]]
-    ):
-        """Push リクエスト処理"""
-
-        # 同期開始を記録
-        sync_id = await self._start_sync_session(
-            edge_id, data_type, "differential", "edge-to-cloud"
-        )
-
-        try:
-            # データを各サービスに配信
-            await self._distribute_to_services(data_type, data)
-
-            # 同期成功を記録
-            await self._complete_sync_session(
-                sync_id,
-                len(data),
-                0,
-                "success"
-            )
-
-        except Exception as e:
-            # 同期失敗を記録
-            await self._complete_sync_session(
-                sync_id, 0, 0, "failed", str(e)
-            )
-            raise
-
-    async def _get_differential_data(
-        self,
-        data_type: str,
-        last_sync_timestamp: datetime
-    ) -> List[Dict[str, Any]]:
-        """差分データ取得"""
-
-        # データタイプに応じて適切なサービスから取得
-        if data_type == "master_data":
-            return await self._get_master_data_changes(last_sync_timestamp)
-        elif data_type == "terminal":
-            return await self._get_terminal_changes(last_sync_timestamp)
-        else:
-            raise ValueError(f"Unknown data type: {data_type}")
-
-    async def _distribute_to_services(
-        self,
-        data_type: str,
-        data: List[Dict[str, Any]]
-    ):
-        """受信データを各サービスに配信"""
-
-        service_map = {
-            "tran_log": "cart",
-            "open_close_log": "terminal",
-            "cash_in_out_log": "terminal",
-            "journal": "journal",
-            "log_application": "report",
-            "log_request": "report"
-        }
-
-        target_service = service_map.get(data_type)
-        if not target_service:
-            raise ValueError(f"No service mapping for {data_type}")
-
-        # Dapr Service Invocationで配信
-        await self.dapr_client.invoke_method(
-            target_service,
-            f"sync/{data_type}",
-            data=data
-        )
 ```
 
-### 5.2 一括同期フロー
+### 5.2 ファイル収集サービス
 
-#### 5.2.1 24時間営業対応のノーダウンタイム更新戦略
+#### 5.2.1 ファイル収集サービス実装
 ```python
-# app/services/strategies/bulk_sync.py
-from typing import Dict, Any, List
-from datetime import datetime
-import asyncio
+# app/services/file_collection_service.py
+import os
+import shutil
+from datetime import datetime, timedelta
+from typing import Optional, Dict, Any
+from fastapi import UploadFile
+from fastapi.responses import FileResponse
+from logging import getLogger
 
-class BulkSyncStrategy:
-    """一括同期戦略"""
+logger = getLogger(__name__)
 
-    async def sync_with_versioning(
+class FileCollectionService:
+    """ファイル収集サービス"""
+
+    def __init__(self, db, config):
+        self.db = db
+        self.config = config
+        self.storage_path = config.FILE_COLLECTION_STORAGE_PATH
+        self.retention_days = config.FILE_COLLECTION_RETENTION_DAYS
+
+    async def create_collection_request(
         self,
-        db,
+        edge_id: str,
         collection_name: str,
-        new_data: List[Dict[str, Any]]
-    ):
+        target_paths: List[str],
+        exclude_patterns: List[str] = None,
+        max_archive_size_mb: int = 100,
+        requested_by: str = "system"
+    ) -> Dict[str, Any]:
         """
-        バージョニング方式での一括同期
-
-        1. 新バージョンのデータを投入
-        2. バージョンを切り替え
-        3. 旧バージョンのデータを削除
+        ファイル収集リクエストの作成
         """
+        collection_id = self._generate_collection_id(edge_id)
 
-        # 現在のバージョンを取得
-        current_version = await self._get_current_version(db, collection_name)
-        new_version = current_version + 1
+        # 収集指示をDBに保存
+        instruction_doc = {
+            "collection_id": collection_id,
+            "edge_id": edge_id,
+            "collection_name": collection_name,
+            "target_paths": target_paths,
+            "exclude_patterns": exclude_patterns or [],
+            "max_archive_size_mb": max_archive_size_mb,
+            "status": "pending",
+            "priority": "normal",
+            "requested_by": requested_by,
+            "expires_at": datetime.utcnow() + timedelta(hours=24),
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
 
-        # 新バージョンのデータを投入
-        for item in new_data:
-            item["_sync_version"] = new_version
-            item["_sync_active"] = False
+        await self.db.file_collection_instruction.insert_one(instruction_doc)
 
-        await db[collection_name].insert_many(new_data)
+        return {
+            "collection_id": collection_id,
+            "status": "queued",
+            "message": "File collection request created"
+        }
 
-        # バージョン切り替え（トランザクション）
-        async with await db.client.start_session() as session:
-            async with session.start_transaction():
-                # 新バージョンをアクティブ化
-                await db[collection_name].update_many(
-                    {"_sync_version": new_version},
-                    {"$set": {"_sync_active": True}},
-                    session=session
-                )
+    async def get_pending_collection(self, edge_id: str) -> Optional[Dict[str, Any]]:
+        """
+        指定エッジの未送信収集指示を取得
+        """
+        instruction = await self.db.file_collection_instruction.find_one({
+            "edge_id": edge_id,
+            "status": "pending",
+            "expires_at": {"$gt": datetime.utcnow()}
+        })
 
-                # 旧バージョンを非アクティブ化
-                await db[collection_name].update_many(
-                    {"_sync_version": current_version},
-                    {"$set": {"_sync_active": False}},
-                    session=session
-                )
+        return instruction
 
-        # 旧バージョンを遅延削除（5分後）
-        await asyncio.sleep(300)
-        await db[collection_name].delete_many(
-            {"_sync_version": current_version}
+    async def mark_as_sent(self, collection_id: str):
+        """
+        収集指示を送信済みにマーク
+        """
+        await self.db.file_collection_instruction.update_one(
+            {"collection_id": collection_id},
+            {
+                "$set": {
+                    "status": "sent",
+                    "updated_at": datetime.utcnow()
+                }
+            }
         )
 
-    async def sync_with_shadow_table(
+    async def receive_archive(
         self,
-        db,
-        collection_name: str,
-        new_data: List[Dict[str, Any]]
-    ):
+        collection_id: str,
+        edge_id: str,
+        archive_file: UploadFile
+    ) -> Dict[str, Any]:
         """
-        Shadow Table方式での一括同期
-
-        1. 一時コレクションにデータ投入
-        2. コレクション名を入れ替え
-        3. 旧コレクションを削除
+        エッジからのアーカイブファイル受信
         """
+        # 収集リクエストの存在確認
+        request_doc = await self.db.file_collection_request.find_one({
+            "collection_id": collection_id,
+            "edge_id": edge_id
+        })
 
-        temp_collection = f"{collection_name}_temp"
-        backup_collection = f"{collection_name}_backup"
+        if not request_doc:
+            raise ValueError(f"Collection request not found: {collection_id}")
 
-        # 一時コレクションにデータ投入
-        await db[temp_collection].insert_many(new_data)
+        # ファイル保存
+        archive_path = os.path.join(
+            self.storage_path,
+            f"{collection_id}.zip"
+        )
 
-        # インデックス作成
-        await self._create_indexes(db[temp_collection], collection_name)
+        os.makedirs(os.path.dirname(archive_path), exist_ok=True)
 
-        # コレクション名の入れ替え（原子的操作）
-        await db[collection_name].rename(backup_collection)
-        await db[temp_collection].rename(collection_name)
+        with open(archive_path, 'wb') as f:
+            shutil.copyfileobj(archive_file.file, f)
 
-        # バックアップコレクションを遅延削除
-        await asyncio.sleep(300)
-        await db.drop_collection(backup_collection)
+        # 履歴に記録
+        history_doc = {
+            "collection_id": collection_id,
+            "edge_id": edge_id,
+            "collection_name": request_doc["collection_name"],
+            "target_paths": request_doc["target_paths"],
+            "exclude_patterns": request_doc["exclude_patterns"],
+            "start_time": request_doc.get("start_time", datetime.utcnow()),
+            "end_time": datetime.utcnow(),
+            "processing_time_ms": 0,  # エッジ側で計算
+            "status": "completed",
+            "file_count": 0, # メタデータから取得
+            "archive_size_bytes": archive_file.size,
+            "archive_path": archive_path,
+            "error_details": None,
+            "requested_by": request_doc["requested_by"],
+            "created_at": datetime.utcnow()
+        }
+
+        await self.db.file_collection_history.insert_one(history_doc)
+
+        # リクエストを完了にマーク
+        await self.db.file_collection_request.update_one(
+            {"collection_id": collection_id},
+            {
+                "$set": {
+                    "status": "completed",
+                    "end_time": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+
+        return {
+            "collection_id": collection_id,
+            "file_count": 0,  # 後で実装
+            "archive_size_bytes": archive_file.size,
+            "status": "completed"
+        }
+
+    async def download_archive(self, collection_id: str) -> FileResponse:
+        """
+        収集済みアーカイブのダウンロード
+        """
+        history = await self.db.file_collection_history.find_one({
+            "collection_id": collection_id
+        })
+
+        if not history or not os.path.exists(history["archive_path"]):
+            raise ValueError(f"Archive not found: {collection_id}")
+
+        return FileResponse(
+            path=history["archive_path"],
+            filename=f"{collection_id}.zip",
+            media_type="application/zip"
+        )
+
+    def _generate_collection_id(self, edge_id: str) -> str:
+        """
+        収集IDの生成
+        """
+        import ulid
+        return f"COLLECT_{self.config.TENANT_ID}_{edge_id}_{ulid.new().str}"
 ```
 
 ## 6. サービス間通信
@@ -806,6 +1272,12 @@ class SyncTopics:
 
     # 同期エラー通知
     SYNC_ERROR = "sync.error"
+
+    # ファイル収集完了通知
+    FILE_COLLECTION_COMPLETED = "sync.file_collection.completed"
+
+    # ファイル収集エラー通知
+    FILE_COLLECTION_ERROR = "sync.file_collection.error"
 ```
 
 ### 6.2 他サービスとの連携
@@ -1301,10 +1773,15 @@ class SyncSettings(BaseSettings):
         "tran_log",
         "open_close_log",
         "cash_in_out_log",
-        "journal",
-        "log_application",
-        "log_request"
+        "journal"
+        # 注記: アプリケーションログはファイル収集で処理
     ]
+
+    # ファイル収集設定
+    FILE_COLLECTION_MAX_ARCHIVE_SIZE_MB: int = 100
+    FILE_COLLECTION_ALLOWED_PATHS: str = "/var/log/kugelpos,/opt/kugelpos/data"
+    FILE_COLLECTION_STORAGE_PATH: str = "/storage/collections"
+    FILE_COLLECTION_RETENTION_DAYS: int = 30
 
     # バッチ処理設定
     BATCH_SIZE: int = 1000
@@ -1346,56 +1823,90 @@ settings = SyncSettings()
 
 ## 12. テスト戦略
 
-### 12.1 単体テスト例
+### 12.1 単体テスト例（ファイル収集を含む）
 ```python
-# tests/test_sync_engine.py
+# tests/test_file_collection_engine.py
 import pytest
+import tempfile
+import os
+import zipfile
 from unittest.mock import Mock, AsyncMock
-from app.core.edge_sync_engine import EdgeSyncEngine
+from app.core.file_collection_engine import FileCollectionEngine
 
 @pytest.mark.asyncio
-async def test_pull_sync_success():
-    """Pull同期成功テスト"""
+async def test_file_collection_success():
+    """ファイル収集成功テスト"""
 
     # モック設定
     config = Mock(
-        CLOUD_SYNC_URL="http://cloud.example.com",
-        SYNC_POLL_INTERVAL=60
+        FILE_COLLECTION_ALLOWED_PATHS="/tmp/test",
+        EDGE_TOKEN="test_token"
     )
     http_client = AsyncMock()
-    queue_manager = AsyncMock()
+    
+    engine = FileCollectionEngine(config, http_client)
 
-    engine = EdgeSyncEngine(config, http_client, queue_manager)
+    # テスト用ファイル作成
+    with tempfile.TemporaryDirectory() as temp_dir:
+        test_file = os.path.join(temp_dir, "test.log")
+        with open(test_file, 'w') as f:
+            f.write("test log content")
 
-    # テストデータ
-    http_client.post.return_value = Mock(
-        status_code=200,
-        json=lambda: {
-            "data": {
-                "records": [{"id": 1, "name": "test"}],
-                "sync_id": "SYNC123"
-            }
+        # 実行
+        request = {
+            "collection_id": "TEST_COLLECT_001",
+            "target_paths": [test_file],
+            "exclude_patterns": [],
+            "max_archive_size_mb": 100
         }
+
+        # HTTP応答をモック
+        http_client.post.return_value = Mock(
+            status_code=200,
+            json=lambda: {"data": {"size": 1024}}
+        )
+
+        result = await engine.process_collection_request(request)
+
+        # 検証
+        assert result["status"] == "completed"
+        assert result["file_count"] == 1
+        assert http_client.post.called
+
+@pytest.mark.asyncio
+async def test_file_collection_path_validation():
+    """パス検証テスト"""
+
+    config = Mock(
+        FILE_COLLECTION_ALLOWED_PATHS="/var/log/kugelpos"
     )
+    engine = FileCollectionEngine(config, None)
 
-    # 実行
-    await engine._pull_sync("master_data")
+    # 禁止パスのテスト
+    forbidden_paths = ["/etc/passwd", "/root/.ssh/id_rsa"]
+    
+    with pytest.raises(ValueError, match="Forbidden path"):
+        await engine._validate_paths(forbidden_paths)
 
-    # 検証
-    assert http_client.post.called
-    assert queue_manager.add_to_queue.not_called
+    # 許可されていないパスのテスト
+    unauthorized_paths = ["/home/user/file.txt"]
+    
+    with pytest.raises(ValueError, match="Path not in allowed list"):
+        await engine._validate_paths(unauthorized_paths)
 ```
 
-### 12.2 統合テスト例
+### 12.2 統合テスト例（ファイル収集を含む）
 ```python
-# tests/test_sync_integration.py
+# tests/test_file_collection_integration.py
 import pytest
+import tempfile
+import os
 from httpx import AsyncClient
 from app.main import app
 
 @pytest.mark.asyncio
-async def test_end_to_end_sync_flow():
-    """エンドツーエンド同期フロー"""
+async def test_file_collection_end_to_end():
+    """ファイル収集エンドツーエンドテスト"""
 
     async with AsyncClient(app=app, base_url="http://test") as client:
         # 認証
@@ -1408,12 +1919,26 @@ async def test_end_to_end_sync_flow():
             }
         )
 
-        assert auth_response.status_code == 200
         token = auth_response.json()["data"]["access_token"]
 
-        # Pull同期
+        # ファイル収集指示作成（管理者）
+        collection_response = await client.post(
+            "/api/v1/sync/file-collection/",
+            json={
+                "edge_id": "EDGE001",
+                "collection_name": "test_logs",
+                "target_paths": ["/var/log/kugelpos/test.log"],
+                "exclude_patterns": ["*.tmp"],
+                "max_archive_size_mb": 50,
+                "requested_by": "admin"
+            }
+        )
+
+        collection_id = collection_response.json()["data"]["collection_id"]
+
+        # 同期リクエスト（ファイル収集指示を受信）
         sync_response = await client.post(
-            "/api/v1/sync/pull",
+            "/api/v1/sync/request",
             headers={"Authorization": f"Bearer {token}"},
             json={
                 "data_type": "master_data",
@@ -1423,16 +1948,38 @@ async def test_end_to_end_sync_flow():
         )
 
         assert sync_response.status_code == 200
-        assert "sync_id" in sync_response.json()["data"]
+        response_data = sync_response.json()["data"]
+        assert "file_collection_request" in response_data
+
+        # ファイルアップロード（エッジからの模擬アップロード）
+        with tempfile.NamedTemporaryFile(suffix=".zip") as temp_zip:
+            with zipfile.ZipFile(temp_zip, 'w') as zipf:
+                zipf.writestr("test.log", "test log content")
+
+            temp_zip.seek(0)
+            
+            upload_response = await client.post(
+                f"/api/v1/sync/file-collection/{collection_id}/upload",
+                headers={"Authorization": f"Bearer {token}"},
+                files={"archive": ("test.zip", temp_zip, "application/zip")}
+            )
+
+            assert upload_response.status_code == 200
 ```
 
 ## 13. デプロイメント
 
-### 13.1 Dockerfile
+### 13.1 Dockerfile（ファイル収集対応）
 ```dockerfile
 FROM python:3.12-slim
 
 WORKDIR /app
+
+# システムパッケージ（zip処理用）
+RUN apt-get update && apt-get install -y \
+    zip \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
 
 # 依存関係インストール
 COPY Pipfile Pipfile.lock ./
@@ -1441,6 +1988,9 @@ RUN pip install pipenv && pipenv install --system --deploy
 # アプリケーションコピー
 COPY . .
 
+# ストレージディレクトリ作成
+RUN mkdir -p /storage/collections
+
 # ポート公開
 EXPOSE 8007
 
@@ -1448,7 +1998,7 @@ EXPOSE 8007
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8007"]
 ```
 
-### 13.2 Docker Compose設定
+### 13.2 Docker Compose設定（ファイル収集対応）
 ```yaml
 # services/docker-compose.yml への追加
   sync:
@@ -1465,6 +2015,8 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8007"]
       - EDGE_ID=${EDGE_ID:-}
       - EDGE_SECRET=${EDGE_SECRET:-}
       - CLOUD_SYNC_URL=${CLOUD_SYNC_URL:-}
+      - FILE_COLLECTION_ALLOWED_PATHS=/var/log/kugelpos,/opt/kugelpos/data
+      - FILE_COLLECTION_STORAGE_PATH=/storage/collections
       - LOG_LEVEL=INFO
     depends_on:
       - mongodb
@@ -1472,45 +2024,3 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8007"]
     networks:
       - kugelpos-network
     volumes:
-      - ./sync:/app
-    restart: unless-stopped
-```
-
-## 14. 運用考慮事項
-
-### 14.1 監視項目
-- 同期遅延時間
-- 同期失敗率
-- データ転送量
-- キューサイズ
-- エッジ端末の接続状態
-- サーキットブレーカー状態
-
-### 14.2 アラート設定
-- 同期遅延が5分を超えた場合
-- 同期失敗率が10%を超えた場合
-- キューサイズが80%を超えた場合
-- エッジ端末の切断が30分以上続いた場合
-
-### 14.3 メンテナンス
-- 同期履歴の定期削除（30日以上前のデータ）
-- キューデータのクリーンアップ
-- 失敗した同期の手動リトライ
-- エッジ端末の認証情報ローテーション
-
-## 15. 今後の拡張計画
-
-### 15.1 Phase 2
-- 優先度ベースの同期制御
-- 差分圧縮アルゴリズムの最適化
-- リアルタイム同期（WebSocket）
-
-### 15.2 Phase 3
-- 競合解決戦略の拡張（CRDTなど）
-- マルチリージョン対応
-- エッジ間同期（P2P）
-
-### 15.3 Phase 4
-- AI基づいた同期スケジュール最適化
-- 予測的データプリフェッチ
-- 自動フェイルオーバー機能

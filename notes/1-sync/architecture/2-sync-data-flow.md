@@ -2,7 +2,7 @@
 
 ## 2. Data Flow Patterns
 
-このセクションでは、クラウドとエッジ環境間でのデータフローパターンを示しています。データの種類と特性に応じて、3つの異なる同期パターンを採用しています。
+このセクションでは、クラウドとエッジ環境間でのデータフローパターンを示しています。データの種類と特性に応じて、4つの異なる同期パターンを採用しています。
 
 **重要**: Syncサービスは自身が管理するデータベースのみ直接アクセス可能です。他サービスが管理するデータについては、それぞれのサービスのAPIを通じてアクセスします。これにより、サービス間の責任境界を明確にし、データの整合性を保証します。
 
@@ -39,7 +39,7 @@ flowchart TB
 
 - **Transactions（取引データ）**: 売上、返品、取消などの取引情報
 - **Open/Close Logs（開設精算ログ）**: 開店・閉店処理、精算情報
-- **Cash In/Out Logs（入出金ログ）**: 現金の入出金記録
+- **Cash In/Out Logs（入出金ログ）: 現金の入出金記録
 
 これらのデータは、リアルタイムまたはバッチで集約され、クラウドで分析・保管されます。
 
@@ -89,30 +89,42 @@ flowchart BT
     style Edge fill:#fff3e0
 ```
 
-### エッジ → クラウド（アプリケーションログ）
-各サービスから生成されるログデータはエッジからクラウドへ送信されます：
+### エッジ → クラウド（ファイル収集）
+エッジ環境のファイルは、クラウドからの指示に基づいてzip形式で圧縮収集されます：
 
-- **App Logs（アプリログ）**: 各サービスのアプリケーションログ（システムイベント、エラー、デバッグ情報）
-- **Request Logs（リクエストログ）**: 各サービスのAPIリクエスト/レスポンスログ
+- **Application Logs（アプリケーションログ）**: 各サービスのアプリケーションログ、APIリクエストログ
+- **System Files（システムファイル）**: 設定ファイル、データベースファイル
+- **Configuration Files（設定ファイル）**: アプリケーション設定、環境設定
 
-これらのログは、account、terminal、master-data、cart、report、journal、stock、syncの各サービスごとに生成され、システムの監視、トラブルシューティング、パフォーマンス分析に使用されます。
+これらのファイルは、トラブルシューティング、コンプライアンス対応、システム監視のためにオンデマンドで収集されます。
+
+**収集フロー:**
+1. 定期同期レスポンスに収集指示が含まれる場合に実行
+2. エッジ側でファイルをzip形式で圧縮
+3. 圧縮ファイルをクラウドに送信
+4. クラウドでアーカイブを保存・管理
+
+**注記**: アプリケーションログ（各サービスのアプリログ、APIリクエストログ）は、従来の差分同期ではなく、このファイル収集機能によって収集されます。これにより、ログファイルの効率的な圧縮転送と長期保管が可能になります。
 
 ```mermaid
 flowchart BT
     subgraph Edge["Edge Environment"]
-        direction LR
-        EA2[Edge Services<br/>All Services] --> ES6[Edge Sync]
+        direction TB
+        EFS[Edge File System<br/>App Logs, Config Files<br/>System Files] --> ES6[Edge Sync]
+        ES6 -->|Zip Compression| EZip[Archive.zip]
     end
 
     subgraph Cloud["Cloud Environment"]
-        direction LR
-        CS6[Cloud Sync] --> CJ3[Cloud Journal ※仮]
+        direction TB
+        CS6[Cloud Sync] --> CFS[Cloud File Storage<br/>Archive Repository]
     end
 
-    ES6 -->|Application Logs<br/>App Logs, Request Logs<br/>per service| CS6
+    EZip -->|File Collection<br/>On-demand<br/>Zip Archive| CS6
 
     style Cloud fill:#e1f5fe
     style Edge fill:#fff3e0
+    style EZip fill:#f0f8ff,stroke:#4169e1,stroke-width:2px
+    style CFS fill:#ffe4e1,stroke:#dc143c,stroke-width:2px
 ```
 
 ### 双方向同期（ターミナルデータ）
