@@ -9,6 +9,7 @@
 - 店舗のPOSシステムは、ネットワーク障害時でも業務を継続できる必要がある
 - クラウドで一元管理されるマスターデータを各店舗に配信する必要がある
 - 店舗で発生したトランザクションデータをクラウドに集約して分析する必要がある
+- トラブルシューティングやコンプライアンス対応のため、エッジ環境のファイルをクラウドで収集する必要がある
 
 ### 1.3 スコープ
 本サービスは以下のデータの同期を対象とする：
@@ -16,6 +17,7 @@
 - **トランザクションデータ**: 取引ログ（売上・返品・取消を含む）、開設精算、入出金
 - **ジャーナルデータ**: 電子ジャーナル
 - **アプリケーションログ**: システムログ、エラーログ、操作ログ
+- **ファイル収集**: エッジ環境の任意ファイル・ディレクトリの圧縮収集
 
 ## 2. 機能要件
 
@@ -112,6 +114,7 @@
 | journal | エッジ→クラウド | ✓ | × | 30秒-1分 | 電子ジャーナル |
 | log_application | エッジ→クラウド | ✓ | × | 30秒-1分 | アプリログ |
 | log_request | エッジ→クラウド | ✓ | × | 30秒-1分 | APIリクエストログ |
+| file_collection | エッジ→クラウド | × | ✓ | オンデマンド | 任意ファイル・ディレクトリの収集 |
 
 **注記:**
 - ✓: サポート、×: 非サポート
@@ -189,6 +192,46 @@
 - ネットワーク障害時はローカルキューに保存
 - ネットワーク復旧時に未送信分を自動送信
 
+#### 2.3.5 ファイル収集（エッジ → クラウド）
+
+**対象データ:**
+- エッジ環境の任意のファイル・ディレクトリ
+- 設定ファイル、ログファイル、データベースファイル、アプリケーションファイル等
+
+**同期方法:**
+- **同期レスポンス連動**: エッジ側の定期同期リクエストのレスポンスに収集指示が含まれる場合に実行
+- **圧縮アーカイブ**: 収集対象をzip形式で圧縮してクラウドに送信
+
+**収集フロー:**
+1. エッジ側が定期的な同期リクエスト（tran_log, journal等）をクラウド側に送信
+2. クラウド側が同期レスポンスを返却
+   - 通常の同期データ + 収集指示（オプション）
+   - 収集指示内容：対象パス、アーカイブファイル名、除外パターン
+3. エッジ側がレスポンスに収集指示が含まれている場合、収集処理を開始
+   - 指定パスの存在確認とアクセス権限チェック
+   - セキュリティ検証（パストラバーサル攻撃対策、ホワイトリスト検証）
+4. エッジ側が指定パスを圧縮アーカイブ作成
+   - zip形式での圧縮
+   - 最大アーカイブサイズ制限（100MB、設定可能）
+   - 一時ディレクトリでの作業
+5. エッジ側がファイル収集専用APIでクラウド側にアーカイブを送信
+   - チャンク分割対応（大容量ファイル用）
+   - 送信完了後、一時ファイルを削除
+6. クラウド側がアーカイブを受信・保存
+7. 次回の同期リクエスト時に収集完了を通知
+
+**セキュリティ制限:**
+- 収集可能パスの事前許可制（ホワイトリスト、環境変数で設定）
+- システムディレクトリ（/etc, /root, /sys, /proc等）の収集禁止
+- 最大ファイルサイズ・アーカイブサイズ制限
+- パストラバーサル攻撃の検証
+- 収集権限の事前チェック
+
+**同期タイミング:**
+- 定期同期リクエストのレスポンスに収集指示が含まれている場合のみ実行
+- クラウド側で収集が必要と判断された際に指示
+- 緊急時やトラブルシューティング時の手動指示
+
 ### 2.4 同期状態管理
 
 **管理主体**: クラウド側syncサービスが全エッジインスタンスの同期状態を一元管理
@@ -210,6 +253,9 @@
 【アプリケーションログ（エッジ → クラウド）】
 - `log_application`: アプリログ
 - `log_request`: APIリクエストログ
+
+【ファイル収集（エッジ → クラウド）】
+- `file_collection`: 任意ファイル・ディレクトリの圧縮収集
 
 #### 2.4.1 同期ステータス
 
@@ -388,24 +434,50 @@ Error Response: 404 Not Found
 
 ### 4.2 同期API
 
-#### 4.2.1 同期状態確認
+#### 4.2.1 同期状態確認（エッジ側からの定期リクエスト）
 ```
-GET /api/v1/sync/status
+POST /api/v1/sync/request
 Headers:
   Authorization: Bearer <JWT_TOKEN>
+  Content-Type: application/json
+
+Request:
+{
+  "edge_id": "EDGE001",
+  "data_type": "tran_log",
+  "last_sync_timestamp": "2025-01-15T10:00:00Z",
+  "sync_type": "differential"
+}
 
 Response: 200 OK
 {
   "success": true,
   "data": {
-    "edge_id": "EDGE001",
-    "sync_statuses": [
-      {
-        "data_type": "tran_log",
-        "last_sync": "2025-01-15T10:30:00Z",
-        "status": "completed"
-      }
-    ]
+    "sync_data": {
+      "records": [...],
+      "next_sync_timestamp": "2025-01-15T10:30:00Z"
+    },
+    "file_collection_request": {
+      "collection_id": "COLLECT_A1234_EDGE001_01JK3X9Y5Z8QWERTYU",
+      "collection_name": "error_logs_20250115",
+      "target_paths": [
+        "/var/log/kugelpos/error.log",
+        "/var/log/kugelpos/application/"
+      ],
+      "exclude_patterns": ["*.tmp", "cache/*"],
+      "max_archive_size_mb": 50
+    }
+  }
+}
+
+Response (収集指示なしの場合): 200 OK
+{
+  "success": true,
+  "data": {
+    "sync_data": {
+      "records": [...],
+      "next_sync_timestamp": "2025-01-15T10:30:00Z"
+    }
   }
 }
 
@@ -487,6 +559,135 @@ Error Response: 400 Bad Request
   "error": {
     "code": "SYNC_002",
     "message": "Invalid date format"
+  }
+}
+```
+
+#### 4.2.4 ファイル送信（エッジからクラウドへ）
+```
+POST /api/v1/sync/file-collection/{collection_id}/upload
+Headers:
+  Authorization: Bearer <JWT_TOKEN>
+  Content-Type: multipart/form-data
+
+Request:
+Content-Disposition: form-data; name="archive"; filename="error_logs_20250115.zip"
+Content-Type: application/zip
+
+<compressed archive data>
+
+Response: 200 OK
+{
+  "success": true,
+  "data": {
+    "collection_id": "COLLECT_A1234_EDGE001_01JK3X9Y5Z8QWERTYU",
+    "file_count": 45,
+    "archive_size_bytes": 15728640,
+    "status": "completed",
+    "message": "File collection completed successfully"
+  }
+}
+
+Error Response: 413 Payload Too Large
+{
+  "success": false,
+  "error": {
+    "code": "COLLECT_004",
+    "message": "Archive size exceeds maximum limit"
+  }
+}
+
+Error Response: 400 Bad Request
+{
+  "success": false,
+  "error": {
+    "code": "COLLECT_005",
+    "message": "Invalid archive format or corrupted file"
+  }
+}
+```
+
+#### 4.2.5 ファイル収集状態通知（エッジからクラウドへ）
+```
+POST /api/v1/sync/file-collection/{collection_id}/status
+Headers:
+  Authorization: Bearer <JWT_TOKEN>
+  Content-Type: application/json
+
+Request:
+{
+  "collection_id": "COLLECT_A1234_EDGE001_01JK3X9Y5Z8QWERTYU",
+  "status": "failed",
+  "error_details": {
+    "error_code": "PERMISSION_DENIED",
+    "message": "Cannot access /var/log/kugelpos/application/",
+    "failed_paths": ["/var/log/kugelpos/application/"]
+  }
+}
+
+Response: 200 OK
+{
+  "success": true,
+  "data": {
+    "collection_id": "COLLECT_A1234_EDGE001_01JK3X9Y5Z8QWERTYU",
+    "status": "acknowledged",
+    "message": "Status update received"
+  }
+}
+```
+
+#### 4.2.6 ファイル収集履歴確認
+```
+GET /api/v1/sync/file-collection/{collection_id}
+Headers:
+  Authorization: Bearer <JWT_TOKEN>
+
+Response: 200 OK
+{
+  "success": true,
+  "data": {
+    "collection_id": "COLLECT_A1234_EDGE001_01JK3X9Y5Z8QWERTYU",
+    "edge_id": "EDGE001",
+    "collection_name": "error_logs_20250115",
+    "status": "completed",
+    "file_count": 45,
+    "archive_size_bytes": 15728640,
+    "download_url": "/api/v1/sync/file-collection/COLLECT_A1234_EDGE001_01JK3X9Y5Z8QWERTYU/download",
+    "start_time": "2025-01-15T14:00:00Z",
+    "end_time": "2025-01-15T14:02:30Z"
+  }
+}
+
+Error Response: 404 Not Found
+{
+  "success": false,
+  "error": {
+    "code": "COLLECT_002",
+    "message": "Collection not found"
+  }
+}
+```
+
+#### 4.2.7 ファイルダウンロード
+```
+GET /api/v1/sync/file-collection/{collection_id}/download
+Headers:
+  Authorization: Bearer <JWT_TOKEN>
+
+Response: 200 OK
+Headers:
+  Content-Type: application/zip
+  Content-Disposition: attachment; filename="error_logs_20250115.zip"
+  Content-Length: 15728640
+
+Body: <compressed archive data>
+
+Error Response: 404 Not Found
+{
+  "success": false,
+  "error": {
+    "code": "COLLECT_003",
+    "message": "Archive file not found or expired"
   }
 }
 ```
@@ -576,6 +777,73 @@ Error Response: 400 Bad Request
 }
 ```
 
+### 5.5 ファイル収集リクエスト（file_collection_request）
+```json
+{
+  "_id": "ObjectId",
+  "collection_id": "COLLECT_A1234_EDGE001_01JK3X9Y5Z8QWERTYU",
+  "edge_id": "EDGE001",
+  "collection_name": "error_logs_20250115",
+  "target_paths": [
+    "/var/log/kugelpos/error.log",
+    "/var/log/kugelpos/application/"
+  ],
+  "exclude_patterns": ["*.tmp", "cache/*"],
+  "max_archive_size_mb": 50,
+  "status": "queued",  // queued|processing|completed|failed|expired
+  "requested_by": "admin_user_123",
+  "created_at": "2025-01-15T14:00:00Z",
+  "updated_at": "2025-01-15T14:00:00Z"
+}
+```
+
+### 5.6 ファイル収集履歴（file_collection_history）
+```json
+{
+  "_id": "ObjectId",
+  "collection_id": "COLLECT_A1234_EDGE001_01JK3X9Y5Z8QWERTYU",
+  "edge_id": "EDGE001",
+  "collection_name": "error_logs_20250115",
+  "target_paths": [
+    "/var/log/kugelpos/error.log",
+    "/var/log/kugelpos/application/"
+  ],
+  "exclude_patterns": ["*.tmp", "cache/*"],
+  "start_time": "2025-01-15T14:00:00Z",
+  "end_time": "2025-01-15T14:02:30Z",
+  "file_count": 45,
+  "archive_size_bytes": 15728640,
+  "archive_path": "/storage/collections/COLLECT_A1234_EDGE001_01JK3X9Y5Z8QWERTYU.zip",
+  "status": "completed",
+  "error_details": null,
+  "processing_time_ms": 150000,
+  "requested_by": "admin_user_123",
+  "created_at": "2025-01-15T14:00:00Z"
+}
+```
+
+### 5.7 ファイル収集指示（file_collection_instruction）
+```json
+{
+  "_id": "ObjectId",
+  "collection_id": "COLLECT_A1234_EDGE001_01JK3X9Y5Z8QWERTYU",
+  "edge_id": "EDGE001",
+  "collection_name": "error_logs_20250115",
+  "target_paths": [
+    "/var/log/kugelpos/error.log",
+    "/var/log/kugelpos/application/"
+  ],
+  "exclude_patterns": ["*.tmp", "cache/*"],
+  "max_archive_size_mb": 50,
+  "status": "pending",  // pending|sent|processing|completed|failed|expired
+  "priority": "normal",  // low|normal|high|urgent
+  "requested_by": "admin_user_123",
+  "expires_at": "2025-01-16T14:00:00Z",
+  "created_at": "2025-01-15T14:00:00Z",
+  "updated_at": "2025-01-15T14:00:00Z"
+}
+```
+
 ## 6. 実装提案
 
 ### 6.1 技術スタック
@@ -585,7 +853,7 @@ Error Response: 400 Bad Request
 - **データベース**: MongoDB (Motor)
 - **キャッシュ**: Redis
 - **メッセージング**: Dapr Pub/Sub
-- **圧縮**: gzip/brotli
+- **圧縮**: zip（ファイル収集用）、gzip/brotli（データ転送用）
 - **暗号化**: TLS 1.3
 
 ### 6.2 ディレクトリ構成
@@ -642,4 +910,10 @@ RETRY_BACKOFF_BASE=2
 # サーキットブレーカー
 CIRCUIT_BREAKER_THRESHOLD=3
 CIRCUIT_BREAKER_TIMEOUT=60
+
+# ファイル収集設定
+FILE_COLLECTION_MAX_ARCHIVE_SIZE_MB=100
+FILE_COLLECTION_ALLOWED_PATHS=/var/log/kugelpos,/opt/kugelpos/data,/tmp/kugelpos
+FILE_COLLECTION_STORAGE_PATH=/storage/collections
+FILE_COLLECTION_RETENTION_DAYS=30
 ```
