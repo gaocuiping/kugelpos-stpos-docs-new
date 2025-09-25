@@ -30,17 +30,18 @@
 
 ### 同期対象データ
 1. **マスターデータ**: 商品、価格、決済方法、税制、スタッフ情報など（クラウド→エッジ）
-2. **トランザクションデータ**: 取引ログ、開設精算、入出金（エッジ→クラウド）
-3. **ジャーナルデータ**: 電子ジャーナル（エッジ→クラウド）
-4. **ファイル収集**: アプリケーションログ、設定ファイル、システムファイル等（エッジ→クラウド、zip圧縮）
+2. **ターミナルデータ**: テナント情報、店舗情報、端末情報、端末ステータス（双方向同期）
+3. **トランザクションデータ**: 取引ログ、開設精算、入出金（エッジ→クラウド）
+4. **ジャーナルデータ**: 電子ジャーナル（エッジ→クラウド）
+5. **ファイル収集**: アプリケーションログ、設定ファイル、システムファイル等（エッジ→クラウド、zip圧縮）
 
 ```mermaid
 graph TB
     subgraph "Cloud Environment"
-        CS[Sync Service<br/>Cloud Mode]
-        CM[MongoDB<br/>Cloud]
-        CR[Redis<br/>Cloud]
-        CFS[File Storage<br/>Archive Repository]
+        CS[Sync Service<br>Cloud Mode]
+        CM[MongoDB<br>Cloud]
+        CR[Redis<br>Cloud]
+        CFS[File Storage<br>Archive Repository]
         
         subgraph "Cloud Services"
             CA[Account Service]
@@ -65,10 +66,10 @@ graph TB
     end
     
     subgraph "Edge Environment"
-        ES[Sync Service<br/>Edge Mode]
-        EM[MongoDB<br/>Edge]
-        ER[Redis<br/>Edge]
-        EFS[File System<br/>Logs & Config]
+        ES[Sync Service<br>Edge Mode]
+        EM[MongoDB<br>Edge]
+        ER[Redis<br>Edge]
+        EFS[File System<br>Logs & Config]
         
         subgraph "Edge Services"
             EA[Account Service]
@@ -92,9 +93,9 @@ graph TB
         ES <--> EST
     end
     
-    CS <===> ES
-    CFS -.->|File Archive<br/>(.zip)| CS
-    ES -.->|File Collection<br/>(.zip)| EFS
+    CS <==> ES
+    CFS -->|File Archive<br>zip| CS
+    ES -->|File Collection<br>zip| CS
     
     style CS fill:#f9f,stroke:#333,stroke-width:4px
     style ES fill:#bbf,stroke:#333,stroke-width:4px

@@ -13,10 +13,11 @@
 
 ### 1.3 スコープ
 本サービスは以下のデータの同期を対象とする：
-- **マスターデータ**: 商品、価格、決済方法、税制、スタッフ情報など
-- **トランザクションデータ**: 取引ログ（売上・返品・取消を含む）、開設精算、入出金
-- **ジャーナルデータ**: 電子ジャーナル
-- **ファイル収集**: エッジ環境の任意ファイル・ディレクトリの圧縮収集（アプリケーションログを含む）
+- **マスターデータ**: 商品、価格、決済方法、税制、スタッフ情報など（クラウド→エッジ）
+- **ターミナルデータ**: テナント情報、店舗情報、端末情報、端末ステータス（双方向同期）
+- **トランザクションデータ**: 取引ログ（売上・返品・取消を含む）、開設精算、入出金（エッジ→クラウド）
+- **ジャーナルデータ**: 電子ジャーナル（エッジ→クラウド）
+- **ファイル収集**: エッジ環境の任意ファイル・ディレクトリの圧縮収集（アプリケーションログを含む）（エッジ→クラウド）
 
 ## 2. 機能要件
 
@@ -133,6 +134,7 @@
 - **初期同期**: 一括同期（スナップショット方式）
 - **定期同期**: 差分同期（30-60秒間隔）
 - **手動同期**: 管理画面から任意のタイミングで実行可能
+- **予約反映**: ファイル名に指定された日時での自動反映
 
 **一括同期タイミング:**
 - システム初期セットアップ時
@@ -141,6 +143,14 @@
 
 **差分同期タイミング:**
 - 30秒-1分間隔の定期ポーリング（エッジ側からクラウドへ問い合わせ）
+
+**予約反映の更新タイミング:**
+- **S（Settlement）**: 精算業務完了時に反映
+- **T（Transaction）**: 取引後、商品未登録時に反映
+
+**予約反映の更新区分:**
+- **A（All）**: 全件更新（既存データを全て置き換え）
+- **M（Modified）**: 差分更新（変更分のみ適用）
 
 #### 2.3.2 トランザクションデータ（エッジ → クラウド）
 
@@ -199,8 +209,9 @@
 5. エッジ側がファイル収集専用APIでクラウド側にアーカイブを送信
    - チャンク分割対応（大容量ファイル用）
    - 送信完了後、一時ファイルを削除
-6. クラウド側がアーカイブを受信・保存
-7. 次回の同期リクエスト時に収集完了を通知
+6. クラウド側がアーカイブを受信・保存し、収集完了をレスポンスで通知
+   - 成功時：ステータス"completed"を返却
+   - 失敗時：エラー詳細を返却
 
 **セキュリティ制限:**
 - 収集可能パスの事前許可制（ホワイトリスト、環境変数で設定）
@@ -566,6 +577,20 @@ Response: 200 OK
   }
 }
 
+Response (収集処理失敗時): 200 OK
+{
+  "success": true,
+  "data": {
+    "collection_id": "COLLECT_A1234_EDGE001_01JK3X9Y5Z8QWERTYU",
+    "status": "failed",
+    "error_details": {
+      "error_code": "COLLECTION_ERROR",
+      "message": "Failed to collect some files",
+      "failed_paths": ["/var/log/kugelpos/application/"]
+    }
+  }
+}
+
 Error Response: 413 Payload Too Large
 {
   "success": false,
@@ -585,36 +610,8 @@ Error Response: 400 Bad Request
 }
 ```
 
-#### 4.2.5 ファイル収集状態通知（エッジからクラウドへ）
-```
-POST /api/v1/sync/file-collection/{collection_id}/status
-Headers:
-  Authorization: Bearer <JWT_TOKEN>
-  Content-Type: application/json
 
-Request:
-{
-  "collection_id": "COLLECT_A1234_EDGE001_01JK3X9Y5Z8QWERTYU",
-  "status": "failed",
-  "error_details": {
-    "error_code": "PERMISSION_DENIED",
-    "message": "Cannot access /var/log/kugelpos/application/",
-    "failed_paths": ["/var/log/kugelpos/application/"]
-  }
-}
-
-Response: 200 OK
-{
-  "success": true,
-  "data": {
-    "collection_id": "COLLECT_A1234_EDGE001_01JK3X9Y5Z8QWERTYU",
-    "status": "acknowledged",
-    "message": "Status update received"
-  }
-}
-```
-
-#### 4.2.6 ファイル収集履歴確認
+#### 4.2.5 ファイル収集履歴確認
 ```
 GET /api/v1/sync/file-collection/{collection_id}
 Headers:
@@ -646,7 +643,7 @@ Error Response: 404 Not Found
 }
 ```
 
-#### 4.2.7 ファイルダウンロード
+#### 4.2.6 ファイルダウンロード
 ```
 GET /api/v1/sync/file-collection/{collection_id}/download
 Headers:

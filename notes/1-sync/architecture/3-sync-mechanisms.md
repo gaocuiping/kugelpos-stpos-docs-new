@@ -58,8 +58,7 @@
 3. エッジ側が収集指示を受信した場合、ファイル収集処理を開始
 4. 指定されたパス（ファイル/ディレクトリ）をzip形式で圧縮
 5. 圧縮ファイルをクラウドの専用APIに送信
-6. クラウド側でアーカイブを受信・保存
-7. 次回の同期時に収集完了を通知
+6. クラウド側でアーカイブを受信・保存し、収集完了をレスポンスで通知
 
 **対象ファイル：**
 - アプリケーションログ（各サービスのログファイル、APIリクエストログ）
@@ -101,8 +100,9 @@ sequenceDiagram
                 ES->>ES: Create zip archive
                 ES->>CS: Upload zip archive
                 CS->>CFS: Store archive
+                CS-->>ES: Collection complete response
             end
-            
+
             ES->>CS: Confirm sync status
         end
     end
@@ -137,6 +137,7 @@ sequenceDiagram
         ES->>ES: Create zip archive
         ES->>CS: Upload archive via file collection API
         CS->>CFS: Store compressed archive
-        CS-->>ES: Collection confirmation
+        CS-->>ES: Collection complete (success/failure status)
+        Note right of CS: Immediate confirmation, no waiting for next sync
     end
 ```
