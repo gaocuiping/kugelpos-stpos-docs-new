@@ -1,10 +1,5 @@
 # 機能仕様書: Sync Service データ同期機能
 
-**Feature Branch**: `001-sync-service`
-**Created**: 2025-10-12
-**Status**: Draft
-**Input**: User description: "POSシステムのクラウド環境とエッジ環境（店舗）間でデータ同期を行うSync Serviceを実装してください。"
-
 ## ユーザーシナリオとテスト *(必須)*
 
 ### ユーザーストーリー 1 - マスターデータの自動同期 (優先度: P1)
