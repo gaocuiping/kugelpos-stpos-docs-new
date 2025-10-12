@@ -103,7 +103,7 @@
 
 1. **Given** 管理者向けシステムがAPI（GET /api/v1/devices）にアクセス、**When** エッジ端末一覧を取得、**Then** 各端末の現在バージョン、目標バージョン、ダウンロード状態、適用予定日時が返却される
 2. **Given** 端末の更新が完了、**When** 更新履歴API（GET /api/v1/devices/{edge_id}/history）を取得、**Then** 更新開始・終了時刻、更新データ件数・サイズ、成功/失敗状態が記録されている
-3. **Given** 更新失敗が発生、**When** デバイス詳細API（GET /api/v1/devices/{edge_id}）を取得、**Then** エラー詳細、リトライ回数、ロールバック実施有無が含まれる
+3. **Given** 更新失敗が発生、**When** デバイス詳細API（GET /api/v1/devices/{edge_id}）を取得、**Then** エラー詳細、リトライ回数が含まれる
 4. **Given** ダウンロード完了・適用待ちの端末、**When** 状態フィルタパラメータ（?status=pending_apply）でAPI取得、**Then** 適用待ち端末のみが返却される
 
 ---
@@ -169,7 +169,7 @@
 - **FR-009**: システムは、ダウンロードしたすべてのファイルに対してSHA256チェックサム検証を実行し、不一致時は適用を中止できること
 - **FR-010**: システムは、適用前に現在のバージョンをバックアップし、適用失敗時に自動ロールバック（直前のバージョンに復元）を実行できること
 - **FR-011**: システムは、適用後にすべてのサービスに対してヘルスチェック（/healthエンドポイント）を実行し、失敗時は自動ロールバックできること
-- **FR-012**: システムは、シード端末（`is_p2p_seed=true`）がクラウドContainer Registryから直接コンテナイメージを取得できること（data_source = "cloud"）
+- **FR-012**: システムは、シード端末（`is_p2p_seed=true`）がクラウドContainer Registryから直接コンテナイメージを取得できること
 - **FR-013**: システムは、受信側エッジ端末がP2P優先度制御に基づいて、優先度順（priority昇順: 0→1→2...）にシード端末のRegistryからコンテナイメージを取得できること
 - **FR-014**: システムは、受信側エッジ端末がP2P優先度制御に基づいて、優先度順（priority昇順: 0→1→2...）にシード端末のSync Service APIからファイルを取得できること
 - **FR-015**: システムは、全シード端末でダウンロード失敗した場合、すべてのエッジ端末（シード・非シード問わず）がクラウドへ自動フォールバックできること
@@ -178,9 +178,9 @@
 - **FR-018**: システムは、Manifestにダウンロード完了済みシード端末のリスト（edge_id、priority、URL）を含めて返却できること
 - **FR-019**: システムは、edge_idとsecretによる認証でJWTトークンを発行できること（有効期限1時間）
 - **FR-020**: システムは、各エッジ端末のedge_idがグローバルに一意であること（`edge-<tenant_id>-<store_code>-<連番>`形式）
-- **FR-021**: システムは、デバイスタイプ（edge/pos）を区別し、デバイスごとに最適なダウンロード元（data_source）をManifestで指定できること
+- **FR-021**: システムは、デバイスタイプ（edge/pos）を区別し、Manifestの`available_seeds`によってダウンロード戦略（P2P優先/クラウド直接）を制御できること
 - **FR-022**: システムは、ダウンロード完了時にクラウドに通知（POST /download-complete）を送信し、ダウンロード状態を記録できること
-- **FR-023**: システムは、適用完了時にクラウドに通知（POST /apply-complete）を送信し、適用結果（成功/失敗/auto_rollback）を記録できること
+- **FR-023**: システムは、適用完了時にクラウドに通知（POST /apply-complete）を送信し、適用結果（成功/失敗）を記録できること
 - **FR-024**: システムは、各エッジ端末の現在バージョン、目標バージョン、ダウンロード状態、適用状態、適用予定日時を管理できること
 - **FR-025**: システムは、更新履歴（更新開始・終了時刻、データ件数・サイズ、成功/失敗、エラー詳細、リトライ回数）を記録できること
 - **FR-026**: システムは、ネットワーク障害時にダウンロードを中断し、復旧後30秒以内に自動再開できること
@@ -198,11 +198,90 @@
 
 ### 主要エンティティ
 
-- **DeviceVersion（デバイスバージョン）**: edge_id、device_type（edge/pos）、current_version、target_version、update_status、download_status、download_completed_at、apply_status、scheduled_apply_at、apply_completed_at、pending_version、last_check_timestamp、retry_count、error_message を管理
-- **UpdateHistory（更新履歴）**: update_id、edge_id、from_version、to_version、update_type（upgrade/auto_rollback）、start_time、end_time、status（success/failed）、error_message、artifacts_count、total_size_bytes、downtime_seconds を記録
-- **EdgeTerminal（エッジ端末）**: edge_id（`edge-<tenant_id>-<store_code>-<連番>`）、tenant_id、store_code、device_type（edge/pos）、is_p2p_seed（true/false）、p2p_priority（0-99、受信側が選択する際の優先順位: 0=最優先でアクセスされる、1-9=セカンダリシード、99=非シード）、secret（SHA256ハッシュ化）、primary_registry、fallback_registryを管理
-- **Manifest（更新マニフェスト）**: manifest_version、device_type、device_id、target_version、artifacts（ファイル一覧: type, name, version, data_source, primary_url, fallback_url, checksum, size, destination, permissions）、container_images（イメージ一覧: service, version, data_source, primary_registry, primary_image, fallback_registry, fallback_image, checksum）、available_seeds（ダウンロード完了済みシード端末リスト: edge_id, priority, url）、apply_schedule（scheduled_at, maintenance_window）を含む
-- **PendingUpdate（ダウンロード済み未適用更新）**: version、download_status、download_started_at、download_completed_at、verification_status、ready_to_apply、artifacts_count、total_size_bytes、manifest_json、status_json を管理
+#### 1. DeviceVersion（デバイスバージョン）
+
+各エッジ端末の現在バージョン、目標バージョン、更新状態を管理するエンティティ。
+
+| フィールド名 | 日本語名 | 説明 |
+|-------------|---------|------|
+| edge_id | エッジ端末ID | エッジ端末の一意識別子（例: `edge-tenant001-store001-001`） |
+| device_type | デバイスタイプ | 端末の種類（`edge`: 専用Edge端末、`pos`: POS端末） |
+| current_version | 現在バージョン | 現在適用されているバージョン（例: `1.2.2`） |
+| target_version | 目標バージョン | 適用予定の目標バージョン（例: `1.2.3`） |
+| update_status | 更新ステータス | 更新全体の状態（`none`: 更新なし、`downloading`: ダウンロード中、`pending_apply`: 適用待ち、`applying`: 適用中、`completed`: 完了、`failed`: 失敗） |
+| download_status | ダウンロードステータス | ダウンロードフェーズの状態（`not_started`: 未開始、`in_progress`: 進行中、`completed`: 完了、`failed`: 失敗） |
+| download_completed_at | ダウンロード完了日時 | ダウンロードフェーズが完了した日時（ISO 8601形式） |
+| apply_status | 適用ステータス | 適用フェーズの状態（`not_started`: 未開始、`in_progress`: 進行中、`completed`: 完了、`failed`: 失敗、`rolled_back`: ロールバック済み） |
+| scheduled_apply_at | 適用予定日時 | 適用フェーズを実行する予定日時（ISO 8601形式） |
+| apply_completed_at | 適用完了日時 | 適用フェーズが完了した日時（ISO 8601形式） |
+| pending_version | 保留中バージョン | ダウンロード済み未適用のバージョン（複数ある場合は最新のみ） |
+| last_check_timestamp | 最終チェック日時 | 最後にバージョンチェックを実行した日時（ISO 8601形式） |
+| retry_count | リトライ回数 | 現在の更新における失敗後のリトライ回数（最大3回） |
+| error_message | エラーメッセージ | 更新失敗時の詳細エラーメッセージ |
+
+#### 2. UpdateHistory（更新履歴）
+
+各エッジ端末の更新履歴を記録するエンティティ。監査とトラブルシューティングに使用。
+
+| フィールド名 | 日本語名 | 説明 |
+|-------------|---------|------|
+| update_id | 更新ID | 更新履歴レコードの一意識別子（UUID） |
+| edge_id | エッジ端末ID | 更新対象のエッジ端末ID |
+| from_version | 更新前バージョン | 更新前のバージョン（例: `1.2.2`） |
+| to_version | 更新後バージョン | 更新後のバージョン（例: `1.2.3`） |
+| start_time | 開始日時 | 更新処理の開始日時（ISO 8601形式） |
+| end_time | 終了日時 | 更新処理の終了日時（ISO 8601形式） |
+| status | ステータス | 更新結果（`success`: 成功、`failed`: 失敗し自動ロールバック済み） |
+| error_message | エラーメッセージ | 失敗時の詳細エラーメッセージ |
+| artifacts_count | アーティファクト件数 | ダウンロードしたファイル・イメージの総数 |
+| total_size_bytes | 総サイズ（バイト） | ダウンロードした総データサイズ（バイト単位） |
+| downtime_seconds | ダウンタイム（秒） | サービス停止時間（Phase 6開始からPhase 7完了まで、秒単位） |
+
+#### 3. EdgeTerminal（エッジ端末）
+
+各エッジ端末の基本情報、P2P設定、認証情報を管理するエンティティ。
+
+| フィールド名 | 日本語名 | 説明 |
+|-------------|---------|------|
+| edge_id | エッジ端末ID | エッジ端末の一意識別子（形式: `edge-<tenant_id>-<store_code>-<連番>`、例: `edge-tenant001-store001-001`） |
+| tenant_id | テナントID | 所属テナントの識別子（マルチテナント分離用） |
+| store_code | 店舗コード | 所属店舗の識別子 |
+| device_type | デバイスタイプ | 端末の種類（`edge`: 専用Edge端末、`pos`: POS端末） |
+| is_p2p_seed | P2Pシード設定 | P2Pシード端末かどうか（`true`: シード端末、`false`: 非シード端末） |
+| p2p_priority | P2P優先度 | P2Pアクセス時の優先順位（0-99: 0=最優先でアクセスされる、1-9=セカンダリシード、99=非シード端末） |
+| secret | 認証シークレット | JWT認証用のシークレット（SHA256ハッシュ化して保存） |
+
+#### 4. Manifest（更新マニフェスト）
+
+エッジ端末に配信される更新内容を定義するエンティティ。クラウドからエッジ端末へのバージョンチェックレスポンスとして返却される。
+
+| フィールド名 | 日本語名 | 説明 |
+|-------------|---------|------|
+| manifest_version | マニフェストバージョン | マニフェスト形式のバージョン（例: `1.0`） |
+| device_type | デバイスタイプ | 対象デバイスタイプ（`edge` または `pos`） |
+| device_id | デバイスID | 対象デバイスのID（`edge_id`） |
+| target_version | 目標バージョン | 適用すべきバージョン（例: `1.2.3`） |
+| artifacts | アーティファクト一覧 | ダウンロード対象のファイル一覧（各要素は以下のフィールドを含む）<br>- `type`: ファイルタイプ（script/module/config/image/document）<br>- `name`: ファイル名<br>- `version`: バージョン<br>- `primary_url`: クラウドメインURL（クラウド直接取得時のメイン取得元、またはP2P全失敗時のフォールバック先）<br>- `fallback_url`: クラウドセカンダリURL（primary_url失敗時の代替取得元、冗長性確保用）<br>- `checksum`: SHA256チェックサム<br>- `size`: ファイルサイズ（バイト）<br>- `destination`: 配置先パス<br>- `permissions`: ファイルパーミッション（例: 755）<br><br>**ダウンロード戦略**: `available_seeds`が空でない場合はP2P優先（優先度順に試行後、全失敗時に`primary_url`へフォールバック）、空の場合はクラウド直接（`primary_url` → `fallback_url`の順） |
+| container_images | コンテナイメージ一覧 | ダウンロード対象のコンテナイメージ一覧（各要素は以下のフィールドを含む）<br>- `service`: サービス名（account/terminal/cart等）<br>- `version`: イメージバージョン<br>- `primary_registry`: クラウドメインレジストリURL（クラウド直接取得時のメインレジストリ、またはP2P全失敗時のフォールバック先）<br>- `primary_image`: primary_registryのイメージ名（タグ付き）<br>- `fallback_registry`: クラウドセカンダリレジストリURL（primary_registry失敗時の代替レジストリ、冗長性確保用）<br>- `fallback_image`: fallback_registryのイメージ名（タグ付き）<br>- `checksum`: イメージダイジェスト（SHA256）<br><br>**ダウンロード戦略**: `available_seeds`が空でない場合はP2P優先（優先度順にシードのレジストリから試行後、全失敗時に`primary_registry`へフォールバック）、空の場合はクラウド直接（`primary_registry` → `fallback_registry`の順） |
+| available_seeds | 利用可能シード端末リスト | ダウンロード完了済みのシード端末リスト（各要素は以下のフィールドを含む）<br>- `edge_id`: シード端末ID<br>- `priority`: 優先度（0-9）<br>- `url`: Sync Service APIエンドポイントURL（例: `http://192.168.1.10:8007`） |
+| apply_schedule | 適用スケジュール | 適用フェーズの実行スケジュール（以下のフィールドを含む）<br>- `scheduled_at`: 適用開始日時（ISO 8601形式）<br>- `maintenance_window`: メンテナンスウィンドウ期間（分単位、例: 30） |
+
+#### 5. PendingUpdate（ダウンロード済み未適用更新）
+
+ダウンロード完了後、適用待ち状態のバージョンを管理するエンティティ。エッジ端末のローカルに保存される。
+
+| フィールド名 | 日本語名 | 説明 |
+|-------------|---------|------|
+| version | バージョン | ダウンロード済みバージョン（例: `1.2.3`） |
+| download_status | ダウンロードステータス | ダウンロード状態（`in_progress`: 進行中、`completed`: 完了、`failed`: 失敗） |
+| download_started_at | ダウンロード開始日時 | ダウンロード開始日時（ISO 8601形式） |
+| download_completed_at | ダウンロード完了日時 | ダウンロード完了日時（ISO 8601形式） |
+| verification_status | 検証ステータス | チェックサム検証状態（`not_started`: 未開始、`in_progress`: 進行中、`passed`: 合格、`failed`: 不合格） |
+| ready_to_apply | 適用準備完了フラグ | 適用フェーズを実行可能かどうか（`true`: 可能、`false`: 不可） |
+| artifacts_count | アーティファクト件数 | ダウンロード済みファイル・イメージの総数 |
+| total_size_bytes | 総サイズ（バイト） | ダウンロード済み総データサイズ（バイト単位） |
+| manifest_json | マニフェストJSON | ダウンロード時に受信したManifestの完全なJSON（適用時に参照） |
+| status_json | ステータスJSON | ダウンロード処理の詳細ステータス情報（ファイルごとの進捗、エラー等） |
 
 ## 成功基準 *(必須)*
 
