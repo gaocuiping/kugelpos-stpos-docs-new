@@ -53,21 +53,32 @@
 - [ ] T017 [P] ロギングミドルウェアを実装 (`services/sync/app/middleware/logging_middleware.py`)
 - [ ] T018 [P] Correlation ID ミドルウェアを実装 (`services/sync/app/middleware/correlation_id_middleware.py`)
 - [ ] T019 データベースインデックス作成スクリプトを実装 (`services/sync/scripts/init_db.py`)
-  - 実装内容: 全8エンティティのインデックスを作成
+  - **シンプル化適用**: 初期リリースでは基本インデックスのみ実装、複合インデックスはパフォーマンス測定後に追加
+  - 実装内容: 基本インデックス（primary key、TTL）のみ作成
   - 参照: data-model.md の各エンティティ「Indexes」セクション
-  - インデックス一覧:
-    - **SyncStatus**: `{edge_id, data_type}` (unique), `{status, next_sync_at}`, `{edge_id, updated_at}`
-    - **SyncHistory**: `{sync_id}` (unique), `{edge_id, started_at}`, `{data_type, started_at}`, `{status, started_at}`, `{started_at}` (TTL: 90日)
-    - **EdgeTerminal**: `{edge_id}` (unique), `{store_code, p2p_priority, status}`, `{tenant_id, store_code}`, `{status, last_heartbeat_at}`
-    - **ScheduledMasterFile**: `{file_id}` (unique), `{scheduled_at, timing_type, priority}`, `{store_id, applied_count}`, `{scheduled_at, applied_count}`
-    - **FileCollection**: `{collection_id}` (unique), `{edge_id, created_at}`, `{status, created_at}`, `{completed_at, status}`
-    - **TransactionLog**: `{log_id}` (unique), `{sync_status, occurred_at}`, `{edge_id, occurred_at}`, `{synced_at}` (TTL: 30日)
-    - **MasterData**: `{category, version}` (unique), `{category, version DESC}`, `{category, updated_at}`
-    - **TerminalStateChange**: `{terminal_id, status_changed_at}`, `{sync_status, status_changed_at}`, `{business_date, status}`, `{synced_at}` (TTL: 90日)
+  - **基本インデックス一覧** (約10-12インデックス):
+    - **SyncStatus**: `{edge_id, data_type}` (unique) - Primary key相当
+    - **SyncHistory**: `{sync_id}` (unique), `{started_at}` (TTL: 90日)
+    - **EdgeTerminal**: `{edge_id}` (unique) - Primary key相当
+    - **ScheduledMasterFile**: `{file_id}` (unique) - Primary key相当
+    - **FileCollection**: `{collection_id}` (unique) - Primary key相当
+    - **TransactionLog**: `{log_id}` (unique), `{synced_at}` (TTL: 30日)
+    - **MasterData**: `{category, version}` (unique) - Primary key相当
+    - **TerminalStateChange**: `{terminal_id, status_changed_at}` (unique), `{synced_at}` (TTL: 90日)
+  - **除外する複合インデックス** (パフォーマンス測定後に追加):
+    - SyncStatus: `{status, next_sync_at}`, `{edge_id, updated_at}`
+    - SyncHistory: `{edge_id, started_at}`, `{data_type, started_at}`, `{status, started_at}`
+    - EdgeTerminal: `{store_code, p2p_priority, status}`, `{tenant_id, store_code}`, `{status, last_heartbeat_at}`
+    - ScheduledMasterFile: `{scheduled_at, timing_type, priority}`, `{store_id, applied_count}`, `{scheduled_at, applied_count}`
+    - FileCollection: `{edge_id, created_at}`, `{status, created_at}`, `{completed_at, status}`
+    - TransactionLog: `{sync_status, occurred_at}`, `{edge_id, occurred_at}`
+    - MasterData: `{category, version DESC}`, `{category, updated_at}`
+    - TerminalStateChange: `{sync_status, status_changed_at}`, `{business_date, status}`
   - 実装方法:
-    - `create_indexes()` 関数で全インデックスを作成
+    - `create_indexes()` 関数で基本インデックスのみ作成
     - 既存インデックスはスキップ (冪等性)
     - 作成完了時にログ出力
+  - **憲章準拠**: "推測ではなく計測に基づいて最適化" (パフォーマンスの意識)
 - [ ] T020 [P] JWT ヘルパーを実装 (`services/sync/app/utils/jwt_helper.py`)
 - [ ] T021 [P] ハッシュヘルパーを実装 (`services/sync/app/utils/hash_helper.py`)
 - [ ] T022 [P] ファイルヘルパーを実装 (`services/sync/app/utils/file_helper.py` - zip圧縮/解凍)
@@ -192,40 +203,31 @@
   - 検証項目: log_id 一意性、sync_status 遷移 (pending → sending → sent/failed)、retry_count 範囲
 - [ ] T059 [P] [US2 Test] TerminalStateChange モデルのユニットテストを作成 (`tests/unit/test_terminal_state_change.py`)
   - 検証項目: 状態遷移 (Idle → Opened → Closed)、business_date 形式 (YYYYMMDD)、カウンター検証
-- [ ] T060 [P] [US2 Test] Transaction Queue Manager のユニットテストを作成 (`tests/unit/test_transaction_queue_manager.py`)
-  - 検証項目:
-    - キュー容量制限 (デフォルト: 10,000件)
-    - FIFO 削除ポリシー (古いレコードから削除)
-    - 優先度ベース削除 (重要データは保持)
-    - 永続化 (MongoDB への保存)
-    - capacity check 機能
+- [ ] ~~T060 [P] [US2 Test] Transaction Queue Manager のユニットテストを作成~~ **削除** (シンプル化: Repository パターンで直接管理)
 
 ### US2 実装タスク
 
 - [ ] T061 [P] [US2] TransactionLog モデルを実装 (`services/sync/app/models/documents/transaction_log.py`)
 - [ ] T062 [P] [US2] TerminalStateChange モデルを実装 (`services/sync/app/models/documents/terminal_state_change.py`)
 - [ ] T063 [US2] TransactionLog リポジトリを実装 (`services/sync/app/models/repositories/transaction_log_repository.py`)
-  - 実装内容: count_pending() メソッド追加 (キュー容量管理用)
+  - 実装内容:
+    - `find_pending_logs(batch_size: int)`: pending ログをバッチ取得 (sync_status='pending' でソート)
+    - `mark_as_sent(log_ids: list)`: 送信完了マーク (sync_status='sent' に更新)
+    - `count_pending()`: pending ログ件数取得 (キュー容量管理用)
 - [ ] T064 [US2] TerminalStateChange リポジトリを実装 (`services/sync/app/models/repositories/terminal_state_change_repository.py`)
-- [ ] T065 [US2] Transaction Queue Manager を実装 (`services/sync/app/services/sync/transaction_queue_manager.py`)
-  - 実装内容 (FR-021):
-    - `enqueue(log: TransactionLog)`: キューに追加
-    - `dequeue(batch_size: int)`: バッチ取得
-    - `check_capacity()`: 容量チェック
-    - `evict_old_records()`: 古いレコード削除 (FIFO)
-    - `persist_queue()`: キューの永続化
-  - 環境変数:
-    - `TRANSACTION_QUEUE_MAX_SIZE`: 最大キュー件数 (デフォルト: 10000)
-    - `TRANSACTION_QUEUE_EVICTION_POLICY`: 削除ポリシー (fifo/priority)
+- [ ] ~~T065 [US2] Transaction Queue Manager を実装~~ **削除** (シンプル化: TransactionLog Repository で直接管理)
+  - **代替実装**: T063 の TransactionLog Repository メソッドを使用
+  - **FIFO削除**: MongoDB TTLインデックスで自動削除 (data-model.md: TransactionLog の synced_at TTL 30日)
+  - **容量管理**: T063 の `count_pending()` メソッドで監視、環境変数 `TRANSACTION_QUEUE_MAX_SIZE` (デフォルト: 10000)
 - [ ] T066 [US2 Test] Transaction Sync Service のユニットテストを作成 (`tests/unit/test_transaction_sync_service.py`)
   - 検証項目: 送信処理、リトライ機構 (FR-019)、At-least-once delivery (FR-021)
 - [ ] T067 [US2] Transaction Sync Service を実装 (`services/sync/app/services/sync/transaction_sync_service.py`)
-  - 実装内容: トランザクション送信・受信、リトライ機構 (FR-019)、Transaction Queue Manager 使用
+  - 実装内容: トランザクション送信・受信、リトライ機構 (FR-019)、TransactionLog Repository で直接キュー管理
 - [ ] T068 [P] [US2] トランザクション送信リクエスト/レスポンススキーマを実装 (`services/sync/app/schemas/sync_schemas.py` に追加)
 - [ ] T069 [US2] トランザクション同期 API エンドポイントを実装 (`services/sync/app/api/v1/sync.py` に追加)
   - 実装内容: `POST /sync/transactions`, `POST /sync/terminal-state`
 - [ ] T070 [US2] トランザクション送信スケジューラージョブを実装 (`services/sync/app/background/jobs/transaction_sender.py`)
-  - 実装内容: 30-60秒間隔でクラウド送信、Transaction Queue Manager から dequeue
+  - 実装内容: 30-60秒間隔でクラウド送信、TransactionLog Repository の `find_pending_logs()` でバッチ取得
 - [ ] T071 [US2] Dapr Pub/Sub トピック購読ハンドラーを実装 (`services/sync/app/api/v1/pubsub.py`)
   - 実装内容: `tranlog_report`, `cashlog_report`, `opencloselog_report` 受信
 
@@ -367,7 +369,7 @@
     - ネットワーク復旧後30秒以内の同期再開 (SC-006)
     - タイムアウト、リトライ、サーキットブレーカーの動作検証
 - [ ] T111 カバレッジ不足箇所のテスト追加
-  - 優先度: 認証、整合性チェック、データ同期ロジック、Transaction Queue Manager
+  - 優先度: 認証、整合性チェック、データ同期ロジック、TransactionLog Repository
 - [ ] T112 quickstart.md の手順を検証
   - 検証内容: `services/sync/` で 30分以内にセットアップ完了できることを確認
   - テスト実行: `pipenv run pytest tests/` が成功すること
@@ -500,29 +502,43 @@ Task: "[US1] MasterData リポジトリを実装"
 
 ## Task Count Summary
 
-- **Total Tasks**: 115 (TDD 対応、コード品質ツール設定、ローカルキュー管理、インデックス詳細化を含む)
+- **Total Tasks**: 113 (シンプル化適用後: Transaction Queue Manager 削除、基本インデックスのみ)
 - **Setup (Phase 1)**: 12 tasks (テスト基盤含む)
-- **Foundational (Phase 2)**: 15 tasks (コード品質ツール設定含む、インデックス詳細化含む)
+- **Foundational (Phase 2)**: 15 tasks (コード品質ツール設定含む、基本インデックスのみ)
 - **US-006 (認証) - P1**: 10 tasks (テスト3 + 実装7)
 - **US-001 (マスターデータ同期) - P1**: 20 tasks (テスト7 + 実装13)
-- **US-002 (トランザクション集約) - P1**: 14 tasks (テスト3 + 実装11、ローカルキュー管理含む)
+- **US-002 (トランザクション集約) - P1**: 12 tasks (テスト1 + 実装11、TransactionLog Repository で直接管理)
+  - **削除**: T060 (Transaction Queue Manager テスト), T065 (Transaction Queue Manager 実装)
 - **US-004 (整合性保証) - P2**: 6 tasks
 - **US-003 (予約反映) - P2**: 12 tasks (テスト2 + 実装10)
 - **US-005 (ファイル収集) - P3**: 11 tasks (テスト2 + 実装9)
 - **Polish (Phase 9)**: 15 tasks (コード品質チェック、テストカバレッジ測定含む)
 
-**Test Tasks**: 全115タスク中、17タスクがテスト専用タスク (約15%)
+**Test Tasks**: 全113タスク中、15タスクがテスト専用タスク (約13%)
 
 **Parallel Opportunities**:
 - Setup: 8 tasks (67%)
 - Foundational: 9 tasks (60%)
 - User Stories: 各ストーリー内のテスト・モデル・スキーマ作成タスク
 
-**Suggested MVP Scope**: Phase 1-5 (Setup + Foundational + US-006 + US-001 + US-002) = 71 tasks
+**Suggested MVP Scope**: Phase 1-5 (Setup + Foundational + US-006 + US-001 + US-002) = 69 tasks
+  - **シンプル化効果**: 71タスク → 69タスク (約3%削減)
 
 ---
 
 ## 変更履歴
+
+**Version 2.1.0** (2025-10-13):
+- **シンプル化提案1**: Transaction Queue Manager を削除、TransactionLog Repository で直接管理
+  - T060 (Transaction Queue Manager テスト) 削除
+  - T065 (Transaction Queue Manager 実装) 削除
+  - T063: TransactionLog Repository に `find_pending_logs()`, `mark_as_sent()` メソッド追加
+  - T067, T070: TransactionLog Repository を直接使用するように変更
+- **シンプル化提案2**: データベースインデックスを基本インデックスのみに簡素化
+  - T019: 基本インデックス（primary key、TTL）のみ実装、複合インデックスはパフォーマンス測定後に追加
+  - インデックス数: 約28 → 約10-12 (約60%削減)
+- 総タスク数: 115 → 113 (2タスク削減)
+- MVP スコープ: 71タスク → 69タスク (約3%削減)
 
 **Version 2.0.0** (2025-10-13):
 - **提案1**: TDD 対応 - すべての実装タスクの前にテストタスクを追加 (憲章 III 準拠)
