@@ -204,6 +204,94 @@ async with httpx.AsyncClient() as client:
 | **Push (Pub/Sub)** | トランザクションログ | 既存トピック活用、複数サービスへの配信、リアルタイム性 |
 | **Direct Storage** | ファイル保管 | 大容量ファイル、長期保管、コスト効率 |
 
+### ファイル収集の実装方針
+
+#### 他サービスへの要件（方式１: API呼出）
+
+**対象サービス**: cart, terminal, master-data, journal, report, stock
+
+各サービスは、ファイル収集用のAPIエンドポイントを実装する必要があります：
+
+- **エンドポイント**: `POST /api/v1/file-collection/collect`
+- **通信方式**: Dapr Service Invocation
+- **リクエスト形式**:
+  ```json
+  {
+    "target_paths": ["/app/logs/error.log", "/app/logs/app.log"],
+    "exclude_patterns": ["*.tmp", "*.bak"],
+    "max_size_mb": 50
+  }
+  ```
+- **レスポンス形式**: zip圧縮されたバイナリデータ（Content-Type: application/zip）
+- **責務**:
+  - 自サービスのアプリケーションログ・設定ファイルを収集
+  - ホワイトリスト検証（サービス固有のホワイトリストに基づく）
+  - zip形式で圧縮（最大100MB制限）
+  - バイナリデータとして返却
+
+**実装例**:
+```python
+# Edge Syncから各サービスへのファイル収集呼び出し
+url = f"{DAPR_HTTP_ENDPOINT}/v1.0/invoke/cart/method/api/v1/file-collection/collect"
+headers = {"Content-Type": "application/json"}
+payload = {
+    "target_paths": ["/app/logs/cart.log"],
+    "exclude_patterns": ["*.tmp"],
+    "max_size_mb": 50
+}
+
+async with httpx.AsyncClient() as client:
+    response = await client.post(url, json=payload, headers=headers, timeout=300.0)
+    zip_bytes = response.content  # 各サービスから返却されたzipデータ
+```
+
+#### Syncサービス自身のファイル収集（方式２: 直接ファイルシステムアクセス）
+
+Syncサービス自身のログ・設定ファイルの収集は、直接ファイルシステムにアクセスします：
+
+- **対象ファイル**: `/app/logs/sync.log`, `/app/logs/sync_error.log`, `/app/config/settings.yaml` 等
+- **実装方式**:
+  - ホワイトリスト検証（`FILE_COLLECTION_WHITELIST` 環境変数）
+  - `aiofiles` による非同期ファイル読み取り
+  - `ThreadPoolExecutor` による zip 圧縮
+  - 他サービスから収集したzipと統合して最終アーカイブを生成
+
+**実装例**:
+```python
+import aiofiles
+import zipfile
+from concurrent.futures import ThreadPoolExecutor
+
+# Syncサービス自身のログ収集
+async def collect_sync_logs(target_paths: list[str]) -> bytes:
+    # ホワイトリスト検証
+    whitelist = settings.FILE_COLLECTION_WHITELIST
+    validated_paths = [p for p in target_paths if any(p.startswith(w) for w in whitelist)]
+
+    # 非同期ファイル読み取り
+    files_data = []
+    for path in validated_paths:
+        async with aiofiles.open(path, 'rb') as f:
+            content = await f.read()
+            files_data.append((path, content))
+
+    # zip圧縮（非同期化）
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as executor:
+        zip_bytes = await loop.run_in_executor(
+            executor,
+            lambda: create_zip_archive(files_data)
+        )
+
+    return zip_bytes
+```
+
+**統合処理**:
+1. 各サービスから方式１でzipデータを収集
+2. Syncサービス自身のログを方式２で収集
+3. すべてのzipを統合して最終アーカイブを生成
+4. クラウドのBlobストレージにアップロード
+
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
