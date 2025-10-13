@@ -1,0 +1,362 @@
+# Implementation Plan: Sync Service データ同期機能
+
+**Branch**: `001-sync-service` | **Date**: 2025-10-13 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/001-sync-service/spec.md`
+
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+
+## Summary
+
+Sync Serviceは、クラウド環境とエッジ環境（店舗）間でデータ同期を行うサービスです。マスターデータ（商品、価格、決済方法等）をクラウドからエッジへ配信し、トランザクションデータ（取引ログ、開設精算、入出金等）をエッジからクラウドへ集約します。オフライン耐性、データ整合性の自動保証、予約反映機能、P2Pファイル共有を備えた高信頼性の同期システムを実現します。
+
+**主要機能:**
+- **マスターデータ同期（クラウド→エッジ）**: 差分同期・一括同期、チェックサム検証、バージョン検証、自動補完
+- **トランザクションデータ集約（エッジ→クラウド）**: At-least-once delivery、リトライ機構、サーキットブレーカー
+- **予約反映機能**: 指定日時での自動マスタ反映、P2Pファイル共有によるクラウド負荷軽減
+- **ファイル収集**: エッジ環境のログ・設定ファイルの遠隔収集（トラブルシューティング用）
+- **エッジ端末認証**: JWT トークンベース認証、24時間有効期限
+
+**技術的アプローチ:**
+- FastAPI による非同期REST APIサーバー（Cloud Mode / Edge Mode の2モード動作）
+- MongoDB によるテナント別データベース分離（`sync_{tenant_id}`形式）
+- Dapr を活用したサービス間通信（pub/sub、Service Invocation）
+- Motor（async MongoDB driver）による非同期データベース操作
+- Circuit Breaker Pattern、Retry Pattern による回復力設計
+
+## Technical Context
+
+**Language/Version**: Python 3.12 以上
+**Primary Dependencies**:
+- FastAPI (Webフレームワーク)
+- Motor (MongoDB async driver)
+- Dapr (サービスメッシュ、pub/sub、Service Invocation)
+- Redis (キャッシュ、メッセージング)
+- Pydantic (データ検証、スキーマ定義)
+- httpx (非同期HTTPクライアント、Dapr通信用)
+- python-jose (JWT トークン生成・検証)
+- bcrypt (認証シークレットのハッシュ化)
+
+**Storage**:
+- MongoDB 7.0+（レプリカセット構成、テナント別データベース `sync_{tenant_id}`）
+- Redis（キャッシュ、Dapr pub/sub のバックエンド）
+
+**Testing**:
+- pytest (テストフレームワーク)
+- pytest-asyncio (非同期テストサポート)
+- httpx (APIテスト用HTTPクライアント)
+- mongomock (MongoDB モック、単体テスト用、オプション)
+
+**Target Platform**:
+- Linux server（Docker コンテナ、Cloud Mode）
+- Linux server（Docker コンテナ、Edge Mode、店舗環境）
+
+**Project Type**: マイクロサービス（既存の7サービスに追加される8番目のサービス）
+
+**Performance Goals**:
+- **同期遅延**: 95パーセンタイルで5分以内 (SC-001)
+- **スループット（全件同期）**: 10,000件/秒以上 (SC-002)
+- **スループット（差分同期）**: 1,000件/秒以上 (SC-003)
+- **並行処理**: 最大1,000エッジ端末の同時同期対応 (SC-004)
+- **稼働率**: 99.9%以上 (SC-005)
+- **ネットワーク復旧後の再開時間**: 30秒以内 (SC-006)
+- **チェックサム検証成功率**: 99.9%以上 (SC-008)
+- **バージョン補完成功率**: 95%以上 (SC-009)
+- **予約反映精度**: 指定日時±30秒以内 (SC-010)
+- **P2Pトラフィック削減率**: 50%以上 (SC-011)
+- **ファイル収集完了時間**: 5分以内（100MB以下） (SC-012)
+- **JWT認証成功率**: 99.9%以上 (SC-013)
+- **データ圧縮率**: 50%以上（gzip使用） (SC-015)
+- **API レスポンス**: 95パーセンタイルで500ms以下（憲章基準）
+
+**Constraints**:
+- **同期ポーリング間隔**: 30-60秒（環境変数 `SYNC_POLL_INTERVAL` で調整可能）
+- **JWT トークン有効期限**: 24時間（環境変数で設定可能）
+- **リトライ回数**: 最大5回（指数バックオフ: 1秒→2秒→4秒→8秒→16秒）
+- **サーキットブレーカー**: 連続3回失敗でオープン、60秒後に半開状態
+- **ファイル収集サイズ**: 最大100MB
+- **補完同期**: 1回あたり最大20バージョン
+- **データ保証**: At-least-once delivery
+
+**Scale/Scope**:
+- **エッジ端末数**: 最大1,000台（同時接続想定）
+- **データ種別**: 4種類（master_data: マスターデータ、transaction_log: トランザクションログ、journal: 電子ジャーナル、terminal_state: ターミナル状態変更）
+- **主要エンティティ**: 8つ（SyncStatus, SyncHistory, EdgeTerminal, ScheduledMasterFile, FileCollection, MasterData, TransactionLog, TerminalStateChange）
+- **API エンドポイント**: 約15個（認証、同期リクエスト、マスタ予約反映、ファイル収集等）
+
+## Constitution Check
+
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+
+### ✅ I. マイクロサービス独立性
+
+- **独立データベース**: ✅ Sync Service は独自のテナント別データベース `sync_{tenant_id}` を持つ
+- **サービス間通信**: ✅ Dapr pub/sub（トランザクションログ受信）、Service Invocation（Journalサービス、Master-dataサービスとの通信）
+- **共通ライブラリ**: ✅ commons ライブラリを使用（ユーティリティのみ、ビジネスロジックなし）
+- **独立テスト**: ✅ 独立したテストスイート（`services/sync/tests/`）
+
+### ✅ II. 非同期優先 (Async-First)
+
+- **データベース操作**: ✅ Motor (async MongoDB driver) を使用
+- **HTTP クライアント**: ✅ httpx（非同期HTTPクライアント、Dapr通信用）
+- **FastAPI エンドポイント**: ✅ すべての API は `async def` で定義
+- **ブロッキング操作**: ✅ ファイルI/O は `aiofiles` で非同期化、zip圧縮は `ThreadPoolExecutor` で非同期化
+
+### ✅ III. テスト駆動開発 (TDD)
+
+- **テストカバレッジ目標**: 80%以上（重要なビジネスロジックは90%以上）
+- **テストファイル**: `test_clean_data.py` → `test_setup_data.py` → 機能テスト
+- **pytest-asyncio**: ✅ 非同期テスト対応
+
+### ✅ IV. イベント駆動アーキテクチャ
+
+- **Dapr Pub/Sub**: ✅ トランザクションデータを既存トピックから受信
+  - `tranlog_report`: トランザクションデータ（レポート用）
+  - `cashlog_report`: 現金入出金イベント
+  - `opencloselog_report`: ターミナル開閉イベント
+- **イベントスキーマ**: ✅ Pydantic モデルでバージョニング
+- **冪等性**: ✅ `sync_status` フィールドで重複配信対応（`pending` → `sent`）
+
+### ✅ V. 回復力とエラーハンドリング (Resilience)
+
+- **Circuit Breaker**: ✅ 3回連続失敗でオープン、60秒後に半開状態（`HttpClientHelper`, `DaprClientHelper` で実装）
+- **Retry**: ✅ 指数バックオフ、最大5回リトライ
+- **Timeout**: ✅ HTTP 30秒、データベース 10秒（憲章基準）
+- **エラーコード体系**: ✅ 80YYZZ形式（80=sync service、8番目のマイクロサービス）
+
+### ✅ VI. マルチテナンシー（厳格な分離）
+
+- **データベースレベル分離**: ✅ `sync_{tenant_id}` 形式
+- **API 検証**: ✅ すべてのAPIで tenant_code を検証（JWT ペイロードから取得）
+- **クロステナントアクセス禁止**: ✅ JWT トークンの tenant_id でアクセス制御
+
+### ✅ VII. 可観測性 (Observability)
+
+- **構造化ロギング**: ✅ JSON形式、必須フィールド（timestamp, service_name, tenant_code, correlation_id）
+- **メトリクス**: ✅ リクエスト数、レスポンスタイム、同期成功/失敗率、データサイズ
+- **分散トレーシング**: ✅ correlation_id を Dapr の分散トレーシングと連携
+
+### ✅ VIII. セキュリティファースト
+
+- **JWT トークンベース認証**: ✅ edge_id + secret で JWT 発行（24時間有効）
+- **シークレットのハッシュ化**: ✅ bcrypt でハッシュ化して保存
+- **入力検証**: ✅ すべてのAPI入力をPydantic スキーマで検証
+- **環境変数管理**: ✅ 機密データは `.env` ファイル（コミット禁止）
+
+### 🟡 追加検証が必要な項目
+
+- **State Machine Pattern**: Sync Serviceでは不要（Cart Serviceの責務）
+- **Plugin Architecture**: Sync Serviceでは不要（機能が明確に定義済み）
+
+### 総合評価（Phase 0前）
+
+✅ **合格**: すべての必須原則に準拠しています。Phase 0（research）に進むことができます。
+
+---
+
+## Constitution Check Re-evaluation (Phase 1完了後)
+
+*GATE: Phase 1 (data-model.md, contracts/, quickstart.md) 完了後の再評価*
+
+### ✅ I. マイクロサービス独立性（再評価）
+
+- **data-model.md**: ✅ テナント別データベース分離を詳細定義（`sync_{tenant_id}`パターン、8エンティティのスキーマ）
+- **contracts/*.yaml**: ✅ Dapr Service Invocation使用を明示（master-data、journalサービスとの通信）
+- **quickstart.md**: ✅ AbstractRepository継承パターン、独立テスト戦略を説明
+- **検証結果**: 各エンティティがBaseDocumentModelを継承し、独立したリポジトリパターンで実装される設計
+
+### ✅ II. 非同期優先（再評価）
+
+- **data-model.md**: ✅ すべてのRepositoryメソッドがasyncで定義（例: `async def find_by_edge_and_type`）
+- **contracts/*.yaml**: ✅ すべてのAPIエンドポイントが非同期処理を前提（OpenAPI 3.0仕様）
+- **quickstart.md**: ✅ Motor、httpx、aiofiles、APScheduler AsyncIOSchedulerの使用を明示
+- **検証結果**: ファイルI/Oは`aiofiles`、zip圧縮は`ThreadPoolExecutor`で非同期化
+
+### ✅ III. テスト駆動開発（再評価）
+
+- **quickstart.md**: ✅ TDD開発ワークフローを詳細説明（Red-Green-Refactorサイクル）
+- **quickstart.md**: ✅ テスト例を提供（`test_sync_status.py`、単体・統合テスト構造）
+- **quickstart.md**: ✅ テストカバレッジ目標80%以上、pytest-asyncio使用を明記
+- **検証結果**: `tests/unit/`、`tests/integration/`のディレクトリ構造を定義
+
+### ✅ IV. イベント駆動アーキテクチャ（再評価）
+
+- **research.md**: ✅ Dapr Service Invocation使用決定（HttpClientHelper + Dapr HTTP API）
+- **data-model.md**: ✅ TransactionLogモデルでpub/sub受信を想定（`sync_status`フィールド）
+- **sync-api.yaml**: ✅ トランザクション送信エンドポイント定義（Edge → Cloud）
+- **検証結果**: 既存の`tranlog_report`、`cashlog_report`トピックからイベント受信
+
+### ✅ V. 回復力とエラーハンドリング（再評価）
+
+- **contracts/*.yaml**: ✅ エラーレスポンススキーマ定義（XXYYZZ形式エラーコード: 800101等）
+- **data-model.md**: ✅ `retry_count`、`error_message`フィールドをSyncStatus、SyncHistoryに定義
+- **research.md**: ✅ Circuit Breaker、Retry Pattern実装方針（HttpClientHelper、DaprClientHelper使用）
+- **quickstart.md**: ✅ Circuit Breaker設定（`SYNC_CIRCUIT_BREAKER_THRESHOLD=3`、`SYNC_CIRCUIT_BREAKER_TIMEOUT=60`）
+- **競合解決**: ✅ Last Write Wins（FR-018）はspec.mdエッジケースで定義、タイムスタンプ比較により実装
+- **検証結果**: 最大5回リトライ、指数バックオフ、At-least-once delivery保証
+
+### ✅ VI. マルチテナンシー（再評価）
+
+- **data-model.md**: ✅ データベース戦略セクションで`sync_{tenant_id}`パターンを明示
+- **contracts/auth-api.yaml**: ✅ JWTトークンレスポンスに`tenant_id`、`store_code`を含める
+- **data-model.md**: ✅ EdgeTerminalモデルに`tenant_id`フィールド定義
+- **quickstart.md**: ✅ `get_database(tenant_id)`関数でテナント別DB取得を説明
+- **検証結果**: 完全なデータベースレベル分離を実現
+
+### ✅ VII. 可観測性（再評価）
+
+- **data-model.md**: ✅ SyncHistory（監査ログ）、SyncStatus（状態追跡）で詳細なログ記録
+- **contracts/*.yaml**: ✅ 構造化エラーレスポンス定義（error_code、message、detail、timestamp）
+- **quickstart.md**: ✅ 構造化ロギング言及（`LOG_FORMAT=json`）
+- **検証結果**: 相関ID（correlation_id）、テナントID、エッジIDを含む包括的なログ設計
+
+### ✅ VIII. セキュリティファースト（再評価）
+
+- **contracts/auth-api.yaml**: ✅ JWT認証フロー詳細定義（24時間有効期限）
+- **data-model.md**: ✅ EdgeTerminalモデルで`secret`フィールドをSHA256ハッシュ化（64文字hex）
+- **contracts/file-collection-api.yaml**: ✅ ホワイトリスト検証を定義（`FILE_COLLECTION_WHITELIST`）
+- **quickstart.md**: ✅ .envファイル使用、`JWT_SECRET_KEY`環境変数管理を説明
+- **contracts/*.yaml**: ✅ すべてのエンドポイントで入力検証（Pydanticスキーマ、パターンマッチング）
+- **検証結果**: TLS 1.2+必須、Pydanticスキーマによる入力検証、機密データのハッシュ化
+
+### 🟢 設計フェーズ後の追加検証
+
+- **Repository Pattern**: ✅ data-model.mdで全8エンティティのリポジトリ実装例を提供
+- **Index Strategy**: ✅ data-model.mdで各エンティティのインデックス定義（複合インデックス、TTLインデックス含む）
+- **State Transitions**: ✅ data-model.mdでSyncStatus、TerminalStateChangeの状態遷移図を提供
+- **API Contract Quality**: ✅ contracts/*.yamlでOpenAPI 3.0準拠、詳細な例、エラーケース定義
+- **Developer Experience**: ✅ quickstart.mdで30分でセットアップ完了可能な手順を提供
+
+### 総合評価（Phase 1完了後）
+
+✅ **合格**: すべての必須原則に準拠した設計が完了しています。実装フェーズ（Phase 2: tasks.md生成）に進むことができます。
+
+**設計品質**:
+- 8エンティティの完全なデータモデル定義（Pydanticスキーマ、インデックス、検証ルール）
+- 4つのOpenAPI仕様（認証、同期、予約マスタ、ファイル収集）
+- 開発者向けクイックスタートガイド（30分でセットアップ完了）
+- プロジェクト憲章の8原則すべてに準拠
+
+## Project Structure
+
+### Documentation (this feature)
+
+```
+specs/001-sync-service/
+├── spec.md              # 機能仕様書（完成）
+├── checklists/
+│   └── requirements.md  # 要件品質チェックリスト（完成）
+├── plan.md              # このファイル (/speckit.plan 実行中)
+├── research.md          # Phase 0 output（次のステップ）
+├── data-model.md        # Phase 1 output
+├── quickstart.md        # Phase 1 output
+└── contracts/           # Phase 1 output（API仕様書）
+    ├── auth-api.yaml
+    ├── sync-api.yaml
+    ├── scheduled-master-api.yaml
+    └── file-collection-api.yaml
+```
+
+### Source Code (repository root)
+
+```
+services/sync/
+├── app/
+│   ├── main.py                          # FastAPI アプリケーションエントリーポイント
+│   ├── config/
+│   │   ├── settings.py                  # 環境変数、設定管理
+│   │   └── constants.py                 # 定数定義
+│   ├── models/                          # データモデル（MongoDB Document）
+│   │   ├── sync_status.py               # 同期ステータス
+│   │   ├── sync_history.py              # 同期履歴
+│   │   ├── edge_terminal.py             # エッジ端末
+│   │   ├── scheduled_master_file.py     # 予約反映マスタファイル
+│   │   ├── file_collection.py           # ファイル収集
+│   │   ├── master_data.py               # マスターデータ（参照用）
+│   │   ├── transaction_log.py           # トランザクションログ（参照用）
+│   │   └── terminal_state_change.py     # ターミナル状態変更（参照用）
+│   ├── repositories/                    # Repository Pattern（データアクセス層）
+│   │   ├── sync_status_repository.py
+│   │   ├── sync_history_repository.py
+│   │   ├── edge_terminal_repository.py
+│   │   ├── scheduled_master_file_repository.py
+│   │   └── file_collection_repository.py
+│   ├── services/                        # ビジネスロジック層
+│   │   ├── auth_service.py              # 認証サービス（JWT発行・検証）
+│   │   ├── sync_manager.py              # 同期マネージャー（メイン処理）
+│   │   ├── master_sync_service.py       # マスターデータ同期
+│   │   ├── transaction_sync_service.py  # トランザクションデータ同期
+│   │   ├── scheduled_master_service.py  # 予約反映サービス
+│   │   ├── file_collection_service.py   # ファイル収集サービス
+│   │   ├── integrity_checker.py         # 整合性チェッカー（チェックサム、バージョン検証）
+│   │   ├── p2p_manager.py               # P2Pファイル共有マネージャー
+│   │   └── circuit_breaker.py           # サーキットブレーカー（commons から移植の可能性）
+│   ├── api/                             # API エンドポイント
+│   │   ├── v1/
+│   │   │   ├── auth.py                  # 認証API
+│   │   │   ├── sync.py                  # 同期API（リクエスト、実行、履歴）
+│   │   │   ├── scheduled_master.py      # 予約反映API
+│   │   │   └── file_collection.py       # ファイル収集API
+│   │   └── dependencies.py              # 依存性注入（JWT検証、DB接続等）
+│   ├── schemas/                         # Pydantic スキーマ（リクエスト/レスポンス）
+│   │   ├── auth_schemas.py
+│   │   ├── sync_schemas.py
+│   │   ├── scheduled_master_schemas.py
+│   │   └── file_collection_schemas.py
+│   ├── middleware/                      # ミドルウェア
+│   │   ├── logging_middleware.py        # リクエストログ
+│   │   └── correlation_id_middleware.py # 相関ID管理
+│   ├── utils/                           # ユーティリティ
+│   │   ├── jwt_helper.py                # JWT ヘルパー
+│   │   ├── hash_helper.py               # ハッシュ計算（SHA-256、bcrypt）
+│   │   ├── file_helper.py               # ファイル操作（zip圧縮等）
+│   │   └── dapr_helper.py               # Dapr 通信ヘルパー（commons から利用）
+│   └── background/                      # バックグラウンドタスク
+│       ├── polling_scheduler.py         # 定期ポーリング（エッジモード用）
+│       └── scheduled_master_executor.py # 予約反映実行（エッジモード用）
+├── tests/                               # テストコード
+│   ├── conftest.py                      # pytest設定、フィクスチャ
+│   ├── test_clean_data.py               # データクリーンアップ
+│   ├── test_setup_data.py               # テストデータセットアップ
+│   ├── test_auth_api.py                 # 認証APIテスト
+│   ├── test_sync_api.py                 # 同期APIテスト
+│   ├── test_scheduled_master_api.py     # 予約反映APIテスト
+│   ├── test_file_collection_api.py      # ファイル収集APIテスト
+│   ├── test_integrity_checker.py        # 整合性チェックテスト
+│   └── test_p2p_manager.py              # P2Pファイル共有テスト
+├── Dockerfile                           # Docker イメージ定義
+├── Pipfile                              # 依存関係定義
+├── Pipfile.lock                         # 依存関係ロックファイル
+├── run.py                               # ローカル実行スクリプト
+└── README.md                            # サービス概要、セットアップ手順
+```
+
+**Structure Decision**:
+
+既存の Kugelpos マイクロサービスアーキテクチャに準拠した単一プロジェクト構造を採用します。`services/sync/` ディレクトリを新規作成し、既存の7サービス（account, terminal, master-data, cart, report, journal, stock）と同じディレクトリ構造・命名規則に従います。
+
+- **app/**: FastAPI アプリケーションコード（models, repositories, services, api, schemas）
+- **tests/**: pytest テストコード
+- **Dockerfile, Pipfile**: コンテナ化、依存関係管理
+
+**モード切り替え**:
+- Cloud Mode / Edge Mode は環境変数 `SYNC_MODE` で切り替え（`cloud` または `edge`）
+- Cloud Mode: 同期リクエストの受付、マスタ配信、トランザクション集約
+- Edge Mode: 定期ポーリング、マスタ受信、トランザクション送信、予約反映実行
+
+## Complexity Tracking
+
+*Fill ONLY if Constitution Check has violations that must be justified*
+
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| なし | - | - |
+
+## Next Steps
+
+Phase 0（research.md 生成）に進みます。以下の不明点を調査します：
+
+1. **Dapr Service Invocation の実装パターン**: Master-dataサービス、Journalサービスとの通信方法
+2. **P2Pファイル共有の実装方式**: HTTP サーバー機能（エッジ端末間通信）の実装方法
+3. **バックグラウンドタスクの実装**: FastAPI での定期実行（ポーリング、予約反映実行）
+4. **ファイル圧縮・解凍**: 非同期ファイルI/O、zip圧縮の実装パターン
+5. **エッジ端末の動作環境**: Docker コンテナ内での実行想定、ネットワーク構成

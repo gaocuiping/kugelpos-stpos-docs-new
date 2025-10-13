@@ -1,0 +1,687 @@
+openapi: 3.0.3
+info:
+  title: Sync Service - Synchronization API
+  description: |
+    Core synchronization API for bidirectional data sync between cloud and edge terminals.
+
+    **Data Flows**:
+    - **Cloud → Edge**: Master data (products, staff, tax rules, settings)
+    - **Edge → Cloud**: Transaction logs, terminal state changes, journals
+
+    **Sync Types**:
+    - **Full Sync**: Complete data snapshot (initial setup)
+    - **Incremental Sync**: Timestamp-based delta sync (periodic updates)
+    - **Complete Sync**: Gap-filling sync for missing versions
+
+    **Related User Stories**: US-001, US-002, US-004
+  version: 1.0.0
+
+servers:
+  - url: https://api.kugelpos.example.com/sync/v1
+    description: Cloud environment (production)
+  - url: http://localhost:8007/api/v1
+    description: Local development
+
+tags:
+  - name: Master Data Sync
+    description: Cloud to edge master data synchronization
+  - name: Transaction Sync
+    description: Edge to cloud transaction data synchronization
+  - name: Terminal State Sync
+    description: Terminal status synchronization
+
+paths:
+  /sync/poll:
+    post:
+      tags:
+        - Master Data Sync
+      summary: Poll for master data updates (Edge → Cloud request)
+      description: |
+        Edge terminals call this endpoint periodically (30-60s interval) to check for master data updates.
+
+        **Polling Flow**:
+        1. Edge terminal sends current version info
+        2. Cloud determines sync type (full/incremental/complete)
+        3. Cloud returns available updates or empty response
+
+        **Sync Type Selection**:
+        - No local data → Full sync
+        - Version gaps detected → Complete sync (max 20 versions)
+        - Normal operation → Incremental sync
+
+        **Related Requirements**: FR-001, FR-002, FR-003, FR-009
+      operationId: pollMasterData
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PollRequest'
+            examples:
+              initialSync:
+                summary: Initial sync (no local data)
+                value:
+                  edge_id: edge-tenant001-store001-001
+                  current_versions: {}
+              incrementalSync:
+                summary: Incremental sync with current versions
+                value:
+                  edge_id: edge-tenant001-store001-001
+                  current_versions:
+                    categories: 152
+                    products_common: 3451
+                    products_store: 892
+                    payment_methods: 12
+                    staff: 45
+                    tax_rules: 8
+                    settings: 23
+      responses:
+        '200':
+          description: Sync data available or no updates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PollResponse'
+              examples:
+                noUpdates:
+                  summary: No updates available
+                  value:
+                    sync_required: false
+                    message: No updates available
+                incrementalUpdates:
+                  summary: Incremental updates available
+                  value:
+                    sync_required: true
+                    sync_type: incremental
+                    updates:
+                      - category: products_common
+                        version: 3452
+                        updated_at: '2025-10-13T10:00:00Z'
+                        data_hash: a3f5e8d2b1c4a6f9e7d3b5c8a1f4e6d9b2c5a8f1e4d7b3c6a9f2e5d8b1c4a7f0
+                        record_count: 15
+                        data_size_bytes: 45120
+                        data:
+                          - product_code: 'ITEM-001'
+                            name: 'Sample Product'
+                            price: 1000
+                fullSync:
+                  summary: Full sync required
+                  value:
+                    sync_required: true
+                    sync_type: full
+                    updates:
+                      - category: categories
+                        version: 1
+                        data: {...}
+                      - category: products_common
+                        version: 1
+                        data: {...}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sync/master-data/ack:
+    post:
+      tags:
+        - Master Data Sync
+      summary: Acknowledge master data sync completion
+      description: |
+        Edge terminals acknowledge successful application of master data updates.
+
+        **Purpose**:
+        - Update SyncStatus to success state
+        - Record sync history
+        - Reset retry counters
+
+        **Related Requirements**: FR-007, FR-008
+      operationId: acknowledgeMasterSync
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterSyncAck'
+      responses:
+        '200':
+          description: Acknowledgement recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AckResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sync/transactions:
+    post:
+      tags:
+        - Transaction Sync
+      summary: Send transaction logs to cloud (Edge → Cloud)
+      description: |
+        Edge terminals send accumulated transaction logs to cloud.
+
+        **Transaction Types**:
+        - `transaction`: Sales, returns, discounts
+        - `opening_closing`: Register opening/closing logs
+        - `cash_inout`: Cash in/out operations
+        - `journal`: Electronic journal entries
+
+        **Delivery Guarantee**: At-least-once delivery with idempotent processing
+
+        **Related Requirements**: FR-004, FR-005, FR-006, FR-021
+      operationId: sendTransactionLogs
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionBatch'
+            examples:
+              salesTransaction:
+                summary: Sales transaction log
+                value:
+                  edge_id: edge-tenant001-store001-001
+                  logs:
+                    - log_id: 550e8400-e29b-41d4-a716-446655440001
+                      log_type: transaction
+                      occurred_at: '2025-10-13T09:30:00Z'
+                      data:
+                        transaction_id: TXN-20251013-001
+                        total_amount: 3500
+                        payment_method: cash
+                        items:
+                          - product_code: ITEM-001
+                            quantity: 2
+                            unit_price: 1500
+                            subtotal: 3000
+      responses:
+        '200':
+          description: Transaction logs accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionSyncResponse'
+              examples:
+                success:
+                  summary: All logs accepted
+                  value:
+                    accepted_count: 15
+                    rejected_count: 0
+                    rejected_ids: []
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sync/terminal-state:
+    post:
+      tags:
+        - Terminal State Sync
+      summary: Send terminal state changes to cloud
+      description: |
+        Edge terminals send terminal status changes (Idle → Opened → Closed) to cloud.
+
+        **State Transitions**:
+        - Idle → Opened: Terminal opening
+        - Opened → Closed: Terminal settlement
+        - Closed → Opened: Re-opening
+
+        **Related Requirements**: FR-005
+      operationId: sendTerminalState
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerminalStateBatch'
+      responses:
+        '200':
+          description: Terminal state changes accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AckResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sync/status:
+    get:
+      tags:
+        - Master Data Sync
+      summary: Get current sync status for edge terminal
+      description: |
+        Retrieve current sync status for all data types.
+
+        **Use Case**: Monitoring dashboard, troubleshooting
+      operationId: getSyncStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: edge_id
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^edge-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]{3}$'
+          description: Edge terminal ID
+          example: edge-tenant001-store001-001
+      responses:
+        '200':
+          description: Sync status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  schemas:
+    PollRequest:
+      type: object
+      required:
+        - edge_id
+        - current_versions
+      properties:
+        edge_id:
+          type: string
+          pattern: '^edge-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]{3}$'
+          example: edge-tenant001-store001-001
+        current_versions:
+          type: object
+          description: Current master data versions on edge terminal
+          additionalProperties:
+            type: integer
+          example:
+            categories: 152
+            products_common: 3451
+            products_store: 892
+            payment_methods: 12
+            staff: 45
+            tax_rules: 8
+            settings: 23
+
+    PollResponse:
+      type: object
+      required:
+        - sync_required
+      properties:
+        sync_required:
+          type: boolean
+          description: Whether sync is needed
+        sync_type:
+          type: string
+          enum:
+            - full
+            - incremental
+            - complete
+          description: Type of sync to perform
+        message:
+          type: string
+          description: Human-readable message
+          example: No updates available
+        updates:
+          type: array
+          description: Available master data updates
+          items:
+            $ref: '#/components/schemas/MasterDataUpdate'
+
+    MasterDataUpdate:
+      type: object
+      required:
+        - category
+        - version
+        - updated_at
+        - data_hash
+        - record_count
+        - data
+      properties:
+        category:
+          type: string
+          enum:
+            - categories
+            - products_common
+            - products_store
+            - payment_methods
+            - staff
+            - tax_rules
+            - settings
+          description: Master data category
+        version:
+          type: integer
+          minimum: 1
+          description: Version number
+          example: 3452
+        updated_at:
+          type: string
+          format: date-time
+          description: Update timestamp (ISO 8601)
+          example: '2025-10-13T10:00:00Z'
+        data_hash:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+          description: SHA-256 hash of data field
+          example: a3f5e8d2b1c4a6f9e7d3b5c8a1f4e6d9b2c5a8f1e4d7b3c6a9f2e5d8b1c4a7f0
+        record_count:
+          type: integer
+          minimum: 0
+          description: Number of records in this update
+          example: 15
+        data_size_bytes:
+          type: integer
+          minimum: 0
+          description: Data payload size in bytes
+          example: 45120
+        data:
+          type: object
+          description: Actual master data content (category-specific structure)
+          additionalProperties: true
+
+    MasterSyncAck:
+      type: object
+      required:
+        - edge_id
+        - sync_type
+        - applied_versions
+        - status
+      properties:
+        edge_id:
+          type: string
+          pattern: '^edge-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]{3}$'
+        sync_type:
+          type: string
+          enum:
+            - full
+            - incremental
+            - complete
+        applied_versions:
+          type: object
+          description: Successfully applied versions
+          additionalProperties:
+            type: integer
+          example:
+            products_common: 3452
+            staff: 46
+        status:
+          type: string
+          enum:
+            - success
+            - failed
+        error_message:
+          type: string
+          description: Error message if status=failed
+        checksum_verified:
+          type: boolean
+          description: Whether checksum verification passed
+          example: true
+        record_count_verified:
+          type: boolean
+          description: Whether record count verification passed
+          example: true
+
+    TransactionBatch:
+      type: object
+      required:
+        - edge_id
+        - logs
+      properties:
+        edge_id:
+          type: string
+          pattern: '^edge-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]{3}$'
+        logs:
+          type: array
+          description: Transaction log entries
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/TransactionLog'
+
+    TransactionLog:
+      type: object
+      required:
+        - log_id
+        - log_type
+        - occurred_at
+        - data
+      properties:
+        log_id:
+          type: string
+          format: uuid
+          description: Unique transaction log ID
+          example: 550e8400-e29b-41d4-a716-446655440001
+        log_type:
+          type: string
+          enum:
+            - transaction
+            - opening_closing
+            - cash_inout
+            - journal
+          description: Transaction log type
+        occurred_at:
+          type: string
+          format: date-time
+          description: Transaction occurrence timestamp (ISO 8601)
+          example: '2025-10-13T09:30:00Z'
+        data:
+          type: object
+          description: Transaction data content (type-specific structure)
+          additionalProperties: true
+
+    TransactionSyncResponse:
+      type: object
+      required:
+        - accepted_count
+        - rejected_count
+      properties:
+        accepted_count:
+          type: integer
+          minimum: 0
+          description: Number of accepted logs
+          example: 15
+        rejected_count:
+          type: integer
+          minimum: 0
+          description: Number of rejected logs
+          example: 0
+        rejected_ids:
+          type: array
+          description: UUIDs of rejected logs
+          items:
+            type: string
+            format: uuid
+          example: []
+
+    TerminalStateBatch:
+      type: object
+      required:
+        - edge_id
+        - state_changes
+      properties:
+        edge_id:
+          type: string
+          pattern: '^edge-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]{3}$'
+        state_changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TerminalStateChange'
+
+    TerminalStateChange:
+      type: object
+      required:
+        - terminal_id
+        - status
+        - function_mode
+        - business_date
+        - open_counter
+        - business_counter
+        - status_changed_at
+        - operator_id
+      properties:
+        terminal_id:
+          type: string
+          pattern: '^[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]+$'
+          description: Terminal ID (format: {tenant_id}-{store_code}-{terminal_no})
+          example: tenant001-store001-1
+        status:
+          type: string
+          enum:
+            - Idle
+            - Opened
+            - Closed
+          description: Current terminal status
+        function_mode:
+          type: string
+          description: Current function mode (Sales, Returns, etc.)
+          example: Sales
+        business_date:
+          type: string
+          pattern: '^[0-9]{8}$'
+          description: Business date (YYYYMMDD format)
+          example: '20251013'
+        open_counter:
+          type: integer
+          minimum: 0
+          description: Opening count within business date
+        business_counter:
+          type: integer
+          minimum: 0
+          description: Cumulative opening count (never resets)
+        status_changed_at:
+          type: string
+          format: date-time
+          description: Status change timestamp (ISO 8601)
+        previous_status:
+          type: string
+          enum:
+            - Idle
+            - Opened
+            - Closed
+          description: Previous status before change
+        operator_id:
+          type: string
+          description: Staff ID who performed the change
+
+    SyncStatusResponse:
+      type: object
+      required:
+        - edge_id
+        - statuses
+      properties:
+        edge_id:
+          type: string
+        statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncStatusDetail'
+
+    SyncStatusDetail:
+      type: object
+      required:
+        - data_type
+        - status
+      properties:
+        data_type:
+          type: string
+          enum:
+            - master_data
+            - transaction_log
+            - journal
+            - terminal_state
+        last_sync_at:
+          type: string
+          format: date-time
+        sync_type:
+          type: string
+          enum:
+            - full
+            - incremental
+            - complete
+        status:
+          type: string
+          enum:
+            - idle
+            - syncing
+            - success
+            - failed
+        retry_count:
+          type: integer
+        error_message:
+          type: string
+        next_sync_at:
+          type: string
+          format: date-time
+
+    AckResponse:
+      type: object
+      required:
+        - status
+        - message
+      properties:
+        status:
+          type: string
+          enum:
+            - success
+            - error
+        message:
+          type: string
+          example: Acknowledgement recorded
+
+    ErrorResponse:
+      type: object
+      required:
+        - error_code
+        - message
+      properties:
+        error_code:
+          type: string
+          description: Error code in XXYYZZ format (XX=80 for sync service)
+          example: '800201'
+        message:
+          type: string
+        detail:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Authentication failed or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
