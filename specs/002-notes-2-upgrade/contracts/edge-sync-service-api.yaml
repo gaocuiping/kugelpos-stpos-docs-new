@@ -1,0 +1,254 @@
+openapi: 3.0.3
+info:
+  title: Edge Sync Service API
+  description: |
+    Edge Sync Service API for P2P file distribution within the same store.
+    This API runs on Edge/POS seed devices and serves cached artifacts to other devices in the same store.
+
+    Key features:
+    - Serves files from local cache to other devices (P2P distribution)
+    - Compatible API with Cloud Sync Service (transparent fallback)
+    - Reduces internet bandwidth usage by leveraging local network
+  version: 1.0.0
+  contact:
+    name: Kugelpos Development Team
+    email: dev@kugelpos.com
+
+servers:
+  - url: http://192.168.1.10:8007/api/v1
+    description: Edge device local network (example IP)
+  - url: http://localhost:8007/api/v1
+    description: Local development
+
+tags:
+  - name: P2P Sync
+    description: P2P file distribution endpoints
+
+paths:
+  /sync/version:
+    get:
+      tags:
+        - P2P Sync
+      summary: Get seed device version information
+      description: |
+        Returns version information of the seed device and availability of cached versions.
+        Used by receiving devices to determine if P2P download is available.
+      operationId: getSeedVersion
+      responses:
+        '200':
+          description: Seed version information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeedVersionResponse'
+              examples:
+                available:
+                  summary: Seed has cached version
+                  value:
+                    success: true
+                    data:
+                      seed_edge_id: edge-A1234-tokyo-001
+                      device_type: edge
+                      is_p2p_seed: true
+                      p2p_priority: 0
+                      current_version: "1.2.3"
+                      cached_versions:
+                        - "1.2.3"
+                        - "1.2.2"
+                      cache_status: available
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sync/artifacts/{artifact_name}:
+    get:
+      tags:
+        - P2P Sync
+      summary: Download artifact from seed device
+      description: |
+        Downloads a specific artifact from the seed device's local cache.
+        Returns the file as binary stream with checksum in response header.
+      operationId: downloadArtifactFromSeed
+      parameters:
+        - name: artifact_name
+          in: path
+          required: true
+          description: Artifact filename
+          schema:
+            type: string
+          examples:
+            script:
+              value: pos-startup.sh
+            module:
+              value: kugelpos_common-1.2.3-py3-none-any.whl
+        - name: version
+          in: query
+          required: true
+          description: Artifact version
+          schema:
+            type: string
+          example: "1.2.3"
+      responses:
+        '200':
+          description: File download successful from seed cache
+          headers:
+            X-Checksum:
+              description: SHA256 checksum of the file
+              schema:
+                type: string
+                example: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+            X-File-Size:
+              description: File size in bytes
+              schema:
+                type: integer
+                example: 15360
+            X-Source:
+              description: Source of the file (local_cache)
+              schema:
+                type: string
+                example: local_cache
+            Content-Type:
+              description: MIME type of the file
+              schema:
+                type: string
+                example: application/octet-stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sync/health:
+    get:
+      tags:
+        - P2P Sync
+      summary: Health check
+      description: Health check endpoint for monitoring seed device availability
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Seed device is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  uptime_seconds:
+                    type: integer
+                    example: 86400
+                  cache_size_bytes:
+                    type: integer
+                    description: Total size of cached artifacts
+                    example: 1073741824
+
+components:
+  schemas:
+    SeedVersionResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          required:
+            - seed_edge_id
+            - device_type
+            - is_p2p_seed
+            - p2p_priority
+            - current_version
+            - cache_status
+          properties:
+            seed_edge_id:
+              type: string
+              description: Seed device ID
+              example: edge-A1234-tokyo-001
+            device_type:
+              type: string
+              enum: [edge, pos]
+              description: Seed device type
+            is_p2p_seed:
+              type: boolean
+              example: true
+            p2p_priority:
+              type: integer
+              minimum: 0
+              maximum: 9
+              description: P2P priority (0=primary)
+              example: 0
+            current_version:
+              type: string
+              description: Currently running version on seed
+              example: "1.2.3"
+            cached_versions:
+              type: array
+              items:
+                type: string
+              description: List of cached versions available for P2P
+              example: ["1.2.3", "1.2.2"]
+            cache_status:
+              type: string
+              enum: [available, updating, unavailable]
+              description: Cache availability status
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Error code in XXYYZZ format
+              example: "800401"
+            message:
+              type: string
+              description: Human-readable error message
+              example: Artifact not found in cache
+            details:
+              type: string
+              description: Additional error details
+
+  responses:
+    NotFound:
+      description: Artifact not found in local cache
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "800401"
+              message: Artifact not found in cache
+              details: Requested artifact is not available in local cache. Fallback to cloud.
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "809999"
+              message: Internal server error
+              details: An unexpected error occurred
