@@ -969,6 +969,384 @@ await edge_terminal_repo.update_many(
 
 ---
 
+## Manifest URL形式の詳細仕様
+
+### artifactsフィールドのURL形式
+
+Manifestの`artifacts`配列に含まれる各アーティファクトのURL形式を明確に定義します。
+
+#### primary_url（クラウドプライマリURL）
+
+**形式**:
+```
+https://{storage_account}.blob.core.windows.net/{tenant_id}/versions/{version}/{artifact_name}?{sas_token}
+```
+
+**具体例**:
+```
+https://kugelpos.blob.core.windows.net/tenant001/versions/1.2.3/edge-startup.sh?sv=2021-06-08&ss=b&srt=sco&sp=r&se=2025-01-18T03:00:00Z&st=2025-01-18T02:00:00Z&spr=https&sig=ABC123...
+```
+
+**構成要素**:
+- `{storage_account}`: Azure Storage Account名（例: `kugelpos`）
+- `{tenant_id}`: テナントID（例: `tenant001`）
+- `{version}`: バージョン番号（例: `1.2.3`）
+- `{artifact_name}`: ファイル名（例: `edge-startup.sh`）
+- `{sas_token}`: Azure Blob Storage SASトークン（クエリパラメータ）
+  - `sv`: Storage version
+  - `ss`: Service (blob)
+  - `srt`: Resource type (service, container, object)
+  - `sp`: Permissions (read)
+  - `se`: Expiry time（有効期限: 通常1時間、ISO 8601形式）
+  - `st`: Start time（開始時刻）
+  - `spr`: Protocol (https)
+  - `sig`: 署名
+
+**セキュリティ要件**:
+- TLS 1.2以上必須
+- SASトークン有効期限: 1時間（Manifestに含まれる時点から）
+- 読み取り専用権限（`sp=r`）
+
+#### fallback_url（クラウドセカンダリURL）
+
+**形式**: `primary_url`と同じ
+
+**具体例**:
+```
+https://kugelpos-backup.blob.core.windows.net/tenant001/versions/1.2.3/edge-startup.sh?sv=2021-06-08&...
+```
+
+**構成要素**:
+- 異なるAzureリージョンのStorage Accountを使用（冗長性確保）
+- Storage Account名以外は`primary_url`と同一構造
+- SASトークンも独立して生成（両方が同時に無効にならないよう）
+
+**フォールバック戦略**:
+1. `primary_url`でダウンロード試行（最大3回リトライ、指数バックオフ）
+2. 失敗時、`fallback_url`でダウンロード試行（最大3回リトライ）
+3. 両方失敗時、エラーをクラウドに通知してダウンロードを中断
+
+### container_imagesフィールドのURL形式
+
+#### primary_registry（クラウドプライマリレジストリ）
+
+**形式**:
+```
+{registry_url}.azurecr.io
+```
+
+**具体例**:
+```
+kugelpos.azurecr.io
+```
+
+**認証方法**:
+```bash
+# Docker login with Azure Container Registry token
+docker login kugelpos.azurecr.io \
+  --username {service_principal_id} \
+  --password {service_principal_password}
+
+# Token expiry: 1 hour (same as SAS token policy)
+```
+
+#### primary_image（プライマリイメージ名）
+
+**形式**:
+```
+{service_name}:{version}
+```
+
+**具体例**:
+```
+cart:1.2.3
+```
+
+**完全イメージ参照**:
+```
+kugelpos.azurecr.io/cart:1.2.3
+```
+
+**ダウンロードコマンド**:
+```bash
+docker pull kugelpos.azurecr.io/cart:1.2.3
+```
+
+#### fallback_registry / fallback_image
+
+**形式**: `primary_registry` / `primary_image`と同じ
+
+**具体例**:
+```
+Registry: kugelpos-backup.azurecr.io
+Image: cart:1.2.3
+Full reference: kugelpos-backup.azurecr.io/cart:1.2.3
+```
+
+**フォールバック戦略**:
+1. `primary_registry`から`primary_image`をpull試行（最大3回リトライ）
+2. 失敗時、`fallback_registry`から`fallback_image`をpull試行（最大3回リトライ）
+3. 両方失敗時、エラーをクラウドに通知してダウンロードを中断
+
+### P2P配信時のURL形式
+
+#### available_seedsのURL形式
+
+**形式**:
+```
+http://{edge_ip}:{port}
+```
+
+**具体例**:
+```
+http://192.168.1.10:8007
+```
+
+**構成要素**:
+- `{edge_ip}`: シード端末のローカルIPアドレス（店舗内ネットワーク）
+- `{port}`: Edge Sync Service APIポート（デフォルト: 8007）
+
+**注意**: P2P配信はローカルネットワーク内（店舗内）でのみ使用されるため、HTTPSは不要（HTTPで許容）
+
+#### P2P経由でのファイル取得URL
+
+**形式**:
+```
+http://{edge_ip}:{port}/api/v1/sync/artifacts/{artifact_name}?version={version}
+```
+
+**具体例**:
+```
+http://192.168.1.10:8007/api/v1/sync/artifacts/edge-startup.sh?version=1.2.3
+```
+
+**ダウンロード手順**:
+1. Manifestの`available_seeds`を優先度順（priority昇順: 0→1→2...）に試行
+2. 各シード端末のURLで上記形式のリクエスト送信
+3. 成功すればダウンロード完了
+4. 全シード失敗時、`primary_url` → `fallback_url`へフォールバック
+
+#### P2P経由でのコンテナイメージ取得
+
+**形式**:
+```
+{edge_ip}:{registry_port}/{image_name}:{version}
+```
+
+**具体例**:
+```
+192.168.1.10:5000/cart:1.2.3
+```
+
+**構成要素**:
+- `{edge_ip}`: シード端末のローカルIPアドレス
+- `{registry_port}`: Harbor Registry APIポート（デフォルト: 5000）
+- `{image_name}`: イメージ名
+- `{version}`: バージョン
+
+**ダウンロードコマンド**:
+```bash
+# priority=0のシード端末から試行
+docker pull 192.168.1.10:5000/cart:1.2.3
+
+# 失敗時、priority=1のシード端末へフォールバック
+docker pull 192.168.1.11:5000/cart:1.2.3
+
+# 全シード失敗時、クラウドレジストリへフォールバック
+docker pull kugelpos.azurecr.io/cart:1.2.3
+```
+
+---
+
+## Manifest配信タイミング制御（FR-035実装）
+
+### 目的
+
+新バージョン配信時にP2P配信の効果を最大化するため、シード端末（`is_p2p_seed=true`）を優先してManifestを返却し、シード端末のダウンロード完了後に非シード端末へManifestを配信します。
+
+### 実装アプローチ
+
+#### 1. バージョンリリースフラグ管理
+
+DeviceVersionコレクションに以下のフィールドを追加（既存エンティティ拡張）：
+
+```python
+{
+  "release_phase": str,  # "seed_only" | "general_availability"
+  "release_started_at": datetime,  # リリース開始日時
+  "seed_download_completed_count": int,  # ダウンロード完了シード端末数
+  "seed_download_target_count": int  # 対象シード端末総数
+}
+```
+
+**フィールド説明**:
+- `release_phase`:
+  - `"seed_only"`: Phase 1 - シード端末のみにManifest配信
+  - `"general_availability"`: Phase 2 - 全端末にManifest配信
+- `release_started_at`: リリース開始日時（タイムアウト判定用）
+- `seed_download_completed_count`: 現在までにダウンロード完了したシード端末数
+- `seed_download_target_count`: 対象店舗のシード端末総数（事前カウント）
+
+#### 2. バージョンチェックAPI（/version-management/check）のロジック
+
+```python
+async def check_version(edge_id: str, current_version: str) -> Manifest:
+    terminal = await edge_terminal_repository.find_by_edge_id(edge_id)
+    version_info = await device_version_repository.find_by_edge_id(edge_id)
+
+    # 新バージョンがある場合
+    if version_info.target_version != current_version:
+        # Phase 1: シード端末のみにManifest配信
+        if version_info.release_phase == "seed_only":
+            if terminal.is_p2p_seed:
+                # シード端末には即座にManifest返却
+                return await manifest_generator.generate_manifest(
+                    edge_id=edge_id,
+                    target_version=version_info.target_version,
+                    available_seeds=[]  # シード端末はクラウドから直接ダウンロード
+                )
+            else:
+                # 非シード端末には現在バージョンを返却（更新なし）
+                return None
+
+        # Phase 2: 全端末にManifest配信
+        elif version_info.release_phase == "general_availability":
+            # ダウンロード完了済みシード端末のリストを取得
+            completed_seeds = await get_completed_seeds(
+                tenant_id=terminal.tenant_id,
+                store_code=terminal.store_code,
+                target_version=version_info.target_version
+            )
+
+            return await manifest_generator.generate_manifest(
+                edge_id=edge_id,
+                target_version=version_info.target_version,
+                available_seeds=completed_seeds  # P2P優先度制御リスト
+            )
+```
+
+**ロジック説明**:
+1. `release_phase`が`"seed_only"`の場合:
+   - シード端末(`is_p2p_seed=true`)には`available_seeds=[]`でManifest返却
+   - 非シード端末には`null`返却（更新なしと認識）
+2. `release_phase`が`"general_availability"`の場合:
+   - すべての端末に、ダウンロード完了済みシード端末のリスト付きManifest返却
+
+#### 3. ダウンロード完了通知（/artifact-management/download-complete）のロジック
+
+```python
+async def notify_download_complete(edge_id: str, version: str):
+    terminal = await edge_terminal_repository.find_by_edge_id(edge_id)
+
+    # ダウンロード完了を記録
+    await device_version_repository.update_download_status(
+        edge_id=edge_id,
+        download_status="completed",
+        download_completed_at=datetime.utcnow()
+    )
+
+    # シード端末の場合、リリースフェーズ遷移をチェック
+    if terminal.is_p2p_seed:
+        version_info = await get_version_release_info(version)
+        version_info.seed_download_completed_count += 1
+
+        # 全シード端末のダウンロード完了を検知
+        if version_info.seed_download_completed_count >= version_info.seed_download_target_count:
+            # Phase 2へ遷移: 全端末へManifest配信開始
+            await update_release_phase(
+                version=version,
+                release_phase="general_availability"
+            )
+
+            logger.info(
+                f"Version {version} released to general availability. "
+                f"All {version_info.seed_download_target_count} seed terminals completed download."
+            )
+```
+
+**ロジック説明**:
+1. すべての端末のダウンロード完了を記録
+2. シード端末の場合、`seed_download_completed_count`をインクリメント
+3. すべてのシード端末が完了した場合、`release_phase`を`"general_availability"`へ遷移
+4. 次回の非シード端末のバージョンチェックで、`available_seeds`付きManifestが返却される
+
+#### 4. タイムアウト処理
+
+シード端末のダウンロード完了を無期限に待機しない対策：
+
+**タイムアウト設定**:
+- リリース開始から**6時間**経過後、自動的に`"general_availability"`へ遷移
+- 実装: バックグラウンドタスク（Celery、またはFastAPIのBackgroundTasks）で定期チェック
+
+```python
+async def check_release_phase_timeout():
+    """6時間経過したseed_onlyフェーズを自動遷移"""
+    timeout_threshold = datetime.utcnow() - timedelta(hours=6)
+
+    stuck_releases = await find_releases(
+        release_phase="seed_only",
+        release_started_at__lt=timeout_threshold
+    )
+
+    for release in stuck_releases:
+        await update_release_phase(
+            version=release.version,
+            release_phase="general_availability"
+        )
+        logger.warning(
+            f"Version {release.version} auto-transitioned to GA due to timeout. "
+            f"Only {release.seed_download_completed_count}/{release.seed_download_target_count} seeds completed."
+        )
+```
+
+#### 5. 管理者向けバージョンリリースAPI
+
+新バージョンをリリースする際の管理コマンド：
+
+**エンドポイント**: `POST /api/v1/admin/versions`
+
+**リクエスト例**:
+```json
+{
+  "version": "1.2.3",
+  "release_phase": "seed_only",
+  "target_tenant_id": "tenant001",
+  "target_store_codes": ["store001", "store002"],
+  "seed_download_target_count": 5
+}
+```
+
+**レスポンス例**:
+```json
+{
+  "success": true,
+  "data": {
+    "version": "1.2.3",
+    "release_phase": "seed_only",
+    "release_started_at": "2025-01-18T00:00:00Z",
+    "seed_download_target_count": 5,
+    "seed_download_completed_count": 0
+  }
+}
+```
+
+**処理フロー**:
+1. 新バージョン情報をDeviceVersionコレクションに登録
+2. `release_phase="seed_only"`で開始
+3. 対象店舗のシード端末数をカウントし、`seed_download_target_count`に設定
+4. シード端末がバージョンチェックを実行すると、Manifestが返却される
+5. シード端末のダウンロード完了後、自動的に`"general_availability"`へ遷移
+6. 非シード端末が次回バージョンチェックすると、`available_seeds`付きManifestが返却される
+
+### 実装タスクマッピング
+
+- **T037** (`manifest_generator.py`): `generate_manifest`関数で`available_seeds`の生成ロジック実装
+- **T036** (`version_service.py`): `check_version`関数で`release_phase`判定ロジック実装
+- **T043** (`artifact_service.py`): `record_download_complete`関数でシード端末カウント・フェーズ遷移ロジック実装
+- **バックグラウンドタスク** (新規): タイムアウトチェックの定期実行
+
+---
+
 ## まとめ
 
 ### 設計の重要ポイント

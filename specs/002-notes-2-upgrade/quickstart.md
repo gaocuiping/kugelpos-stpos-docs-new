@@ -444,9 +444,113 @@ curl -X GET http://localhost:8007/api/v1/devices/edge-A1234-tokyo-001/history \
 
 ---
 
-## 4. テスト実行
+## 4. 帯域削減率の検証
 
-### 4.1 ユニットテスト
+### SC-004: コンテナイメージ差分更新の帯域削減率（85%以上）
+
+このセクションでは、成功基準SC-004「差分更新時のコンテナイメージダウンロードが変更サービスのみで完了し、全サービス更新時と比較して帯域削減率が85%以上であること」を検証する手順を説明します。
+
+#### 4.1 ベースライン測定（全サービス更新）
+
+```bash
+# Dockerイメージをクリーンな状態からダウンロード
+docker system prune -a --volumes -f
+
+# 全8サービスのイメージをダウンロード（account, terminal, master-data, cart, report, journal, stock, sync）
+cd services
+docker-compose pull --quiet 2>&1 | tee full-update.log
+
+# ダウンロードサイズを集計（例: 3200MB想定）
+FULL_SIZE=$(docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | grep kugelpos | awk '{sum+=$3} END {print sum}')
+echo "全サービス更新サイズ: ${FULL_SIZE}MB"
+```
+
+**期待される結果**: 約3200MB（8サービス × 平均400MB）
+
+#### 4.2 差分更新測定（1サービスのみ変更）
+
+```bash
+# ベースライン状態を確立（全サービスv1.2.2をインストール済み）
+# docker-compose up -d を実行済みと仮定
+
+# cartサービスのみv1.2.3に更新
+docker pull kugelpos/cart:1.2.3 2>&1 | tee diff-update.log
+
+# 差分ダウンロードサイズを取得（Dockerレイヤーキャッシュで削減）
+# レイヤーキャッシュにより、共通レイヤーは再ダウンロードされない
+DIFF_SIZE=$(docker history kugelpos/cart:1.2.3 --format "{{.Size}}" --no-trunc | awk '{sum+=$1} END {print sum}')
+echo "差分更新サイズ: ${DIFF_SIZE}MB"
+```
+
+**期待される結果**: 約400MB未満（Dockerレイヤーキャッシュにより実際はさらに削減）
+
+#### 4.3 削減率計算
+
+```bash
+# 削減率 = (全体サイズ - 差分サイズ) / 全体サイズ * 100
+REDUCTION=$(echo "scale=2; (${FULL_SIZE} - ${DIFF_SIZE}) / ${FULL_SIZE} * 100" | bc)
+echo "帯域削減率: ${REDUCTION}%"
+
+# 目標値チェック: 85%以上
+if (( $(echo "${REDUCTION} >= 85" | bc -l) )); then
+  echo "✅ SC-004 PASS: 帯域削減率 ${REDUCTION}% >= 85%"
+else
+  echo "❌ SC-004 FAIL: 帯域削減率 ${REDUCTION}% < 85%"
+fi
+```
+
+**計算根拠**:
+- 全サービス更新: 3200MB（8サービス × 400MB）
+- 差分更新: 400MB（cartサービスのみ）
+- 削減率: (3200MB - 400MB) / 3200MB × 100 = 87.5%
+- Dockerレイヤーキャッシュにより、実際の差分ダウンロードサイズは400MBよりさらに削減されるため、削減率は87.5%以上となる
+
+#### 4.4 自動検証スクリプト
+
+```bash
+# 帯域削減率を自動検証するスクリプト
+cat > verify-bandwidth-reduction.sh <<'EOF'
+#!/bin/bash
+set -e
+
+echo "=== SC-004帯域削減率検証 ==="
+
+# Step 1: ベースライン測定
+echo "Step 1: 全サービス更新サイズを測定中..."
+docker system prune -a --volumes -f --filter "label=kugelpos"
+docker-compose pull --quiet
+FULL_SIZE=$(docker images --format "{{.Size}}" | grep -E "^[0-9]+MB" | sed 's/MB//' | awk '{sum+=$1} END {print sum}')
+echo "全サービス更新サイズ: ${FULL_SIZE}MB"
+
+# Step 2: 差分更新測定
+echo "Step 2: 差分更新サイズを測定中..."
+docker pull kugelpos/cart:1.2.3 --quiet
+DIFF_SIZE=$(docker images kugelpos/cart:1.2.3 --format "{{.Size}}" | sed 's/MB//')
+echo "差分更新サイズ: ${DIFF_SIZE}MB"
+
+# Step 3: 削減率計算
+REDUCTION=$(echo "scale=2; (${FULL_SIZE} - ${DIFF_SIZE}) / ${FULL_SIZE} * 100" | bc)
+echo "帯域削減率: ${REDUCTION}%"
+
+# Step 4: 判定
+if (( $(echo "${REDUCTION} >= 85" | bc -l) )); then
+  echo "✅ SC-004 PASS: 帯域削減率 ${REDUCTION}% >= 85%"
+  exit 0
+else
+  echo "❌ SC-004 FAIL: 帯域削減率 ${REDUCTION}% < 85%"
+  exit 1
+fi
+EOF
+
+chmod +x verify-bandwidth-reduction.sh
+./verify-bandwidth-reduction.sh
+```
+
+---
+
+## 5. テスト実行
+
+### 5.1 ユニットテスト
 
 **Sync Serviceのユニットテストを実行**:
 
@@ -479,7 +583,7 @@ tests/test_version_check.py::test_version_check_no_update PASSED         [ 16%]
 ========================= 23 passed, 2 failed in 12.34s ========================
 ```
 
-### 4.2 統合テスト
+### 5.2 統合テスト
 
 **Sync Serviceと他サービスの統合テストを実行**:
 
@@ -500,7 +604,7 @@ cd ../..
 2. `test_setup_data.py`: テストデータをセットアップ
 3. 機能テスト（test_auth.py, test_version_check.py, etc.）
 
-### 4.3 E2Eテスト
+### 5.3 E2Eテスト
 
 **エンドツーエンドシナリオテストを実行**:
 
@@ -531,9 +635,9 @@ pipenv run pytest test_update_flow.py -v
 
 ---
 
-## 5. トラブルシューティング
+## 6. トラブルシューティング
 
-### 5.1 MongoDB接続エラー
+### 6.1 MongoDB接続エラー
 
 **エラー**:
 
@@ -554,7 +658,7 @@ docker-compose up -d mongodb
 ../scripts/init-mongodb-replica.sh
 ```
 
-### 5.2 JWT認証エラー
+### 6.2 JWT認証エラー
 
 **エラー**:
 
@@ -580,7 +684,7 @@ cd services/sync
 pipenv run pytest tests/test_setup_data.py -v
 ```
 
-### 5.3 ファイルダウンロードエラー
+### 6.3 ファイルダウンロードエラー
 
 **エラー**:
 
@@ -609,7 +713,7 @@ chmod 755 /tmp/kugelpos-artifacts/scripts/pos-startup.sh/v1.2.3/pos-startup.sh
 # BLOB_STORAGE_PATH=/tmp/kugelpos-artifacts
 ```
 
-### 5.4 P2Pシード端末が見つからない
+### 6.4 P2Pシード端末が見つからない
 
 **エラー**:
 
@@ -629,7 +733,7 @@ curl -X GET http://localhost:8007/api/v1/devices/edge-A1234-tokyo-001 \
 pipenv run python edge_client.py --edge-id edge-A1234-tokyo-001 --device-type edge --is-seed true --priority 0
 ```
 
-### 5.5 ポート競合
+### 6.5 ポート競合
 
 **エラー**:
 
@@ -653,22 +757,22 @@ kill -9 <PID>
 
 ---
 
-## 6. 次のステップ
+## 7. 次のステップ
 
-### 6.1 機能開発
+### 7.1 機能開発
 
 - **data-model.md**: データモデル設計を確認し、RepositoryとDocumentクラスを実装
 - **contracts/**: API契約を確認し、FastAPIエンドポイントを実装
 - **TDD**: テストファーストで開発（Red-Green-Refactorサイクル）
 
-### 6.2 デプロイ
+### 7.2 デプロイ
 
 - **Docker Image Build**: 本番用のDockerイメージをビルド
 - **Azure Container Registry**: イメージをACRにプッシュ
 - **Azure Container Apps**: Sync Serviceをデプロイ
 - **MongoDB Atlas**: 本番環境のMongoDBを構成
 
-### 6.3 監視・運用
+### 7.3 監視・運用
 
 - **Azure Monitor**: メトリクスとログの収集
 - **Prometheus/Grafana**: ダッシュボードの構築
@@ -676,7 +780,7 @@ kill -9 <PID>
 
 ---
 
-## 7. リソース
+## 8. リソース
 
 ### ドキュメント
 
@@ -700,7 +804,7 @@ kill -9 <PID>
 
 ---
 
-## FAQ
+## 9. FAQ
 
 ### Q1: テスト環境でインターネット接続が必要ですか？
 
@@ -727,7 +831,7 @@ kill -9 <PID>
 
 ---
 
-## サポート
+## 10. サポート
 
 ### 問題報告
 
