@@ -35,6 +35,5 @@ venv/
 **/dist/
 **/commons/dist/
 
-# ignore claude files
-claude-*
-.claude/
+# ignore git worktrees
+worktrees/
