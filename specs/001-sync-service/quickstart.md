@@ -195,36 +195,36 @@ async def create_indexes():
     print("Creating indexes for sync service...")
 
     # SyncStatus indexes
-    await db.sync_status.create_index(
+    await db.status_sync.create_index(
         [("edge_id", 1), ("data_type", 1)],
         unique=True,
         name="edge_data_unique"
     )
-    await db.sync_status.create_index(
+    await db.status_sync.create_index(
         [("status", 1), ("next_sync_at", 1)],
         name="scheduled_sync"
     )
     print("✓ SyncStatus indexes created")
 
     # SyncHistory indexes
-    await db.sync_history.create_index(
+    await db.info_sync_history.create_index(
         [("sync_id", 1)],
         unique=True,
         name="sync_id_unique"
     )
-    await db.sync_history.create_index(
+    await db.info_sync_history.create_index(
         [("edge_id", 1), ("started_at", -1)],
         name="edge_history"
     )
     print("✓ SyncHistory indexes created")
 
     # EdgeTerminal indexes
-    await db.edge_terminals.create_index(
+    await db.info_edge_terminal.create_index(
         [("edge_id", 1)],
         unique=True,
         name="edge_id_unique"
     )
-    await db.edge_terminals.create_index(
+    await db.info_edge_terminal.create_index(
         [("store_code", 1), ("p2p_priority", 1), ("status", 1)],
         name="p2p_discovery"
     )
@@ -363,9 +363,9 @@ class SyncStatusModel(BaseDocumentModel):
         pattern="^edge-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]{3}$",
     )
 
-    data_type: Literal["master_data", "transaction_log", "journal", "terminal_state"] = Field(
+    data_type: Literal["master_data", "transaction_log", "terminal_state"] = Field(
         ...,
-        description="Type of data being synchronized"
+        description="Type of data being synchronized (Note: journal data is included in transaction_log via journal_text field)"
     )
 
     last_sync_at: Optional[datetime] = None
@@ -436,7 +436,7 @@ class SyncStatusRepository(AbstractRepository[SyncStatusModel]):
     """Repository for SyncStatus operations"""
 
     def __init__(self, db: AsyncIOMotorDatabase):
-        super().__init__(db, "sync_status", SyncStatusModel)
+        super().__init__("status_sync", SyncStatusModel, db)
 
     async def find_by_edge_and_type(
         self,

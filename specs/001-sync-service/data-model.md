@@ -10,7 +10,7 @@
 
 - **データベース命名パターン**: `sync_{tenant_id}`
 - **テナント分離**: テナントごとに完全なデータベースレベル分離
-- **コレクション名**: snake_case 規約（例: `sync_status`, `sync_history`）
+- **コレクション名**: snake_case 規約、既存サービスと統一したカテゴリプレフィックスを使用（例: `status_sync`, `info_sync_history`）
 
 ### 接続管理
 
@@ -21,7 +21,7 @@ MONGODB_URI = "mongodb://{host}:{port}/sync_{tenant_id}?replicaSet=rs0"
 
 ## エンティティ定義
 
-### 1. SyncStatus (コレクション: `sync_status`)
+### 1. SyncStatus (コレクション: `status_sync`)
 
 **目的**: 各エッジ端末とデータ種別の組み合わせに対する現在の同期状態を追跡します。
 
@@ -44,9 +44,9 @@ class SyncStatusModel(BaseDocumentModel):
         example="edge-tenant001-store001-001"
     )
 
-    data_type: Literal["master_data", "transaction_log", "journal", "terminal_state"] = Field(
+    data_type: Literal["master_data", "transaction_log", "terminal_state"] = Field(
         ...,
-        description="Type of data being synchronized"
+        description="Type of data being synchronized (Note: journal data is included in transaction_log via journal_text field)"
     )
 
     # Synchronization state
@@ -125,7 +125,7 @@ stateDiagram-v2
 
 ---
 
-### 2. SyncHistory (コレクション: `sync_history`)
+### 2. SyncHistory (コレクション: `info_sync_history`)
 
 **目的**: すべての同期実行の変更不可能な監査ログ。監視とトラブルシューティングに使用します。
 
@@ -151,7 +151,7 @@ class SyncHistoryModel(BaseDocumentModel):
         pattern="^edge-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]{3}$"
     )
 
-    data_type: Literal["master_data", "transaction_log", "journal", "terminal_state"] = Field(
+    data_type: Literal["master_data", "transaction_log", "terminal_state"] = Field(
         ...,
         description="Type of synchronized data"
     )
@@ -235,7 +235,7 @@ class SyncHistoryModel(BaseDocumentModel):
 
 ---
 
-### 3. EdgeTerminal (コレクション: `edge_terminals`)
+### 3. EdgeTerminal (コレクション: `info_edge_terminal`)
 
 **目的**: エッジ端末の登録、認証資格情報、P2P構成を管理します。
 
@@ -339,7 +339,7 @@ class EdgeTerminalModel(BaseDocumentModel):
 
 ---
 
-### 4. ScheduledMasterFile (コレクション: `scheduled_master_files`)
+### 4. ScheduledMasterFile (コレクション: `info_scheduled_master_file`)
 
 **目的**: 指定されたタイムスタンプで将来適用されるマスタデータファイルを管理します。
 
@@ -456,7 +456,7 @@ class ScheduledMasterFileModel(BaseDocumentModel):
 
 ---
 
-### 5. FileCollection (コレクション: `file_collections`)
+### 5. FileCollection (コレクション: `info_file_collection`)
 
 **目的**: トラブルシューティングのためのエッジ端末からのリモートファイル収集タスクを追跡します。
 
@@ -587,7 +587,7 @@ class FileCollectionModel(BaseDocumentModel):
 
 ---
 
-### 6. MasterData (コレクション: `master_data`)
+### 6. MasterData (コレクション: `cache_master_data`)
 
 **目的**: クラウドからエッジ端末に同期されたマスタデータのキャッシュです。
 
@@ -667,7 +667,7 @@ class MasterDataModel(BaseDocumentModel):
 
 ---
 
-### 7. TransactionLog (コレクション: `transaction_logs`)
+### 7. TransactionLog (コレクション: `log_tran_pending`)
 
 **目的**: エッジ発信のトランザクションデータをクラウド送信のためにキューイングします。
 
@@ -695,9 +695,9 @@ class TransactionLogModel(BaseDocumentModel):
     )
 
     # Log type
-    log_type: Literal["transaction", "opening_closing", "cash_inout", "journal"] = Field(
+    log_type: Literal["transaction", "opening_closing", "cash_inout"] = Field(
         ...,
-        description="Transaction log type"
+        description="Transaction log type (transaction: cart service, opening_closing/cash_inout: terminal service)"
     )
 
     # Occurrence
@@ -762,7 +762,7 @@ class TransactionLogModel(BaseDocumentModel):
 
 ---
 
-### 8. TerminalStateChange (コレクション: `terminal_state_changes`)
+### 8. TerminalStateChange (コレクション: `info_terminal_state_change`)
 
 **目的**: クラウド同期のための端末状態変更を追跡します（terminal サービスから）。
 
@@ -961,7 +961,7 @@ class SyncStatusRepository(AbstractRepository[SyncStatusModel]):
     """Repository for SyncStatus operations"""
 
     def __init__(self, db: AsyncIOMotorDatabase):
-        super().__init__(db, "sync_status", SyncStatusModel)
+        super().__init__("status_sync", SyncStatusModel, db)
 
     async def find_by_edge_and_type(
         self,
@@ -991,90 +991,90 @@ class SyncStatusRepository(AbstractRepository[SyncStatusModel]):
 async def create_indexes(db: AsyncIOMotorDatabase) -> None:
     """Create all indexes for sync service collections"""
 
-    # SyncStatus indexes
-    await db.sync_status.create_index(
+    # SyncStatus indexes (status_sync)
+    await db.status_sync.create_index(
         [("edge_id", 1), ("data_type", 1)],
         unique=True,
         name="edge_data_unique"
     )
-    await db.sync_status.create_index(
+    await db.status_sync.create_index(
         [("status", 1), ("next_sync_at", 1)],
         name="scheduled_sync"
     )
 
-    # SyncHistory indexes
-    await db.sync_history.create_index(
+    # SyncHistory indexes (info_sync_history)
+    await db.info_sync_history.create_index(
         [("sync_id", 1)],
         unique=True,
         name="sync_id_unique"
     )
-    await db.sync_history.create_index(
+    await db.info_sync_history.create_index(
         [("edge_id", 1), ("started_at", -1)],
         name="edge_history"
     )
 
-    # EdgeTerminal indexes
-    await db.edge_terminals.create_index(
+    # EdgeTerminal indexes (info_edge_terminal)
+    await db.info_edge_terminal.create_index(
         [("edge_id", 1)],
         unique=True,
         name="edge_id_unique"
     )
-    await db.edge_terminals.create_index(
+    await db.info_edge_terminal.create_index(
         [("store_code", 1), ("p2p_priority", 1), ("status", 1)],
         name="p2p_discovery"
     )
 
-    # ScheduledMasterFile indexes
-    await db.scheduled_master_files.create_index(
+    # ScheduledMasterFile indexes (info_scheduled_master_file)
+    await db.info_scheduled_master_file.create_index(
         [("file_id", 1)],
         unique=True,
         name="file_id_unique"
     )
-    await db.scheduled_master_files.create_index(
+    await db.info_scheduled_master_file.create_index(
         [("scheduled_at", 1), ("timing_type", 1), ("priority", 1)],
         name="scheduled_application"
     )
 
-    # FileCollection indexes
-    await db.file_collections.create_index(
+    # FileCollection indexes (info_file_collection)
+    await db.info_file_collection.create_index(
         [("collection_id", 1)],
         unique=True,
         name="collection_id_unique"
     )
-    await db.file_collections.create_index(
+    await db.info_file_collection.create_index(
         [("edge_id", 1), ("created_at", -1)],
         name="edge_collections"
     )
 
-    # TransactionLog indexes
-    await db.transaction_logs.create_index(
+    # TransactionLog indexes (log_tran_pending)
+    await db.log_tran_pending.create_index(
         [("log_id", 1)],
         unique=True,
         name="log_id_unique"
     )
-    await db.transaction_logs.create_index(
+    await db.log_tran_pending.create_index(
         [("sync_status", 1), ("occurred_at", 1)],
         name="transmission_queue"
     )
-    await db.transaction_logs.create_index(
+    await db.log_tran_pending.create_index(
         [("synced_at", 1)],
         expireAfterSeconds=2592000,  # 30 days TTL
         name="cleanup_ttl"
     )
 
-    # MasterData indexes
-    await db.master_data.create_index(
+    # MasterData indexes (cache_master_data)
+    await db.cache_master_data.create_index(
         [("category", 1), ("version", 1)],
         unique=True,
         name="category_version_unique"
     )
 
-    # TerminalStateChange indexes
-    await db.terminal_state_changes.create_index(
+    # TerminalStateChange indexes (info_terminal_state_change)
+    await db.info_terminal_state_change.create_index(
         [("terminal_id", 1), ("status_changed_at", -1)],
         name="terminal_state_history"
     )
-    await db.terminal_state_changes.create_index(
+    await db.info_terminal_state_change.create_index(
         [("sync_status", 1), ("status_changed_at", 1)],
         name="state_transmission_queue"
     )
