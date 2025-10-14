@@ -754,42 +754,171 @@ response = await client.request("POST", "/api/v1/sync/request", json={
 
 ## Testing Strategy
 
-### Unit Tests
-
-```bash
-# Run all unit tests
-pipenv run pytest tests/unit/ -v
-
-# Run with coverage
-pipenv run pytest tests/unit/ --cov=app --cov-report=html
-```
-
-### Integration Tests
-
-```bash
-# Run integration tests (requires MongoDB & Redis)
-pipenv run pytest tests/integration/ -v
-```
-
-### Test Structure
+### Test Structure Overview
 
 ```
 tests/
-├── unit/
-│   ├── test_models/
+├── conftest.py                      # 共通フィクスチャ（DB接続、テストクライアント等）
+├── test_clean_data.py               # 全テスト実行前のデータクリーンアップ
+├── test_setup_data.py               # 全テスト実行前のテストデータ投入
+├── unit/                            # 単体テスト（外部依存なし）
+│   ├── conftest.py                  # 単体テスト用フィクスチャ（モック等）
+│   ├── test_models/                 # Pydantic モデルのバリデーションテスト
 │   │   ├── test_sync_status.py
 │   │   ├── test_edge_terminal.py
-│   │   └── ...
-│   ├── test_services/
+│   │   └── test_transaction_log.py
+│   ├── test_repositories/           # リポジトリロジックテスト（MongoDB モック）
+│   │   ├── test_sync_status_repository.py
+│   │   └── test_edge_terminal_repository.py
+│   ├── test_services/               # ビジネスロジックテスト（外部API モック）
 │   │   ├── test_jwt_service.py
-│   │   └── ...
-│   └── test_utils/
-└── integration/
-    ├── test_api/
-    │   ├── test_auth_api.py
-    │   ├── test_sync_api.py
-    │   └── ...
-    └── test_background/
+│   │   ├── test_master_sync_service.py
+│   │   ├── test_token_manager.py
+│   │   └── test_storage_service.py
+│   └── test_utils/                  # ユーティリティ関数テスト
+│       ├── test_file_helper.py
+│       └── test_authenticated_http_client.py
+└── integration/                     # 統合テスト（実サービス使用）
+    ├── conftest.py                  # 統合テスト用フィクスチャ（実DB接続）
+    ├── test_auth_api.py             # 認証API統合テスト
+    ├── test_sync_api.py             # 同期API統合テスト
+    ├── test_scheduled_master_api.py # 予約反映API統合テスト
+    ├── test_file_collection_api.py  # ファイル収集API統合テスト
+    ├── test_background_jobs.py      # バックグラウンドジョブテスト
+    └── test_end_to_end.py           # エンドツーエンドテスト
+```
+
+### Unit Tests（単体テスト）
+
+**特徴**:
+- 外部依存なし（DB、API、ファイルシステムをモック化）
+- 高速実行（全テスト < 1秒）
+- CI/CD で毎回実行
+
+**実行コマンド**:
+```bash
+# すべての単体テストを実行
+pipenv run pytest tests/unit/ -v
+
+# 特定のテストディレクトリのみ実行
+pipenv run pytest tests/unit/test_models/ -v
+pipenv run pytest tests/unit/test_services/ -v
+
+# カバレッジ測定（90%以上を目標）
+pipenv run pytest tests/unit/ --cov=app --cov-report=html
+
+# 並列実行（高速化）
+pipenv run pytest tests/unit/ -n auto
+```
+
+**単体テスト例（モックを使用）**:
+
+`tests/unit/test_services/test_master_sync_service.py`:
+```python
+import pytest
+from unittest.mock import AsyncMock, MagicMock
+from app.services.sync.master_sync_service import MasterSyncService
+
+@pytest.mark.asyncio
+async def test_fetch_master_data_success():
+    """Test successful master data fetch with mocked HTTP client"""
+    # Arrange: モックHTTPクライアントを準備
+    mock_http_client = AsyncMock()
+    mock_http_client.post.return_value = MagicMock(
+        status_code=200,
+        json=lambda: {
+            "categories": [{"id": "cat001", "name": "Food"}],
+            "products": [{"id": "prod001", "name": "Apple"}]
+        }
+    )
+
+    service = MasterSyncService(http_client=mock_http_client)
+
+    # Act: サービスメソッド実行
+    result = await service.fetch_master_data(
+        data_types=["categories", "products"],
+        last_sync_at=None
+    )
+
+    # Assert: 結果検証
+    assert len(result["categories"]) == 1
+    assert result["categories"][0]["name"] == "Food"
+    mock_http_client.post.assert_called_once()
+```
+
+### Integration Tests（統合テスト）
+
+**特徴**:
+- 実サービス使用（MongoDB、Redis、FastAPI）
+- エンドツーエンド検証
+- ローカル開発・デプロイ前に実行
+
+**実行コマンド**:
+```bash
+# MongoDB と Redis を起動
+docker-compose up -d mongodb redis
+
+# 統合テストを実行
+pipenv run pytest tests/integration/ -v
+
+# 特定のAPIテストのみ実行
+pipenv run pytest tests/integration/test_auth_api.py -v
+
+# カバレッジ測定（80%以上を目標）
+pipenv run pytest tests/integration/ --cov=app --cov-report=html
+```
+
+**統合テスト例（実サービス使用）**:
+
+`tests/integration/test_auth_api.py`:
+```python
+import pytest
+from httpx import AsyncClient
+from app.main import app
+from app.models.repositories.edge_terminal_repository import EdgeTerminalRepository
+
+@pytest.mark.asyncio
+async def test_auth_token_endpoint_success(test_db):
+    """Test JWT token generation with real database"""
+    # Arrange: テストデータを実際のMongoDBに投入
+    terminal_repo = EdgeTerminalRepository(test_db)
+    await terminal_repo.create({
+        "edge_id": "edge-tenant001-store001-001",
+        "tenant_id": "tenant001",
+        "store_code": "store001",
+        "secret": "hashed_secret_here",  # SHA256 hash
+        "status": "online"
+    })
+
+    # Act: 実際のFastAPI エンドポイントを呼び出し
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.post("/api/v1/auth/token", json={
+            "edge_id": "edge-tenant001-store001-001",
+            "secret": "plain_secret_here"
+        })
+
+    # Assert: レスポンス検証
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "Bearer"
+    assert data["edge_id"] == "edge-tenant001-store001-001"
+```
+
+### Test Execution Order
+
+```bash
+# 1. データクリーンアップ
+pipenv run pytest tests/test_clean_data.py -v
+
+# 2. テストデータセットアップ
+pipenv run pytest tests/test_setup_data.py -v
+
+# 3. すべてのテストを実行
+pipenv run pytest tests/ -v
+
+# または一括実行（推奨）
+pipenv run pytest tests/ -v --tb=short
 ```
 
 ## Common Development Tasks

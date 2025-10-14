@@ -762,15 +762,39 @@ services/sync/
 │       ├── token_refresh_scheduler.py   # トークン自動更新（エッジモード用）
 │       └── scheduled_master_executor.py # 予約反映実行（エッジモード用）
 ├── tests/                               # テストコード
-│   ├── conftest.py                      # pytest設定、フィクスチャ
-│   ├── test_clean_data.py               # データクリーンアップ
-│   ├── test_setup_data.py               # テストデータセットアップ
-│   ├── test_auth_api.py                 # 認証APIテスト
-│   ├── test_sync_api.py                 # 同期APIテスト
-│   ├── test_scheduled_master_api.py     # 予約反映APIテスト
-│   ├── test_file_collection_api.py      # ファイル収集APIテスト
-│   ├── test_integrity_checker.py        # 整合性チェックテスト
-│   └── test_p2p_manager.py              # P2Pファイル共有テスト
+│   ├── conftest.py                      # pytest設定、共通フィクスチャ
+│   ├── test_clean_data.py               # データクリーンアップ（全テスト実行前）
+│   ├── test_setup_data.py               # テストデータセットアップ（全テスト実行前）
+│   ├── unit/                            # 単体テスト（外部依存なし、モック使用）
+│   │   ├── conftest.py                  # 単体テスト用フィクスチャ
+│   │   ├── test_models/                 # モデル検証テスト
+│   │   │   ├── test_sync_status.py      # SyncStatus モデルテスト
+│   │   │   ├── test_edge_terminal.py    # EdgeTerminal モデルテスト
+│   │   │   ├── test_sync_history.py     # SyncHistory モデルテスト
+│   │   │   ├── test_transaction_log.py  # TransactionLog モデルテスト
+│   │   │   └── test_terminal_state_change.py  # TerminalStateChange モデルテスト
+│   │   ├── test_repositories/           # リポジトリテスト（MongoDB モック）
+│   │   │   ├── test_sync_status_repository.py
+│   │   │   ├── test_edge_terminal_repository.py
+│   │   │   └── test_transaction_log_repository.py
+│   │   ├── test_services/               # サービスロジックテスト（モック使用）
+│   │   │   ├── test_jwt_service.py      # JWT サービステスト
+│   │   │   ├── test_master_sync_service.py  # マスターデータ同期テスト
+│   │   │   ├── test_transaction_sync_service.py  # トランザクション同期テスト
+│   │   │   ├── test_integrity_checker.py  # 整合性チェッカーテスト
+│   │   │   ├── test_token_manager.py    # トークンマネージャーテスト
+│   │   │   └── test_storage_service.py  # ストレージサービステスト
+│   │   └── test_utils/                  # ユーティリティテスト
+│   │       ├── test_file_helper.py      # ファイルヘルパーテスト
+│   │       └── test_authenticated_http_client.py  # HTTP クライアントテスト
+│   └── integration/                     # 統合テスト（実サービス呼び出し）
+│       ├── conftest.py                  # 統合テスト用フィクスチャ（DB接続等）
+│       ├── test_auth_api.py             # 認証API統合テスト（MongoDB + FastAPI）
+│       ├── test_sync_api.py             # 同期API統合テスト
+│       ├── test_scheduled_master_api.py # 予約反映API統合テスト
+│       ├── test_file_collection_api.py  # ファイル収集API統合テスト
+│       ├── test_background_jobs.py      # バックグラウンドジョブテスト
+│       └── test_end_to_end.py           # エンドツーエンドテスト（全体フロー検証）
 ├── Dockerfile                           # Docker イメージ定義
 ├── Pipfile                              # 依存関係定義
 ├── Pipfile.lock                         # 依存関係ロックファイル
@@ -783,8 +807,49 @@ services/sync/
 既存の Kugelpos マイクロサービスアーキテクチャに準拠した単一プロジェクト構造を採用します。`services/sync/` ディレクトリを新規作成し、既存の7サービス（account, terminal, master-data, cart, report, journal, stock）と同じディレクトリ構造・命名規則に従います。
 
 - **app/**: FastAPI アプリケーションコード（models, repositories, services, api, schemas）
-- **tests/**: pytest テストコード
+- **tests/**: pytest テストコード（unit/ と integration/ に分離）
 - **Dockerfile, Pipfile**: コンテナ化、依存関係管理
+
+**テスト戦略**:
+
+| テスト種別 | 目的 | 依存関係 | 実行速度 | カバレッジ目標 |
+|-----------|------|---------|---------|--------------|
+| **Unit Tests** | 個別コンポーネントのロジック検証 | 外部依存なし（モック使用） | 高速（< 1秒） | 90%以上 |
+| **Integration Tests** | 実サービス間連携検証 | MongoDB, Redis, FastAPI | 中速（数秒） | 80%以上 |
+
+**単体テスト（Unit Tests）の特徴**:
+- **外部依存なし**: データベース、外部API、ファイルシステムをすべてモック化
+- **高速実行**: 全単体テストが1秒以内に完了
+- **独立性**: テスト順序に依存せず、並列実行可能
+- **対象**:
+  - Pydantic モデルのバリデーション（test_models/）
+  - リポジトリの CRUD ロジック（MongoDB モック使用、test_repositories/）
+  - サービス層のビジネスロジック（外部API モック、test_services/）
+  - ユーティリティ関数（test_utils/）
+
+**統合テスト（Integration Tests）の特徴**:
+- **実サービス使用**: 実際の MongoDB、Redis、FastAPI アプリケーション
+- **エンドツーエンド検証**: API リクエスト → ビジネスロジック → データベース保存の全フロー
+- **データ準備**: test_clean_data.py と test_setup_data.py で初期データ投入
+- **対象**:
+  - API エンドポイント（認証、同期、ファイル収集等、test_*_api.py）
+  - バックグラウンドジョブ（APScheduler 実行、test_background_jobs.py）
+  - エンドツーエンドフロー（Edge → Cloud 同期フロー全体、test_end_to_end.py）
+
+**テスト実行例**:
+```bash
+# 単体テストのみ実行（高速、CI/CDで毎回実行）
+pipenv run pytest tests/unit/ -v
+
+# 統合テストのみ実行（MongoDB/Redis が必要）
+pipenv run pytest tests/integration/ -v
+
+# 全テスト実行
+pipenv run pytest tests/ -v
+
+# カバレッジ測定
+pipenv run pytest tests/ --cov=app --cov-report=html
+```
 
 **モード切り替え**:
 - Cloud Mode / Edge Mode は環境変数 `SYNC_MODE` で切り替え（`cloud` または `edge`）
