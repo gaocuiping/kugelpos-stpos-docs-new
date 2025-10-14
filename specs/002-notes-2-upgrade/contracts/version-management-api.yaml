@@ -1,0 +1,865 @@
+openapi: 3.0.3
+info:
+  title: Version Management API
+  description: |
+    Cloud Sync Service API for device authentication, version checking, and device management.
+
+    This API handles:
+    - Device authentication (JWT token issuance)
+    - Version check and manifest distribution
+    - Device version status queries
+    - Update history retrieval
+  version: 1.0.0
+  contact:
+    name: Kugelpos Development Team
+    email: dev@kugelpos.com
+
+servers:
+  - url: https://sync.kugelpos.cloud/api/v1
+    description: Production environment
+  - url: http://localhost:8007/api/v1
+    description: Local development
+
+tags:
+  - name: Authentication
+    description: Device authentication endpoints
+  - name: Version Management
+    description: Version check and manifest distribution
+  - name: Device Management
+    description: Device status and history queries
+
+paths:
+  /version-management/auth:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate edge device
+      description: |
+        Authenticates an edge device using edge_id and secret, returns JWT token for subsequent API calls.
+        Token expires in 1 hour (configurable via JWT_EXPIRY_SECONDS).
+      operationId: authenticateDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+            examples:
+              edge_device:
+                summary: Edge device authentication
+                value:
+                  tenant_id: A1234
+                  store_code: tokyo
+                  edge_id: edge-A1234-tokyo-001
+                  device_type: edge
+                  secret: abcdef1234567890abcdef1234567890abcdef1234567890
+              pos_device:
+                summary: POS device authentication
+                value:
+                  tenant_id: A1234
+                  store_code: tokyo
+                  edge_id: edge-A1234-tokyo-002
+                  device_type: pos
+                  secret: xyz9876543210xyz9876543210xyz9876543210
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    data:
+                      access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                      token_type: bearer
+                      expires_in: 3600
+                      tenant_id: A1234
+                      store_code: tokyo
+                      edge_id: edge-A1234-tokyo-001
+                      device_type: edge
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /version-management/check:
+    post:
+      tags:
+        - Version Management
+      summary: Check for version updates
+      description: |
+        Checks if device needs to update to a new version.
+        Returns manifest with download instructions if update is available.
+      operationId: checkVersion
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VersionCheckRequest'
+            examples:
+              edge_device:
+                summary: Edge device version check
+                value:
+                  device_type: edge
+                  edge_id: edge-A1234-tokyo-001
+                  current_version: "1.2.2"
+              pos_device:
+                summary: POS device version check
+                value:
+                  device_type: pos
+                  edge_id: edge-A1234-tokyo-002
+                  current_version: "1.2.2"
+      responses:
+        '200':
+          description: Version check completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionCheckResponse'
+              examples:
+                update_available:
+                  summary: Update available with manifest
+                  value:
+                    success: true
+                    data:
+                      update_available: true
+                      current_version: "1.2.2"
+                      target_version: "1.2.3"
+                      manifest:
+                        manifest_version: "1.0"
+                        device_type: pos
+                        device_id: edge-A1234-tokyo-002
+                        target_version: "1.2.3"
+                        artifacts:
+                          - type: script
+                            name: pos-startup.sh
+                            version: "1.2.3"
+                            primary_url: http://192.168.1.10:8007/api/v1/artifacts/pos-startup.sh?version=1.2.3
+                            fallback_url: https://sync.kugelpos.cloud/api/v1/artifacts/pos-startup.sh?version=1.2.3
+                            checksum: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+                            size: 15360
+                            destination: /opt/kugelpos/pos-startup.sh
+                            permissions: "755"
+                        container_images:
+                          - service: cart
+                            version: "1.2.3"
+                            primary_registry: edge-tokyo-001:5000
+                            primary_image: cart:1.2.3
+                            fallback_registry: masakugel.azurecr.io
+                            fallback_image: production/services/cart:1.2.3
+                            checksum: sha256:def456...
+                        available_seeds:
+                          - edge_id: edge-A1234-tokyo-001
+                            priority: 0
+                            url: http://192.168.1.10:8007
+                        apply_schedule:
+                          scheduled_at: "2025-01-18T02:00:00Z"
+                          maintenance_window: 30
+                no_update:
+                  summary: No update available
+                  value:
+                    success: true
+                    data:
+                      update_available: false
+                      current_version: "1.2.3"
+                      message: Device is running the latest version
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /devices:
+    get:
+      tags:
+        - Device Management
+      summary: List all edge devices
+      description: |
+        Returns paginated list of all edge devices with version status.
+        Supports filtering by device_type, update_status, store_code.
+      operationId: listDevices
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: device_type
+          in: query
+          description: Filter by device type
+          schema:
+            type: string
+            enum: [edge, pos]
+        - name: update_status
+          in: query
+          description: Filter by update status
+          schema:
+            type: string
+            enum: [none, downloading, pending_apply, applying, completed, failed]
+        - name: store_code
+          in: query
+          description: Filter by store code
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Device list retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceListResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    data:
+                      devices:
+                        - edge_id: edge-A1234-tokyo-001
+                          device_type: edge
+                          current_version: "1.2.3"
+                          target_version: null
+                          update_status: none
+                          download_status: not_started
+                          apply_status: not_started
+                          last_check_timestamp: "2025-01-17T14:30:00Z"
+                        - edge_id: edge-A1234-tokyo-002
+                          device_type: pos
+                          current_version: "1.2.2"
+                          target_version: "1.2.3"
+                          update_status: pending_apply
+                          download_status: completed
+                          apply_status: not_started
+                          scheduled_apply_at: "2025-01-18T02:00:00Z"
+                          last_check_timestamp: "2025-01-17T14:35:00Z"
+                      pagination:
+                        total: 50
+                        page: 1
+                        limit: 20
+                        total_pages: 3
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /devices/{edge_id}:
+    get:
+      tags:
+        - Device Management
+      summary: Get device details
+      description: Returns detailed version status for a specific edge device
+      operationId: getDevice
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: edge_id
+          in: path
+          required: true
+          description: Edge device identifier
+          schema:
+            type: string
+          example: edge-A1234-tokyo-001
+      responses:
+        '200':
+          description: Device details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceDetailResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    data:
+                      edge_id: edge-A1234-tokyo-001
+                      device_type: edge
+                      tenant_id: A1234
+                      store_code: tokyo
+                      current_version: "1.2.2"
+                      target_version: "1.2.3"
+                      pending_version: "1.2.3"
+                      update_status: pending_apply
+                      download_status: completed
+                      apply_status: not_started
+                      download_completed_at: "2025-01-17T14:35:00Z"
+                      scheduled_apply_at: "2025-01-18T02:00:00Z"
+                      apply_completed_at: null
+                      last_check_timestamp: "2025-01-17T14:30:00Z"
+                      retry_count: 0
+                      error_message: null
+                      is_p2p_seed: true
+                      p2p_priority: 0
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /devices/{edge_id}/history:
+    get:
+      tags:
+        - Device Management
+      summary: Get device update history
+      description: Returns paginated update history for a specific edge device
+      operationId: getDeviceHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: edge_id
+          in: path
+          required: true
+          description: Edge device identifier
+          schema:
+            type: string
+          example: edge-A1234-tokyo-001
+        - name: limit
+          in: query
+          description: Number of items to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Update history retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateHistoryResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    data:
+                      edge_id: edge-A1234-tokyo-001
+                      history:
+                        - update_id: 550e8400-e29b-41d4-a716-446655440000
+                          from_version: "1.2.2"
+                          to_version: "1.2.3"
+                          start_time: "2025-01-18T02:00:00Z"
+                          end_time: "2025-01-18T02:03:30Z"
+                          downtime_seconds: 90
+                          status: success
+                          rollback_performed: false
+                          artifacts_count: 15
+                          total_size_bytes: 524288000
+                        - update_id: 660e8400-e29b-41d4-a716-446655440111
+                          from_version: "1.2.1"
+                          to_version: "1.2.2"
+                          start_time: "2025-01-10T02:00:00Z"
+                          end_time: "2025-01-10T02:02:45Z"
+                          downtime_seconds: 75
+                          status: success
+                          rollback_performed: false
+                          artifacts_count: 12
+                          total_size_bytes: 450000000
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    AuthRequest:
+      type: object
+      required:
+        - tenant_id
+        - store_code
+        - edge_id
+        - device_type
+        - secret
+      properties:
+        tenant_id:
+          type: string
+          description: Tenant identifier
+          example: A1234
+        store_code:
+          type: string
+          description: Store identifier
+          example: tokyo
+        edge_id:
+          type: string
+          description: Edge device unique identifier
+          example: edge-A1234-tokyo-001
+        device_type:
+          type: string
+          enum: [edge, pos]
+          description: Device type
+        secret:
+          type: string
+          description: Device secret (plain text, will be hashed on server)
+          example: abcdef1234567890abcdef1234567890abcdef1234567890
+
+    AuthResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+            - access_token
+            - token_type
+            - expires_in
+          properties:
+            access_token:
+              type: string
+              description: JWT token
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            token_type:
+              type: string
+              example: bearer
+            expires_in:
+              type: integer
+              description: Token expiry in seconds
+              example: 3600
+            tenant_id:
+              type: string
+              example: A1234
+            store_code:
+              type: string
+              example: tokyo
+            edge_id:
+              type: string
+              example: edge-A1234-tokyo-001
+            device_type:
+              type: string
+              enum: [edge, pos]
+
+    VersionCheckRequest:
+      type: object
+      required:
+        - device_type
+        - edge_id
+        - current_version
+      properties:
+        device_type:
+          type: string
+          enum: [edge, pos]
+          description: Device type
+        edge_id:
+          type: string
+          description: Edge device unique identifier
+          example: edge-A1234-tokyo-001
+        current_version:
+          type: string
+          description: Currently running version
+          example: "1.2.2"
+
+    VersionCheckResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          required:
+            - update_available
+            - current_version
+          properties:
+            update_available:
+              type: boolean
+            current_version:
+              type: string
+            target_version:
+              type: string
+            manifest:
+              $ref: '#/components/schemas/Manifest'
+            message:
+              type: string
+
+    Manifest:
+      type: object
+      required:
+        - manifest_version
+        - device_type
+        - device_id
+        - target_version
+        - apply_schedule
+      properties:
+        manifest_version:
+          type: string
+          example: "1.0"
+        device_type:
+          type: string
+          enum: [edge, pos]
+        device_id:
+          type: string
+        target_version:
+          type: string
+        artifacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtifactItem'
+        container_images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContainerImageItem'
+        available_seeds:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailableSeed'
+        apply_schedule:
+          $ref: '#/components/schemas/ApplySchedule'
+
+    ArtifactItem:
+      type: object
+      required:
+        - type
+        - name
+        - version
+        - primary_url
+        - fallback_url
+        - checksum
+        - size
+        - destination
+      properties:
+        type:
+          type: string
+          enum: [script, module, config, image, document]
+        name:
+          type: string
+        version:
+          type: string
+        primary_url:
+          type: string
+          format: uri
+        fallback_url:
+          type: string
+          format: uri
+        checksum:
+          type: string
+          description: SHA256 checksum
+        size:
+          type: integer
+          description: File size in bytes
+        destination:
+          type: string
+          description: Destination path on device
+        permissions:
+          type: string
+          description: File permissions (e.g., "755")
+
+    ContainerImageItem:
+      type: object
+      required:
+        - service
+        - version
+        - primary_registry
+        - primary_image
+        - fallback_registry
+        - fallback_image
+        - checksum
+      properties:
+        service:
+          type: string
+          enum: [account, terminal, master-data, cart, report, journal, stock, sync]
+        version:
+          type: string
+        primary_registry:
+          type: string
+        primary_image:
+          type: string
+        fallback_registry:
+          type: string
+        fallback_image:
+          type: string
+        checksum:
+          type: string
+          description: Image digest (SHA256)
+
+    AvailableSeed:
+      type: object
+      required:
+        - edge_id
+        - priority
+        - url
+      properties:
+        edge_id:
+          type: string
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 9
+        url:
+          type: string
+          format: uri
+
+    ApplySchedule:
+      type: object
+      required:
+        - scheduled_at
+        - maintenance_window
+      properties:
+        scheduled_at:
+          type: string
+          format: date-time
+          description: Apply start time (ISO 8601)
+        maintenance_window:
+          type: integer
+          description: Maintenance window duration in minutes
+
+    DeviceListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          required:
+            - devices
+            - pagination
+          properties:
+            devices:
+              type: array
+              items:
+                $ref: '#/components/schemas/DeviceSummary'
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+
+    DeviceSummary:
+      type: object
+      properties:
+        edge_id:
+          type: string
+        device_type:
+          type: string
+          enum: [edge, pos]
+        current_version:
+          type: string
+        target_version:
+          type: string
+        update_status:
+          type: string
+          enum: [none, downloading, pending_apply, applying, completed, failed]
+        download_status:
+          type: string
+          enum: [not_started, in_progress, completed, failed]
+        apply_status:
+          type: string
+          enum: [not_started, in_progress, completed, failed, rolled_back]
+        scheduled_apply_at:
+          type: string
+          format: date-time
+        last_check_timestamp:
+          type: string
+          format: date-time
+
+    DeviceDetailResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            edge_id:
+              type: string
+            device_type:
+              type: string
+            tenant_id:
+              type: string
+            store_code:
+              type: string
+            current_version:
+              type: string
+            target_version:
+              type: string
+            pending_version:
+              type: string
+            update_status:
+              type: string
+            download_status:
+              type: string
+            apply_status:
+              type: string
+            download_completed_at:
+              type: string
+              format: date-time
+            scheduled_apply_at:
+              type: string
+              format: date-time
+            apply_completed_at:
+              type: string
+              format: date-time
+            last_check_timestamp:
+              type: string
+              format: date-time
+            retry_count:
+              type: integer
+            error_message:
+              type: string
+            is_p2p_seed:
+              type: boolean
+            p2p_priority:
+              type: integer
+
+    UpdateHistoryResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            edge_id:
+              type: string
+            history:
+              type: array
+              items:
+                $ref: '#/components/schemas/UpdateHistoryItem'
+
+    UpdateHistoryItem:
+      type: object
+      properties:
+        update_id:
+          type: string
+          format: uuid
+        from_version:
+          type: string
+        to_version:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        downtime_seconds:
+          type: integer
+        status:
+          type: string
+          enum: [success, failed]
+        rollback_performed:
+          type: boolean
+        artifacts_count:
+          type: integer
+        total_size_bytes:
+          type: integer
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items
+        page:
+          type: integer
+          description: Current page number
+        limit:
+          type: integer
+          description: Items per page
+        total_pages:
+          type: integer
+          description: Total number of pages
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Error code in XXYYZZ format
+              example: "800101"
+            message:
+              type: string
+              description: Human-readable error message
+              example: Invalid credentials
+            details:
+              type: string
+              description: Additional error details
+
+  responses:
+    Unauthorized:
+      description: Unauthorized - Invalid or expired JWT token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "800101"
+              message: Invalid or expired token
+              details: JWT token verification failed
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "800201"
+              message: Device not found
+              details: edge_id does not exist in the system
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "809999"
+              message: Internal server error
+              details: An unexpected error occurred
