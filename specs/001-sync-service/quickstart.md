@@ -125,6 +125,14 @@ JWT_SECRET_KEY=your-secret-key-here-change-in-production
 JWT_ALGORITHM=HS256
 JWT_EXPIRATION_HOURS=24
 
+# Edge Mode Authentication (for Edge Mode only)
+EDGE_ID=edge-tenant001-store001-001
+EDGE_SECRET=<SHA256-hashed-secret>
+
+# Token Refresh Settings (for Edge Mode only)
+TOKEN_REFRESH_THRESHOLD_SECONDS=3600  # Refresh 1 hour before expiration
+TOKEN_REFRESH_CHECK_INTERVAL=300      # Check every 5 minutes
+
 # Sync Configuration
 SYNC_POLL_INTERVAL=30  # seconds (30-60)
 SYNC_RETRY_MAX=5
@@ -279,6 +287,9 @@ async def startup_event():
     # Start background scheduler (for polling in edge mode)
     if settings.SYNC_MODE == "edge":
         await start_scheduler()
+        # Start token refresh scheduler (Edge Mode only)
+        from app.background.token_refresh_scheduler import start_token_refresh_job
+        await start_token_refresh_job()
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -288,15 +299,28 @@ async def shutdown_event():
     # Stop background scheduler
     if settings.SYNC_MODE == "edge":
         await stop_scheduler()
+        from app.background.token_refresh_scheduler import scheduler as token_scheduler
+        token_scheduler.shutdown()
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {
+    health_info = {
         "status": "healthy",
         "service": "sync",
         "mode": settings.SYNC_MODE
     }
+
+    # Add token health for Edge Mode
+    if settings.SYNC_MODE == "edge":
+        from app.config.token_manager import token_manager
+        health_info["token"] = {
+            "present": token_manager.get_token() is not None,
+            "expired": token_manager.is_expired(),
+            "should_refresh": token_manager.should_refresh()
+        }
+
+    return health_info
 ```
 
 ### 4. Start Development Server
@@ -525,6 +549,197 @@ async def stop_scheduler():
     """Stop background scheduler"""
     scheduler.shutdown()
     print("Scheduler stopped")
+```
+
+### Phase 5: Implement JWT Token Management (Edge Mode)
+
+**Token Manager** - `app/config/token_manager.py`:
+
+```python
+"""JWT token lifecycle management for Edge Mode"""
+from datetime import datetime, timedelta
+from typing import Optional
+import jwt
+from app.config.settings import get_settings
+
+settings = get_settings()
+
+class TokenManager:
+    """Manages JWT token lifecycle with proactive refresh"""
+
+    def __init__(self):
+        self._token: Optional[str] = None
+        self._token_expires_at: Optional[datetime] = None
+        self._refresh_threshold_seconds = settings.TOKEN_REFRESH_THRESHOLD_SECONDS
+
+    def set_token(self, token: str) -> None:
+        """Store token and extract expiration"""
+        self._token = token
+        try:
+            payload = jwt.decode(token, options={"verify_signature": False})
+            self._token_expires_at = datetime.fromtimestamp(payload["exp"])
+        except Exception:
+            # Fallback to 24h expiration
+            self._token_expires_at = datetime.utcnow() + timedelta(hours=24)
+
+    def get_token(self) -> Optional[str]:
+        """Get current token if valid"""
+        if self._token and not self.should_refresh():
+            return self._token
+        return None
+
+    def should_refresh(self) -> bool:
+        """Check if token needs proactive refresh"""
+        if not self._token_expires_at:
+            return True
+        time_until_expiry = (self._token_expires_at - datetime.utcnow()).total_seconds()
+        return time_until_expiry <= self._refresh_threshold_seconds
+
+    def is_expired(self) -> bool:
+        """Check if token is expired"""
+        if not self._token_expires_at:
+            return True
+        return datetime.utcnow() >= self._token_expires_at
+
+    def clear_token(self) -> None:
+        """Clear stored token (after 401 error)"""
+        self._token = None
+        self._token_expires_at = None
+
+# Global token manager instance
+token_manager = TokenManager()
+```
+
+**Token Refresh Scheduler** - `app/background/token_refresh_scheduler.py`:
+
+```python
+"""Proactive JWT token refresh scheduler for Edge Mode"""
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+from app.config.token_manager import token_manager
+from app.services.auth_service import AuthService
+from app.config.settings import get_settings
+import logging
+
+logger = logging.getLogger(__name__)
+scheduler = AsyncIOScheduler()
+settings = get_settings()
+
+async def start_token_refresh_job():
+    """Start proactive token refresh job"""
+    interval = settings.TOKEN_REFRESH_CHECK_INTERVAL
+
+    scheduler.add_job(
+        check_and_refresh_token,
+        trigger=IntervalTrigger(seconds=interval),
+        id="token_refresh",
+        replace_existing=True,
+        max_instances=1,
+    )
+
+    scheduler.start()
+    logger.info(f"Token refresh scheduler started (check interval: {interval}s)")
+
+async def check_and_refresh_token():
+    """Check token expiration and refresh if needed"""
+    try:
+        if token_manager.should_refresh():
+            logger.info("Token refresh needed, requesting new token...")
+            auth_service = AuthService()
+            new_token = await auth_service.authenticate(
+                edge_id=settings.EDGE_ID,
+                secret=settings.EDGE_SECRET
+            )
+            token_manager.set_token(new_token)
+            logger.info("Token refreshed successfully")
+    except Exception as e:
+        logger.error(f"Token refresh failed: {e}", exc_info=True)
+```
+
+**Authenticated HTTP Client** - `app/utils/authenticated_http_client.py`:
+
+```python
+"""HTTP client with automatic token refresh on 401"""
+from kugel_common.utils.http_client_helper import get_service_client
+from app.config.token_manager import token_manager
+from app.services.auth_service import AuthService
+from app.config.settings import get_settings
+import logging
+
+logger = logging.getLogger(__name__)
+settings = get_settings()
+
+class AuthenticatedHttpClient:
+    """HTTP client with automatic token refresh on 401"""
+
+    def __init__(self, base_url: str):
+        self.base_url = base_url
+        self.auth_service = AuthService()
+
+    async def request(self, method: str, endpoint: str, **kwargs):
+        """Execute HTTP request with automatic re-auth on 401"""
+        token = token_manager.get_token()
+
+        if not token:
+            # Token expired or not available, authenticate first
+            await self._authenticate()
+            token = token_manager.get_token()
+
+        headers = kwargs.get("headers", {})
+        headers["Authorization"] = f"Bearer {token}"
+        kwargs["headers"] = headers
+
+        try:
+            async with get_service_client(self.base_url) as client:
+                if method == "GET":
+                    return await client.get(endpoint, **kwargs)
+                elif method == "POST":
+                    return await client.post(endpoint, **kwargs)
+                else:
+                    raise ValueError(f"Unsupported method: {method}")
+
+        except Exception as e:
+            # Check for 401 Unauthorized
+            if hasattr(e, "status_code") and e.status_code == 401:
+                logger.warning("401 Unauthorized, re-authenticating...")
+                token_manager.clear_token()
+
+                # Retry authentication
+                await self._authenticate()
+
+                # Retry original request
+                headers["Authorization"] = f"Bearer {token_manager.get_token()}"
+                async with get_service_client(self.base_url) as client:
+                    if method == "GET":
+                        return await client.get(endpoint, **kwargs)
+                    elif method == "POST":
+                        return await client.post(endpoint, **kwargs)
+
+            raise  # Re-raise if not 401
+
+    async def _authenticate(self) -> None:
+        """Perform authentication and store token"""
+        new_token = await self.auth_service.authenticate(
+            edge_id=settings.EDGE_ID,
+            secret=settings.EDGE_SECRET
+        )
+        token_manager.set_token(new_token)
+        logger.info("Authentication successful")
+```
+
+**Usage Example**:
+
+```python
+# Using AuthenticatedHttpClient for cloud API calls (Edge Mode)
+from app.utils.authenticated_http_client import AuthenticatedHttpClient
+
+client = AuthenticatedHttpClient(settings.CLOUD_SYNC_URL)
+
+# Automatic token management - no manual handling required
+response = await client.request("POST", "/api/v1/sync/request", json={
+    "data_types": ["master_data"],
+    "sync_type": "incremental"
+})
 ```
 
 ## Testing Strategy

@@ -539,6 +539,276 @@ docker exec mongodb mongosh sync_<tenant_id> --eval "db.sync_status.find().prett
 
 ---
 
+## 6. JWT トークン管理（プロアクティブ更新と自動再認証）
+
+### 決定事項
+
+**採用方式**: TokenManager + APScheduler + AuthenticatedHttpClient
+
+**理由**:
+- トークン有効期限1時間前の自動更新により、401エラーによる同期遅延を防止
+- 401エラー発生時の自動再認証により、手動介入なしでリカバリ
+- SC-013（JWT認証成功率99.9%以上）を確実に達成
+- Edge Modeでの運用性向上
+
+### 設計コンポーネント
+
+#### 1. TokenManager クラス（新規追加）
+
+**責務**: JWT トークンのライフサイクル管理（Edge Mode専用）
+
+```python
+# app/config/token_manager.py
+from datetime import datetime, timedelta
+from typing import Optional
+import jwt
+
+class TokenManager:
+    """JWT token lifecycle management for Edge Mode"""
+
+    def __init__(self):
+        self._token: Optional[str] = None
+        self._token_expires_at: Optional[datetime] = None
+        self._refresh_threshold_seconds = 3600  # 1時間前
+
+    def set_token(self, token: str) -> None:
+        """Store token and extract expiration"""
+        self._token = token
+        try:
+            payload = jwt.decode(
+                token,
+                options={"verify_signature": False}
+            )
+            self._token_expires_at = datetime.fromtimestamp(payload["exp"])
+        except Exception:
+            # Fallback to 24h expiration
+            self._token_expires_at = datetime.utcnow() + timedelta(hours=24)
+
+    def get_token(self) -> Optional[str]:
+        """Get current token if valid"""
+        if self._token and not self.should_refresh():
+            return self._token
+        return None
+
+    def should_refresh(self) -> bool:
+        """Check if token needs proactive refresh"""
+        if not self._token_expires_at:
+            return True
+        time_until_expiry = (self._token_expires_at - datetime.utcnow()).total_seconds()
+        return time_until_expiry <= self._refresh_threshold_seconds
+
+    def is_expired(self) -> bool:
+        """Check if token is expired"""
+        if not self._token_expires_at:
+            return True
+        return datetime.utcnow() >= self._token_expires_at
+
+    def clear_token(self) -> None:
+        """Clear stored token (after 401 error)"""
+        self._token = None
+        self._token_expires_at = None
+```
+
+#### 2. Token Refresh Scheduler（新規追加）
+
+**責務**: 5分ごとにトークン有効期限をチェックし、必要に応じて自動更新
+
+```python
+# app/background/token_refresh_scheduler.py
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+from app.config.token_manager import token_manager
+from app.services.auth_service import AuthService
+from app.config.settings import get_settings
+
+scheduler = AsyncIOScheduler()
+settings = get_settings()
+
+async def start_token_refresh_job():
+    """Start proactive token refresh job"""
+    interval = settings.TOKEN_REFRESH_CHECK_INTERVAL  # 300秒（5分）
+
+    scheduler.add_job(
+        check_and_refresh_token,
+        trigger=IntervalTrigger(seconds=interval),
+        id="token_refresh",
+        replace_existing=True,
+        max_instances=1,
+    )
+
+    scheduler.start()
+    logger.info(f"Started token refresh job (interval: {interval}s)")
+
+async def check_and_refresh_token():
+    """Check token expiration and refresh if needed"""
+    try:
+        if token_manager.should_refresh():
+            logger.info("Token refresh needed, requesting new token...")
+            auth_service = AuthService()
+            new_token = await auth_service.authenticate(
+                edge_id=settings.EDGE_ID,
+                secret=settings.EDGE_SECRET
+            )
+            token_manager.set_token(new_token)
+            logger.info("Token refreshed successfully")
+    except Exception as e:
+        logger.error(f"Token refresh failed: {e}", exc_info=True)
+```
+
+#### 3. AuthenticatedHttpClient（新規追加）
+
+**責務**: HTTP リクエスト時の自動トークン付与と401エラー時の自動再認証
+
+```python
+# app/utils/authenticated_http_client.py
+from kugel_common.utils.http_client_helper import get_service_client
+from app.config.token_manager import token_manager
+from app.services.auth_service import AuthService
+from app.config.settings import get_settings
+
+settings = get_settings()
+
+class AuthenticatedHttpClient:
+    """HTTP client with automatic token refresh on 401"""
+
+    def __init__(self, base_url: str):
+        self.base_url = base_url
+        self.auth_service = AuthService()
+
+    async def request(self, method: str, endpoint: str, **kwargs):
+        """Execute HTTP request with automatic re-auth on 401"""
+        token = token_manager.get_token()
+
+        if not token:
+            # Token expired or not available, authenticate first
+            await self._authenticate()
+            token = token_manager.get_token()
+
+        headers = kwargs.get("headers", {})
+        headers["Authorization"] = f"Bearer {token}"
+        kwargs["headers"] = headers
+
+        try:
+            async with get_service_client(self.base_url) as client:
+                if method == "GET":
+                    response = await client.get(endpoint, **kwargs)
+                elif method == "POST":
+                    response = await client.post(endpoint, **kwargs)
+                else:
+                    raise ValueError(f"Unsupported method: {method}")
+                return response
+
+        except Exception as e:
+            # Check for 401 Unauthorized
+            if hasattr(e, "status_code") and e.status_code == 401:
+                logger.warning("401 Unauthorized, re-authenticating...")
+                token_manager.clear_token()
+
+                # Retry authentication
+                await self._authenticate()
+
+                # Retry original request
+                headers["Authorization"] = f"Bearer {token_manager.get_token()}"
+                async with get_service_client(self.base_url) as client:
+                    if method == "GET":
+                        return await client.get(endpoint, **kwargs)
+                    elif method == "POST":
+                        return await client.post(endpoint, **kwargs)
+
+            raise  # Re-raise if not 401
+
+    async def _authenticate(self) -> None:
+        """Perform authentication and store token"""
+        new_token = await self.auth_service.authenticate(
+            edge_id=settings.EDGE_ID,
+            secret=settings.EDGE_SECRET
+        )
+        token_manager.set_token(new_token)
+        logger.info("Authentication successful")
+```
+
+### 環境変数設定
+
+```bash
+# JWT Token Configuration
+JWT_SECRET_KEY=<secret-key-for-signing>
+JWT_ALGORITHM=HS256
+JWT_EXPIRATION_HOURS=24
+
+# Edge Mode Authentication
+EDGE_ID=edge-tenant001-store001-001
+EDGE_SECRET=<SHA256-hashed-secret>
+
+# Token Refresh Settings
+TOKEN_REFRESH_THRESHOLD_SECONDS=3600  # 1時間前に更新
+TOKEN_REFRESH_CHECK_INTERVAL=300      # 5分ごとにチェック
+```
+
+### Settings クラス更新
+
+```python
+# app/config/settings.py
+class Settings(BaseSettings):
+    # JWT Configuration
+    JWT_SECRET_KEY: str = Field(..., env="JWT_SECRET_KEY")
+    JWT_ALGORITHM: str = Field(default="HS256", env="JWT_ALGORITHM")
+    JWT_EXPIRATION_HOURS: int = Field(default=24, env="JWT_EXPIRATION_HOURS")
+
+    # Edge Mode Authentication
+    EDGE_ID: Optional[str] = Field(default=None, env="EDGE_ID")
+    EDGE_SECRET: Optional[str] = Field(default=None, env="EDGE_SECRET")
+
+    # Token Refresh
+    TOKEN_REFRESH_THRESHOLD_SECONDS: int = Field(default=3600, env="TOKEN_REFRESH_THRESHOLD_SECONDS")
+    TOKEN_REFRESH_CHECK_INTERVAL: int = Field(default=300, env="TOKEN_REFRESH_CHECK_INTERVAL")
+```
+
+### ヘルスチェック統合
+
+```python
+# app/api/v1/health.py
+@router.get("/health")
+async def health_check():
+    """Health check endpoint with token status"""
+
+    token_health = ComponentHealth(
+        status=HealthStatus.HEALTHY if not token_manager.is_expired() else HealthStatus.UNHEALTHY,
+        details={
+            "token_present": token_manager.get_token() is not None,
+            "token_expired": token_manager.is_expired(),
+            "should_refresh": token_manager.should_refresh(),
+            "expires_in_seconds": (
+                (token_manager._token_expires_at - datetime.utcnow()).total_seconds()
+                if token_manager._token_expires_at else None
+            )
+        }
+    )
+
+    return {
+        "status": "healthy",
+        "components": {
+            "token": token_health,
+            # ... other components
+        }
+    }
+```
+
+### 成功基準
+
+- **SC-016**: JWT トークンの自動更新成功率が99.5%以上であること
+- **SC-017**: トークン期限切れによる同期遅延が30秒以内に収まること
+- **SC-018**: 再認証失敗時のアラート送信が5秒以内に完了すること
+
+### メリット
+
+1. **プロアクティブ更新**: 有効期限1時間前に自動更新、401エラーによる同期遅延を防止
+2. **自動リカバリ**: 401エラー時に自動再認証、ユーザー介入不要
+3. **高可用性**: 99.9%以上の認証成功率を保証（SC-013達成）
+4. **可視性向上**: ヘルスチェック、ログ、メトリクスでトークン状態を監視
+5. **運用負荷軽減**: 手動でのトークン管理が不要
+
+---
+
 ## 技術選定まとめ
 
 | トピック | 採用技術 | 主な理由 |
@@ -548,6 +818,7 @@ docker exec mongodb mongosh sync_<tenant_id> --eval "db.sync_status.find().prett
 | **P2Pファイル共有** | StreamingResponse + aiofiles | メモリ効率、認証制御、非同期親和性 |
 | **ファイル圧縮** | ThreadPoolExecutor + zipfile | 追加依存なし、シンプル、100MB以下で十分 |
 | **環境切替** | 環境変数 SYNC_MODE | 既存パターン、柔軟性 |
+| **JWT トークン管理** | TokenManager + APScheduler + AuthenticatedHttpClient | プロアクティブ更新、自動再認証、99.9%認証成功率 |
 
 ---
 

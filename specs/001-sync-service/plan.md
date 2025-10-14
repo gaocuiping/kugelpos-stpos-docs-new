@@ -170,8 +170,10 @@ async with httpx.AsyncClient() as client:
 #### 認証フロー
 
 1. Edge Sync起動時にedge_id + secretで認証
-2. Cloud SyncがJWT トークン発行（tenant_id、edge_id、store_codeを含む）
+2. Cloud SyncがJWT トークン発行（tenant_id、edge_id、store_codeを含む、有効期限24時間）
 3. 以降の通信はJWT トークンをAuthorizationヘッダーに付与
+4. **トークン自動更新**: 有効期限1時間前に自動的に新しいトークンを取得（プロアクティブ更新）
+5. **401エラー時の自動再認証**: 期限切れトークンで401エラー発生時、自動的に再認証してリトライ
 
 #### データ圧縮
 
@@ -474,7 +476,8 @@ services/sync/
 │   ├── main.py                          # FastAPI アプリケーションエントリーポイント
 │   ├── config/
 │   │   ├── settings.py                  # 環境変数、設定管理
-│   │   └── constants.py                 # 定数定義
+│   │   ├── constants.py                 # 定数定義
+│   │   └── token_manager.py             # JWT トークンライフサイクル管理（Edge Mode用）
 │   ├── models/                          # データモデル（MongoDB Document）
 │   │   ├── sync_status.py               # 同期ステータス
 │   │   ├── sync_history.py              # 同期履歴
@@ -519,9 +522,11 @@ services/sync/
 │   │   ├── jwt_helper.py                # JWT ヘルパー
 │   │   ├── hash_helper.py               # ハッシュ計算（SHA-256、bcrypt）
 │   │   ├── file_helper.py               # ファイル操作（zip圧縮等）
-│   │   └── dapr_helper.py               # Dapr 通信ヘルパー（commons から利用）
+│   │   ├── dapr_helper.py               # Dapr 通信ヘルパー（commons から利用）
+│   │   └── authenticated_http_client.py # 自動再認証機能付きHTTPクライアント（Edge Mode用）
 │   └── background/                      # バックグラウンドタスク
 │       ├── polling_scheduler.py         # 定期ポーリング（エッジモード用）
+│       ├── token_refresh_scheduler.py   # トークン自動更新（エッジモード用）
 │       └── scheduled_master_executor.py # 予約反映実行（エッジモード用）
 ├── tests/                               # テストコード
 │   ├── conftest.py                      # pytest設定、フィクスチャ
