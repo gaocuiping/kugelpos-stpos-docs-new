@@ -214,11 +214,12 @@
     - `find_pending_logs(batch_size: int)`: pending ログをバッチ取得 (sync_status='pending' でソート)
     - `mark_as_sent(log_ids: list)`: 送信完了マーク (sync_status='sent' に更新)
     - `count_pending()`: pending ログ件数取得 (キュー容量管理用)
+    - `get_pending_total_size_mb()`: pending ログの合計サイズ取得 (キュー容量管理用)
 - [ ] T064 [US2] TerminalStateChange リポジトリを実装 (`services/sync/app/models/repositories/terminal_state_change_repository.py`)
 - [ ] ~~T065 [US2] Transaction Queue Manager を実装~~ **削除** (シンプル化: TransactionLog Repository で直接管理)
   - **代替実装**: T063 の TransactionLog Repository メソッドを使用
   - **FIFO削除**: MongoDB TTLインデックスで自動削除 (data-model.md: TransactionLog の synced_at TTL 30日)
-  - **容量管理**: T063 の `count_pending()` メソッドで監視、環境変数 `TRANSACTION_QUEUE_MAX_SIZE` (デフォルト: 10000)
+  - **容量管理**: T063 の `count_pending()` および `get_pending_total_size_mb()` メソッドで監視、環境変数 `TRANSACTION_QUEUE_MAX_RECORDS` (デフォルト: 10000) および `TRANSACTION_QUEUE_MAX_SIZE_MB` (デフォルト: 100)。いずれか先に到達した閾値で削除処理を実行
 - [ ] T066 [US2 Test] Transaction Sync Service のユニットテストを作成 (`tests/unit/test_transaction_sync_service.py`)
   - 検証項目: 送信処理、リトライ機構 (FR-019)、At-least-once delivery (FR-021)
 - [ ] T067 [US2] Transaction Sync Service を実装 (`services/sync/app/services/sync/transaction_sync_service.py`)
