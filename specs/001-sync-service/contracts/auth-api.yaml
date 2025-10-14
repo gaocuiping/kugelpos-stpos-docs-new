@@ -1,0 +1,277 @@
+openapi: 3.0.3
+info:
+  title: Sync Service - Authentication API
+  description: |
+    Edge terminal authentication API for the Sync Service.
+
+    **Purpose**: Issues JWT tokens for edge terminals to authenticate with sync endpoints.
+
+    **Security**:
+    - Edge terminals authenticate using edge_id and secret
+    - Secrets are SHA256-hashed in storage (never plaintext)
+    - JWT tokens have 24-hour expiration
+    - TLS 1.2+ required for all connections
+
+    **Related User Stories**: US-006 (Edge Terminal Authentication and Security)
+  version: 1.0.0
+  contact:
+    name: Kugelpos Development Team
+    email: dev@kugelpos.example.com
+
+servers:
+  - url: https://api.kugelpos.example.com/sync/v1
+    description: Cloud environment (production)
+  - url: https://api-staging.kugelpos.example.com/sync/v1
+    description: Staging environment
+  - url: http://localhost:8007/api/v1
+    description: Local development
+
+tags:
+  - name: Authentication
+    description: Edge terminal authentication operations
+
+paths:
+  /auth/token:
+    post:
+      tags:
+        - Authentication
+      summary: Obtain JWT token
+      description: |
+        Authenticates an edge terminal using edge_id and secret, and issues a JWT token.
+
+        **Authentication Flow**:
+        1. Edge terminal sends edge_id and secret
+        2. Service validates credentials against EdgeTerminal collection
+        3. Service issues JWT token with 24-hour expiration
+        4. Edge terminal uses token in Authorization header for subsequent requests
+
+        **Error Cases**:
+        - 401: Invalid edge_id or secret
+        - 500: Internal server error (database unavailable, etc.)
+
+        **Related Requirements**: FR-017
+      operationId: obtainToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+            examples:
+              validRequest:
+                summary: Valid authentication request
+                value:
+                  edge_id: edge-tenant001-store001-001
+                  secret: a3f5e8d2b1c4a6f9e7d3b5c8a1f4e6d9b2c5a8f1e4d7b3c6a9f2e5d8b1c4a7f0
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              examples:
+                success:
+                  summary: Successful token issuance
+                  value:
+                    access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlZGdlX2lkIjoiZWRnZS10ZW5hbnQwMDEtc3RvcmUwMDEtMDAxIiwidGVuYW50X2lkIjoidGVuYW50MDAxIiwic3RvcmVfY29kZSI6InN0b3JlMDAxIiwiZXhwIjoxNzI4ODY0MDAwfQ.signature
+                    token_type: Bearer
+                    expires_in: 86400
+                    edge_id: edge-tenant001-store001-001
+                    tenant_id: tenant001
+                    store_code: store001
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh JWT token
+      description: |
+        Refreshes an existing JWT token before expiration.
+
+        **Note**: Token refresh is optional. Edge terminals can re-authenticate using /auth/token if token expires.
+      operationId: refreshToken
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/verify:
+    get:
+      tags:
+        - Authentication
+      summary: Verify JWT token validity
+      description: |
+        Verifies if the provided JWT token is valid and not expired.
+
+        **Use Case**: Edge terminals can check token validity before making sync requests.
+      operationId: verifyToken
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                    example: true
+                  edge_id:
+                    type: string
+                    example: edge-tenant001-store001-001
+                  tenant_id:
+                    type: string
+                    example: tenant001
+                  expires_at:
+                    type: string
+                    format: date-time
+                    example: '2025-10-14T12:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  schemas:
+    TokenRequest:
+      type: object
+      required:
+        - edge_id
+        - secret
+      properties:
+        edge_id:
+          type: string
+          pattern: '^edge-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]{3}$'
+          description: Edge terminal unique identifier
+          example: edge-tenant001-store001-001
+        secret:
+          type: string
+          minLength: 64
+          maxLength: 64
+          pattern: '^[a-f0-9]{64}$'
+          description: SHA256 authentication secret (64 hex characters)
+          example: a3f5e8d2b1c4a6f9e7d3b5c8a1f4e6d9b2c5a8f1e4d7b3c6a9f2e5d8b1c4a7f0
+
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+        - edge_id
+        - tenant_id
+        - store_code
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          enum:
+            - Bearer
+          description: Token type (always Bearer)
+          example: Bearer
+        expires_in:
+          type: integer
+          description: Token expiration time in seconds (24 hours = 86400)
+          example: 86400
+        edge_id:
+          type: string
+          description: Authenticated edge terminal ID
+          example: edge-tenant001-store001-001
+        tenant_id:
+          type: string
+          description: Tenant identifier
+          example: tenant001
+        store_code:
+          type: string
+          description: Store identifier
+          example: store001
+
+    ErrorResponse:
+      type: object
+      required:
+        - error_code
+        - message
+      properties:
+        error_code:
+          type: string
+          description: Error code in XXYYZZ format (XX=service, YY=module, ZZ=error). XX=80 for sync service.
+          example: '800101'
+        message:
+          type: string
+          description: Human-readable error message
+          example: Invalid edge_id or secret
+        detail:
+          type: string
+          description: Detailed error information for debugging
+          example: 'EdgeTerminal not found: edge-tenant001-store001-999'
+        timestamp:
+          type: string
+          format: date-time
+          description: Error occurrence timestamp (ISO 8601)
+          example: '2025-10-13T10:30:00Z'
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error_code: '800001'
+            message: Invalid request parameters
+            detail: 'edge_id must match pattern: ^edge-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]{3}$'
+            timestamp: '2025-10-13T10:30:00Z'
+
+    Unauthorized:
+      description: Authentication failed or token invalid/expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error_code: '800101'
+            message: Authentication failed
+            detail: Invalid edge_id or secret
+            timestamp: '2025-10-13T10:30:00Z'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error_code: '809999'
+            message: Internal server error
+            detail: Database connection failed
+            timestamp: '2025-10-13T10:30:00Z'
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from /auth/token endpoint.
+
+        **Usage**: Include in Authorization header as: `Authorization: Bearer {token}`

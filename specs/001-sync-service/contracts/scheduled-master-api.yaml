@@ -1,0 +1,584 @@
+openapi: 3.0.3
+info:
+  title: Sync Service - Scheduled Master File API
+  description: |
+    Scheduled master file management API for future master data application.
+
+    **Purpose**:
+    - Register master files with scheduled application timestamp
+    - Download master files from cloud to edge terminals
+    - P2P file sharing among edge terminals in same store
+    - Track file distribution status across edge terminals
+
+    **File Naming Convention**:
+    `[マスタ反映日時]_[更新タイミング]_[反映優先順位]_[ファイルID]_[マスタ作成日時]_[更新区分]_S[店舗ID].json`
+
+    Example: `202501011200_S_01_ITEM01_20250115123456_A_S001.json`
+
+    **Components**:
+    - マスタ反映日時: YYYYMMDDHHmm (when to apply)
+    - 更新タイミング: S (Scheduled) or I (Immediate)
+    - 反映優先順位: 00-99 (lower = higher priority)
+    - ファイルID: Unique file identifier
+    - マスタ作成日時: YYYYMMDDHHmmss (when created)
+    - 更新区分: A (All/full) or M (Modify/delta)
+    - 店舗ID: S001, S002, or * for all stores
+
+    **Related User Stories**: US-003 (Master Data Scheduled Application)
+  version: 1.0.0
+
+servers:
+  - url: https://api.kugelpos.example.com/sync/v1
+    description: Cloud environment (production)
+  - url: http://localhost:8007/api/v1
+    description: Local development
+
+tags:
+  - name: Scheduled Files
+    description: Scheduled master file management
+  - name: P2P Distribution
+    description: Peer-to-peer file sharing
+
+paths:
+  /scheduled-master/files:
+    get:
+      tags:
+        - Scheduled Files
+      summary: List scheduled master files for edge terminal
+      description: |
+        Retrieve list of scheduled master files applicable to the edge terminal.
+
+        **Filter Logic**:
+        - Files for terminal's store (store_id matches or "*")
+        - Files not yet applied on this terminal
+        - Ordered by (scheduled_at ASC, priority ASC)
+
+        **Related Requirements**: FR-011, FR-012
+      operationId: listScheduledFiles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: edge_id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: edge-tenant001-store001-001
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - pending
+              - scheduled
+              - immediate
+          description: Filter by application status
+      responses:
+        '200':
+          description: List of scheduled files
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScheduledMasterFile'
+              examples:
+                scheduledFiles:
+                  summary: Scheduled files pending application
+                  value:
+                    files:
+                      - file_id: 550e8400-e29b-41d4-a716-446655440001
+                        store_id: 'S001'
+                        scheduled_at: '2025-10-14T12:00:00Z'
+                        timing_type: scheduled
+                        priority: 1
+                        update_type: A
+                        file_path: /blob/scheduled/202510141200_S_01_ITEM01_20251013120000_A_S001.json
+                        file_size_bytes: 1048576
+                        checksum: a3f5e8d2b1c4a6f9e7d3b5c8a1f4e6d9b2c5a8f1e4d7b3c6a9f2e5d8b1c4a7f0
+                        holding_status:
+                          edge-tenant001-store001-001: pending
+                          edge-tenant001-store001-002: pending
+                        applied_count: 0
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Scheduled Files
+      summary: Register new scheduled master file (Cloud only)
+      description: |
+        Register a new scheduled master file for future application.
+
+        **Note**: This endpoint is only accessible in Cloud Mode.
+
+        **Related Requirements**: FR-011
+      operationId: registerScheduledFile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduledFileRegistration'
+      responses:
+        '201':
+          description: File registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledMasterFile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /scheduled-master/files/{file_id}:
+    get:
+      tags:
+        - Scheduled Files
+      summary: Get scheduled file details
+      operationId: getScheduledFile
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: File details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledMasterFile'
+        '404':
+          description: File not found
+
+  /scheduled-master/files/{file_id}/download:
+    get:
+      tags:
+        - Scheduled Files
+      summary: Download master file from cloud
+      description: |
+        Download scheduled master file from cloud blob storage.
+
+        **Primary Download Path**: Edge terminal downloads directly from cloud.
+
+        **Note**: Edge terminals should check P2P availability first (see /p2p/files).
+
+        **Related Requirements**: FR-013
+      operationId: downloadMasterFile
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: edge_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Requesting edge terminal ID
+      responses:
+        '200':
+          description: File content
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              example: attachment; filename="202510141200_S_01_ITEM01_20251013120000_A_S001.json"
+            X-Checksum:
+              schema:
+                type: string
+              description: SHA-256 checksum for integrity verification
+              example: a3f5e8d2b1c4a6f9e7d3b5c8a1f4e6d9b2c5a8f1e4d7b3c6a9f2e5d8b1c4a7f0
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: File not found
+
+  /scheduled-master/files/{file_id}/ack:
+    post:
+      tags:
+        - Scheduled Files
+      summary: Acknowledge file application
+      description: |
+        Edge terminal acknowledges successful file download and application.
+
+        **Updates**:
+        - holding_status[edge_id] = "applied"
+        - applied_count incremented
+
+        **Related Requirements**: FR-014
+      operationId: acknowledgeFileApplication
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileApplicationAck'
+      responses:
+        '200':
+          description: Acknowledgement recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  applied_count:
+                    type: integer
+                    example: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /p2p/files/{file_id}:
+    get:
+      tags:
+        - P2P Distribution
+      summary: Download file via P2P from peer edge terminal
+      description: |
+        Download master file from a peer edge terminal in the same store (P2P).
+
+        **P2P Logic**:
+        1. Query /p2p/peers to find seed terminals with the file
+        2. Select peer by p2p_priority (0 = highest priority)
+        3. Download file from peer's P2P endpoint
+        4. Verify checksum
+        5. Fallback to cloud download if P2P fails
+
+        **Benefits**:
+        - Reduces cloud bandwidth usage by 50%+
+        - Faster download within local network
+
+        **Related Requirements**: FR-013
+      operationId: downloadViaPeer
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: edge_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Requesting edge terminal ID
+      responses:
+        '200':
+          description: File content from peer
+          headers:
+            X-Checksum:
+              schema:
+                type: string
+            X-Served-By:
+              schema:
+                type: string
+              description: Edge ID of serving peer
+              example: edge-tenant001-store001-001
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not available on this peer
+        '503':
+          description: Peer unavailable (fallback to cloud download)
+
+  /p2p/peers:
+    get:
+      tags:
+        - P2P Distribution
+      summary: Find P2P seed terminals in same store
+      description: |
+        Query available P2P seed terminals in the same store that have the requested file.
+
+        **P2P Priority Levels**:
+        - 0: Primary seed (first to download from cloud)
+        - 1-9: Secondary seeds (also serve to peers)
+        - 99: Non-seed (download from peers only)
+
+        **Related Requirements**: FR-013, FR-014
+      operationId: findP2PPeers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: store_code
+          in: query
+          required: true
+          schema:
+            type: string
+          example: store001
+        - name: file_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of available peers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  peers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/P2PPeer'
+              examples:
+                availablePeers:
+                  summary: P2P seeds with file
+                  value:
+                    peers:
+                      - edge_id: edge-tenant001-store001-001
+                        p2p_priority: 0
+                        status: online
+                        last_heartbeat_at: '2025-10-13T10:28:00Z'
+                        p2p_url: http://192.168.1.101:8007/api/v1/p2p/files/{file_id}
+                      - edge_id: edge-tenant001-store001-002
+                        p2p_priority: 1
+                        status: online
+                        last_heartbeat_at: '2025-10-13T10:29:00Z'
+                        p2p_url: http://192.168.1.102:8007/api/v1/p2p/files/{file_id}
+        '404':
+          description: No peers available
+
+components:
+  schemas:
+    ScheduledMasterFile:
+      type: object
+      required:
+        - file_id
+        - store_id
+        - scheduled_at
+        - timing_type
+        - priority
+        - update_type
+        - file_path
+        - file_size_bytes
+        - checksum
+      properties:
+        file_id:
+          type: string
+          format: uuid
+          description: Unique file identifier
+        store_id:
+          type: string
+          description: Target store ID or "*" for all stores
+          example: S001
+        scheduled_at:
+          type: string
+          format: date-time
+          description: Scheduled application timestamp (ISO 8601)
+          example: '2025-10-14T12:00:00Z'
+        timing_type:
+          type: string
+          enum:
+            - scheduled
+            - immediate
+          description: Application timing (scheduled=future, immediate=past)
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 99
+          description: Application priority (lower = higher priority)
+          example: 1
+        update_type:
+          type: string
+          enum:
+            - A
+            - M
+          description: Update mode (A=All/full replace, M=Modify/delta)
+        created_at:
+          type: string
+          format: date-time
+          description: File registration timestamp
+        file_path:
+          type: string
+          description: Blob storage file path
+          example: /blob/scheduled/202510141200_S_01_ITEM01_20251013120000_A_S001.json
+        file_size_bytes:
+          type: integer
+          minimum: 0
+          description: File size in bytes
+          example: 1048576
+        checksum:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+          description: SHA-256 checksum
+        holding_status:
+          type: object
+          description: File possession status per edge terminal
+          additionalProperties:
+            type: string
+            enum:
+              - pending
+              - downloading
+              - downloaded
+              - applied
+              - failed
+          example:
+            edge-tenant001-store001-001: pending
+            edge-tenant001-store001-002: downloaded
+        applied_count:
+          type: integer
+          minimum: 0
+          description: Number of edge terminals that applied this file
+          example: 0
+
+    ScheduledFileRegistration:
+      type: object
+      required:
+        - store_id
+        - scheduled_at
+        - priority
+        - update_type
+        - file_path
+        - checksum
+      properties:
+        store_id:
+          type: string
+          example: S001
+        scheduled_at:
+          type: string
+          format: date-time
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 99
+        update_type:
+          type: string
+          enum:
+            - A
+            - M
+        file_path:
+          type: string
+        file_size_bytes:
+          type: integer
+        checksum:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+
+    FileApplicationAck:
+      type: object
+      required:
+        - edge_id
+        - status
+      properties:
+        edge_id:
+          type: string
+          pattern: '^edge-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]{3}$'
+        status:
+          type: string
+          enum:
+            - applied
+            - failed
+        error_message:
+          type: string
+          description: Error message if status=failed
+        checksum_verified:
+          type: boolean
+          description: Whether checksum verification passed
+
+    P2PPeer:
+      type: object
+      required:
+        - edge_id
+        - p2p_priority
+        - status
+      properties:
+        edge_id:
+          type: string
+          pattern: '^edge-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]{3}$'
+        p2p_priority:
+          type: integer
+          minimum: 0
+          maximum: 9
+          description: P2P priority (0=primary seed, 1-9=secondary seeds)
+        status:
+          type: string
+          enum:
+            - online
+            - offline
+        last_heartbeat_at:
+          type: string
+          format: date-time
+          description: Last health check timestamp
+        p2p_url:
+          type: string
+          description: P2P download URL
+          example: http://192.168.1.101:8007/api/v1/p2p/files/{file_id}
+
+    ErrorResponse:
+      type: object
+      required:
+        - error_code
+        - message
+      properties:
+        error_code:
+          type: string
+          description: Error code in XXYYZZ format (XX=80 for sync service)
+          example: '800301'
+        message:
+          type: string
+        detail:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Authentication failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

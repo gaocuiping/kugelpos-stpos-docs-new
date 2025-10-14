@@ -1,0 +1,634 @@
+openapi: 3.0.3
+info:
+  title: Sync Service - File Collection API
+  description: |
+    Remote file collection API for edge terminal troubleshooting.
+
+    **Purpose**:
+    - Collect application logs, system files from edge terminals remotely
+    - Compress files into zip archives (max 100MB)
+    - Provide time-limited download URLs for administrators
+    - Enforce security via whitelist path validation
+
+    **Security**:
+    - Only whitelisted paths can be collected
+    - All paths validated against security patterns
+    - Archive access via time-limited signed URLs (7 days)
+
+    **Use Cases**:
+    - Error log collection after system failure
+    - Configuration file retrieval for debugging
+    - Journal data extraction for analysis
+
+    **Related User Stories**: US-005 (File Collection and Troubleshooting)
+  version: 1.0.0
+
+servers:
+  - url: https://api.kugelpos.example.com/sync/v1
+    description: Cloud environment (production)
+  - url: http://localhost:8007/api/v1
+    description: Local development
+
+tags:
+  - name: Collection Tasks
+    description: File collection task management
+  - name: Edge Operations
+    description: Edge terminal file collection operations
+
+paths:
+  /file-collection/tasks:
+    get:
+      tags:
+        - Collection Tasks
+      summary: List file collection tasks (Cloud only)
+      description: |
+        Retrieve list of file collection tasks.
+
+        **Filters**:
+        - By edge_id: Tasks for specific edge terminal
+        - By status: pending, collecting, completed, failed
+
+        **Note**: This endpoint is only accessible in Cloud Mode.
+      operationId: listCollectionTasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: edge_id
+          in: query
+          schema:
+            type: string
+          description: Filter by edge terminal ID
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - pending
+              - collecting
+              - completed
+              - failed
+          description: Filter by task status
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          description: Maximum number of results
+      responses:
+        '200':
+          description: List of collection tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FileCollectionTask'
+                  total:
+                    type: integer
+                    description: Total number of tasks
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Collection Tasks
+      summary: Create file collection task (Cloud only)
+      description: |
+        Create a new file collection task for one or more edge terminals.
+
+        **Batch Creation**:
+        - If edge_ids contains multiple IDs, creates one task per terminal
+        - If edge_ids = ["*"], creates tasks for all edge terminals
+
+        **Validation**:
+        - All target_paths must match whitelist patterns
+        - max_size_mb must be ≤ 100
+
+        **Related Requirements**: FR-015, FR-016
+      operationId: createCollectionTask
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCollectionRequest'
+            examples:
+              errorLogs:
+                summary: Collect error logs from specific terminal
+                value:
+                  edge_ids:
+                    - edge-tenant001-store001-001
+                  collection_name: error-logs-2025-10-13
+                  target_paths:
+                    - /app/logs/error.log
+                    - /app/logs/critical.log
+                  exclude_patterns:
+                    - '*.tmp'
+                    - '*.bak'
+                  max_size_mb: 50
+              allTerminals:
+                summary: Collect from all terminals
+                value:
+                  edge_ids:
+                    - '*'
+                  collection_name: system-config-backup
+                  target_paths:
+                    - /app/config/
+                  max_size_mb: 100
+      responses:
+        '201':
+          description: Collection task(s) created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created_tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FileCollectionTask'
+                  created_count:
+                    type: integer
+                    description: Number of tasks created
+                    example: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /file-collection/tasks/{collection_id}:
+    get:
+      tags:
+        - Collection Tasks
+      summary: Get collection task details
+      operationId: getCollectionTask
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: collection_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Collection task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileCollectionTask'
+        '404':
+          description: Task not found
+
+    delete:
+      tags:
+        - Collection Tasks
+      summary: Cancel collection task (Cloud only)
+      description: |
+        Cancel a pending or in-progress collection task.
+
+        **Note**: Can only cancel tasks with status=pending or collecting.
+      operationId: cancelCollectionTask
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: collection_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: cancelled
+        '400':
+          description: Cannot cancel (already completed or failed)
+        '404':
+          description: Task not found
+
+  /file-collection/tasks/{collection_id}/download:
+    get:
+      tags:
+        - Collection Tasks
+      summary: Download collected archive (Cloud only)
+      description: |
+        Download the zip archive of collected files.
+
+        **Access Control**:
+        - Only accessible to administrators
+        - URL expires after 7 days
+
+        **Related Requirements**: FR-015
+      operationId: downloadCollectedArchive
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: collection_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Archive file
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              example: attachment; filename="error-logs-2025-10-13.zip"
+            Content-Length:
+              schema:
+                type: integer
+              example: 10485760
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Archive not found or expired
+        '403':
+          description: Access forbidden
+
+  /edge/file-collection/poll:
+    get:
+      tags:
+        - Edge Operations
+      summary: Poll for pending collection tasks (Edge → Cloud)
+      description: |
+        Edge terminals poll this endpoint to check for pending file collection tasks.
+
+        **Polling Interval**: Same as sync polling (30-60 seconds)
+
+        **Flow**:
+        1. Edge terminal polls with edge_id
+        2. Cloud returns pending tasks (if any)
+        3. Edge terminal executes collection
+        4. Edge terminal uploads archive
+      operationId: pollCollectionTasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: edge_id
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^edge-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]{3}$'
+      responses:
+        '200':
+          description: Pending collection tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EdgeCollectionTask'
+              examples:
+                pendingTask:
+                  summary: One pending task
+                  value:
+                    tasks:
+                      - collection_id: 550e8400-e29b-41d4-a716-446655440001
+                        collection_name: error-logs-2025-10-13
+                        target_paths:
+                          - /app/logs/error.log
+                        exclude_patterns:
+                          - '*.tmp'
+                        max_size_mb: 50
+                noTasks:
+                  summary: No pending tasks
+                  value:
+                    tasks: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /edge/file-collection/tasks/{collection_id}/upload:
+    post:
+      tags:
+        - Edge Operations
+      summary: Upload collected archive (Edge → Cloud)
+      description: |
+        Edge terminal uploads the compressed archive after collecting files.
+
+        **Upload Flow**:
+        1. Edge terminal compresses files into zip
+        2. Calculates checksum
+        3. Uploads archive to cloud
+        4. Cloud stores in blob storage
+        5. Cloud generates download URL
+
+        **Size Limit**: 100MB (enforced on edge before upload)
+
+        **Related Requirements**: FR-015
+      operationId: uploadCollectedArchive
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: collection_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - archive
+                - metadata
+              properties:
+                archive:
+                  type: string
+                  format: binary
+                  description: Zip archive file
+                metadata:
+                  type: string
+                  description: JSON metadata (file_count, archive_size_bytes, checksum)
+                  example: '{"file_count": 5, "archive_size_bytes": 2048576, "checksum": "a3f5e8d2..."}'
+      responses:
+        '200':
+          description: Archive uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: completed
+                  download_url:
+                    type: string
+                    description: Time-limited download URL
+                    example: https://blob.storage.example.com/collections/550e8400.zip?expires=1729000000
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '413':
+          description: Archive exceeds size limit (100MB)
+
+  /edge/file-collection/tasks/{collection_id}/fail:
+    post:
+      tags:
+        - Edge Operations
+      summary: Report collection failure (Edge → Cloud)
+      description: |
+        Edge terminal reports that file collection failed.
+
+        **Failure Reasons**:
+        - Path validation failed (not in whitelist)
+        - Files exceed size limit
+        - Compression error
+        - Permission denied
+      operationId: reportCollectionFailure
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: collection_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - error_message
+              properties:
+                error_message:
+                  type: string
+                  description: Detailed error message
+                  example: Path /etc/passwd is not in whitelist
+      responses:
+        '200':
+          description: Failure reported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failed
+
+components:
+  schemas:
+    FileCollectionTask:
+      type: object
+      required:
+        - collection_id
+        - edge_id
+        - collection_name
+        - target_paths
+        - max_size_mb
+        - status
+      properties:
+        collection_id:
+          type: string
+          format: uuid
+          description: Unique collection task ID
+        edge_id:
+          type: string
+          pattern: '^edge-[a-zA-Z0-9]+-[a-zA-Z0-9]+-[0-9]{3}$'
+          description: Target edge terminal ID
+        collection_name:
+          type: string
+          description: Human-readable collection name
+          example: error-logs-2025-10-13
+        target_paths:
+          type: array
+          description: File/directory paths to collect
+          items:
+            type: string
+          example:
+            - /app/logs/error.log
+            - /app/config/
+        exclude_patterns:
+          type: array
+          description: Glob patterns for files to exclude
+          items:
+            type: string
+          example:
+            - '*.tmp'
+            - '*.bak'
+        max_size_mb:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Maximum archive size in MB
+          example: 50
+        status:
+          type: string
+          enum:
+            - pending
+            - collecting
+            - completed
+            - failed
+          description: Collection task status
+        file_count:
+          type: integer
+          minimum: 0
+          description: Number of collected files
+        archive_size_bytes:
+          type: integer
+          minimum: 0
+          description: Compressed archive size in bytes
+        download_url:
+          type: string
+          description: Time-limited download URL (7 days)
+        started_at:
+          type: string
+          format: date-time
+          description: Collection start timestamp (ISO 8601)
+        completed_at:
+          type: string
+          format: date-time
+          description: Collection completion timestamp (ISO 8601)
+        error_message:
+          type: string
+          description: Error message if failed
+        created_at:
+          type: string
+          format: date-time
+          description: Task creation timestamp
+
+    CreateCollectionRequest:
+      type: object
+      required:
+        - edge_ids
+        - collection_name
+        - target_paths
+      properties:
+        edge_ids:
+          type: array
+          description: Target edge terminal IDs (or ["*"] for all)
+          items:
+            type: string
+          example:
+            - edge-tenant001-store001-001
+        collection_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Collection task name
+          example: error-logs-2025-10-13
+        target_paths:
+          type: array
+          description: File/directory paths to collect
+          minItems: 1
+          maxItems: 50
+          items:
+            type: string
+          example:
+            - /app/logs/error.log
+        exclude_patterns:
+          type: array
+          description: Glob patterns for exclusion
+          maxItems: 20
+          items:
+            type: string
+          example:
+            - '*.tmp'
+        max_size_mb:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 100
+          description: Maximum archive size in MB
+
+    EdgeCollectionTask:
+      type: object
+      description: Simplified collection task for edge terminals
+      required:
+        - collection_id
+        - collection_name
+        - target_paths
+        - max_size_mb
+      properties:
+        collection_id:
+          type: string
+          format: uuid
+        collection_name:
+          type: string
+        target_paths:
+          type: array
+          items:
+            type: string
+        exclude_patterns:
+          type: array
+          items:
+            type: string
+        max_size_mb:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      required:
+        - error_code
+        - message
+      properties:
+        error_code:
+          type: string
+          description: Error code in XXYYZZ format (XX=80 for sync service)
+          example: '800401'
+        message:
+          type: string
+        detail:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalidPath:
+              summary: Path not in whitelist
+              value:
+                error_code: '800401'
+                message: Path validation failed
+                detail: 'Path /etc/passwd is not in whitelist'
+                timestamp: '2025-10-13T10:30:00Z'
+
+    Unauthorized:
+      description: Authentication failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
