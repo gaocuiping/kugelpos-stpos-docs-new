@@ -1,31 +1,31 @@
-# Data Model Design: Sync Service
+# データモデル設計: Sync Service
 
-## Overview
+## 概要
 
-This document defines the detailed data model for the Sync Service, including entity schemas, relationships, validation rules, state transitions, and indexing strategies. All entities follow the Kugelpos architecture patterns with MongoDB document model, multi-tenancy support, and async operations.
+このドキュメントは、Sync Service の詳細なデータモデルを定義します。エンティティスキーマ、リレーションシップ、バリデーションルール、状態遷移、インデックス戦略を含みます。すべてのエンティティは、MongoDB ドキュメントモデル、マルチテナンシーサポート、非同期操作を備えた Kugelpos アーキテクチャパターンに従います。
 
-## Database Strategy
+## データベース戦略
 
-### Multi-Tenancy Isolation
+### マルチテナンシー分離
 
-- **Database Naming Pattern**: `sync_{tenant_id}`
-- **Tenant Separation**: Complete database-level isolation per tenant
-- **Collection Names**: snake_case convention (e.g., `sync_status`, `sync_history`)
+- **データベース命名パターン**: `sync_{tenant_id}`
+- **テナント分離**: テナントごとに完全なデータベースレベル分離
+- **コレクション名**: snake_case 規約（例: `sync_status`, `sync_history`）
 
-### Connection Management
+### 接続管理
 
 ```python
-# MongoDB connection string pattern
+# MongoDB 接続文字列パターン
 MONGODB_URI = "mongodb://{host}:{port}/sync_{tenant_id}?replicaSet=rs0"
 ```
 
-## Entity Definitions
+## エンティティ定義
 
-### 1. SyncStatus (Collection: `sync_status`)
+### 1. SyncStatus (コレクション: `sync_status`)
 
-**Purpose**: Tracks the current synchronization state for each edge terminal and data type combination.
+**目的**: 各エッジ端末とデータ種別の組み合わせに対する現在の同期状態を追跡します。
 
-#### Schema
+#### スキーマ
 
 ```python
 from kugel_common.models.base import BaseDocumentModel
@@ -89,17 +89,17 @@ class SyncStatusModel(BaseDocumentModel):
     # updated_at: datetime
 ```
 
-#### Validation Rules
+#### バリデーションルール
 
-- **Composite Uniqueness**: `(edge_id, data_type)` must be unique per database
-- **Status Transitions**:
-  - `idle` → `syncing` → `success` OR `failed`
-  - `failed` → `syncing` (retry)
-  - `success` → `idle` (next cycle)
-- **Retry Count**: Must be reset to 0 on successful sync
-- **Next Sync Calculation**: `next_sync_at = last_sync_at + SYNC_POLL_INTERVAL` (30-60s)
+- **複合一意性**: `(edge_id, data_type)` はデータベースごとに一意である必要があります
+- **ステータス遷移**:
+  - `idle` → `syncing` → `success` または `failed`
+  - `failed` → `syncing` (リトライ)
+  - `success` → `idle` (次のサイクル)
+- **リトライ回数**: 同期成功時に0にリセットする必要があります
+- **次回同期計算**: `next_sync_at = last_sync_at + SYNC_POLL_INTERVAL` (30-60秒)
 
-#### Indexes
+#### インデックス
 
 ```python
 # Compound index for primary lookups
@@ -110,7 +110,7 @@ class SyncStatusModel(BaseDocumentModel):
 {"edge_id": 1, "updated_at": -1}  # for edge terminal status dashboard
 ```
 
-#### State Transitions
+#### 状態遷移
 
 ```mermaid
 stateDiagram-v2
@@ -125,11 +125,11 @@ stateDiagram-v2
 
 ---
 
-### 2. SyncHistory (Collection: `sync_history`)
+### 2. SyncHistory (コレクション: `sync_history`)
 
-**Purpose**: Immutable audit log of all synchronization executions for monitoring and troubleshooting.
+**目的**: すべての同期実行の変更不可能な監査ログ。監視とトラブルシューティングに使用します。
 
-#### Schema
+#### スキーマ
 
 ```python
 from uuid import UUID, uuid4
@@ -216,13 +216,13 @@ class SyncHistoryModel(BaseDocumentModel):
     )
 ```
 
-#### Validation Rules
+#### バリデーションルール
 
-- **Immutability**: Records are write-once, never updated after creation
-- **Duration Calculation**: `duration_ms = (completed_at - started_at).total_seconds() * 1000`
-- **Retention Policy**: Archive records older than 90 days to cold storage
+- **不変性**: レコードは一度だけ書き込まれ、作成後は更新されません
+- **処理時間の計算**: `duration_ms = (completed_at - started_at).total_seconds() * 1000`
+- **保持ポリシー**: 90日より古いレコードをコールドストレージにアーカイブします
 
-#### Indexes
+#### インデックス
 
 ```python
 # Query optimization indexes
@@ -235,11 +235,11 @@ class SyncHistoryModel(BaseDocumentModel):
 
 ---
 
-### 3. EdgeTerminal (Collection: `edge_terminals`)
+### 3. EdgeTerminal (コレクション: `edge_terminals`)
 
-**Purpose**: Manages edge terminal registration, authentication credentials, and P2P configuration.
+**目的**: エッジ端末の登録、認証資格情報、P2P構成を管理します。
 
-#### Schema
+#### スキーマ
 
 ```python
 from typing import Literal, Optional
@@ -311,17 +311,17 @@ class EdgeTerminalModel(BaseDocumentModel):
     )
 ```
 
-#### Validation Rules
+#### バリデーションルール
 
-- **Edge ID Format**: `edge-{tenant_id}-{store_code}-{seq:003d}`
-- **Secret Storage**: Store SHA256 hash only (never plaintext)
-- **P2P Priority Logic**:
-  - 0: Primary seed (first to receive from cloud)
-  - 1-9: Secondary seeds (receive from cloud, serve to peers)
-  - 99: Non-seed (receive from P2P peers only)
-- **Status Update**: Mark `offline` if `last_heartbeat_at` > 5 minutes ago
+- **Edge ID フォーマット**: `edge-{tenant_id}-{store_code}-{seq:003d}`
+- **シークレット保存**: SHA256ハッシュのみを保存します（平文は保存しません）
+- **P2P優先度ロジック**:
+  - 0: プライマリシード（クラウドから最初に受信）
+  - 1-9: セカンダリシード（クラウドから受信し、ピアにサービス提供）
+  - 99: 非シード（P2Pピアからのみ受信）
+- **ステータス更新**: `last_heartbeat_at` が5分以上前の場合は `offline` とマークします
 
-#### Indexes
+#### インデックス
 
 ```python
 # Primary lookup
@@ -339,11 +339,11 @@ class EdgeTerminalModel(BaseDocumentModel):
 
 ---
 
-### 4. ScheduledMasterFile (Collection: `scheduled_master_files`)
+### 4. ScheduledMasterFile (コレクション: `scheduled_master_files`)
 
-**Purpose**: Manages scheduled master data files for future application at specified timestamps.
+**目的**: 指定されたタイムスタンプで将来適用されるマスタデータファイルを管理します。
 
-#### Schema
+#### スキーマ
 
 ```python
 from uuid import UUID, uuid4
@@ -428,17 +428,17 @@ class ScheduledMasterFileModel(BaseDocumentModel):
     )
 ```
 
-#### Validation Rules
+#### バリデーションルール
 
-- **Filename Pattern**: `[マスタ反映日時]_[更新タイミング]_[反映優先順位]_[ファイルID]_[マスタ作成日時]_[更新区分]_S[店舗ID].json`
-  - Example: `202501011200_S_01_ITEM01_20250115123456_A_S001.json`
-- **Timing Type Logic**:
+- **ファイル名パターン**: `[マスタ反映日時]_[更新タイミング]_[反映優先順位]_[ファイルID]_[マスタ作成日時]_[更新区分]_S[店舗ID].json`
+  - 例: `202501011200_S_01_ITEM01_20250115123456_A_S001.json`
+- **タイミング種別ロジック**:
   - `scheduled`: `scheduled_at > current_time`
   - `immediate`: `scheduled_at <= current_time`
-- **Holding Status Values**: `pending`, `downloading`, `downloaded`, `applied`, `failed`
-- **Application Rule**: Files are applied in order of `(scheduled_at ASC, priority ASC)`
+- **保持ステータスの値**: `pending`, `downloading`, `downloaded`, `applied`, `failed`
+- **適用ルール**: ファイルは `(scheduled_at ASC, priority ASC)` の順序で適用されます
 
-#### Indexes
+#### インデックス
 
 ```python
 # Scheduled job scanning (every 1 minute)
@@ -456,11 +456,11 @@ class ScheduledMasterFileModel(BaseDocumentModel):
 
 ---
 
-### 5. FileCollection (Collection: `file_collections`)
+### 5. FileCollection (コレクション: `file_collections`)
 
-**Purpose**: Tracks remote file collection tasks from edge terminals for troubleshooting.
+**目的**: トラブルシューティングのためのエッジ端末からのリモートファイル収集タスクを追跡します。
 
-#### Schema
+#### スキーマ
 
 ```python
 from uuid import UUID, uuid4
@@ -560,16 +560,16 @@ class FileCollectionModel(BaseDocumentModel):
     )
 ```
 
-#### Validation Rules
+#### バリデーションルール
 
-- **Whitelist Validation**: All `target_paths` must match whitelist patterns (security)
-- **Size Limit**: Archive generation stops if `archive_size_bytes` exceeds `max_size_mb * 1024 * 1024`
-- **Storage Path Format**: `{tenant_id}/file-collections/{YYYYMMDD}/{collection_id}.zip`
-- **Presigned URL Expiration**: `download_url_expires_at` is set to 7 days from archive upload (for S3/GCS presigned URLs)
-- **Batch Creation**: For "all edge terminals" collection request, create 1 record per terminal
-- **Storage Backend**: Dapr Binding abstracts S3/GCS/Azure Blob/Local Storage via `sync-storage` component
+- **ホワイトリスト検証**: すべての `target_paths` はホワイトリストパターンに一致する必要があります（セキュリティ）
+- **サイズ制限**: `archive_size_bytes` が `max_size_mb * 1024 * 1024` を超えた場合、アーカイブ生成を停止します
+- **ストレージパスフォーマット**: `{tenant_id}/file-collections/{YYYYMMDD}/{collection_id}.zip`
+- **署名付きURL有効期限**: `download_url_expires_at` はアーカイブアップロードから7日後に設定されます（S3/GCS署名付きURL用）
+- **バッチ作成**: 「すべてのエッジ端末」の収集リクエストに対して、端末ごとに1レコードを作成します
+- **ストレージバックエンド**: Dapr Binding は `sync-storage` コンポーネントを介して S3/GCS/Azure Blob/Local Storage を抽象化します
 
-#### Indexes
+#### インデックス
 
 ```python
 # Primary lookups
@@ -587,11 +587,11 @@ class FileCollectionModel(BaseDocumentModel):
 
 ---
 
-### 6. MasterData (Collection: `master_data`)
+### 6. MasterData (コレクション: `master_data`)
 
-**Purpose**: Cached master data synchronized from cloud to edge terminals.
+**目的**: クラウドからエッジ端末に同期されたマスタデータのキャッシュです。
 
-#### Schema
+#### スキーマ
 
 ```python
 from typing import Dict, Any, Literal
@@ -646,13 +646,13 @@ class MasterDataModel(BaseDocumentModel):
     )
 ```
 
-#### Validation Rules
+#### バリデーションルール
 
-- **Version Sequence**: Versions must be sequential per category (detect gaps with FR-009)
-- **Data Hash Verification**: `data_hash = sha256(json.dumps(data, sort_keys=True)).hexdigest()`
-- **Category-Specific Schemas**: Each category has its own data structure (defined by master-data service)
+- **バージョンシーケンス**: カテゴリごとにバージョンは連続している必要があります（FR-009でギャップを検出）
+- **データハッシュ検証**: `data_hash = sha256(json.dumps(data, sort_keys=True)).hexdigest()`
+- **カテゴリ固有のスキーマ**: 各カテゴリは独自のデータ構造を持ちます（master-data サービスで定義）
 
-#### Indexes
+#### インデックス
 
 ```python
 # Primary lookup
@@ -667,11 +667,11 @@ class MasterDataModel(BaseDocumentModel):
 
 ---
 
-### 7. TransactionLog (Collection: `transaction_logs`)
+### 7. TransactionLog (コレクション: `transaction_logs`)
 
-**Purpose**: Edge-originated transaction data queued for cloud transmission.
+**目的**: エッジ発信のトランザクションデータをクラウド送信のためにキューイングします。
 
-#### Schema
+#### スキーマ
 
 ```python
 from uuid import UUID, uuid4
@@ -737,14 +737,14 @@ class TransactionLogModel(BaseDocumentModel):
     )
 ```
 
-#### Validation Rules
+#### バリデーションルール
 
-- **Idempotency**: `log_id` must be UUID to ensure unique identification
-- **At-Least-Once Delivery**: Retry up to 5 times with exponential backoff
-- **Garbage Collection**: Delete `sent` records older than 30 days (configurable retention)
-- **Queue Capacity**: If unsent queue exceeds 10,000 records, delete oldest `pending` records
+- **冪等性**: `log_id` は一意の識別を保証するため UUID である必要があります
+- **最低一回配信**: 指数バックオフで最大5回リトライします
+- **ガベージコレクション**: 30日より古い `sent` レコードを削除します（保持期間は設定可能）
+- **キュー容量**: 未送信キューが10,000レコードを超えた場合、最も古い `pending` レコードを削除します
 
-#### Indexes
+#### インデックス
 
 ```python
 # Transmission queue queries
@@ -762,11 +762,11 @@ class TransactionLogModel(BaseDocumentModel):
 
 ---
 
-### 8. TerminalStateChange (Collection: `terminal_state_changes`)
+### 8. TerminalStateChange (コレクション: `terminal_state_changes`)
 
-**Purpose**: Tracks terminal status changes for cloud synchronization (from terminal service).
+**目的**: クラウド同期のための端末状態変更を追跡します（terminal サービスから）。
 
-#### Schema
+#### スキーマ
 
 ```python
 from typing import Literal, Optional
@@ -844,17 +844,17 @@ class TerminalStateChangeModel(BaseDocumentModel):
     )
 ```
 
-#### Validation Rules
+#### バリデーションルール
 
-- **Terminal ID Format**: `{tenant_id}-{store_code}-{terminal_no}` (matches TerminalInfo in terminal service)
-- **Status Transitions**:
-  - `Idle` → `Opened` (terminal opening)
-  - `Opened` → `Closed` (terminal settlement)
-  - `Closed` → `Opened` (re-opening)
-- **Business Date Format**: `YYYYMMDD` string (8 digits)
-- **Sync Retention**: Keep `sent` records for 90 days
+- **Terminal ID フォーマット**: `{tenant_id}-{store_code}-{terminal_no}` (terminal サービスの TerminalInfo と一致)
+- **ステータス遷移**:
+  - `Idle` → `Opened` (端末開設)
+  - `Opened` → `Closed` (端末精算)
+  - `Closed` → `Opened` (再開設)
+- **営業日フォーマット**: `YYYYMMDD` 文字列（8桁）
+- **同期保持期間**: `sent` レコードを90日間保持します
 
-#### Indexes
+#### インデックス
 
 ```python
 # Primary lookup
@@ -872,7 +872,7 @@ class TerminalStateChangeModel(BaseDocumentModel):
 
 ---
 
-## Entity Relationships
+## エンティティリレーションシップ
 
 ```mermaid
 erDiagram
@@ -947,11 +947,11 @@ erDiagram
     }
 ```
 
-## Repository Pattern Implementation
+## リポジトリパターン実装
 
-### Base Repository
+### ベースリポジトリ
 
-All entity repositories inherit from `AbstractRepository` (from commons library):
+すべてのエンティティリポジトリは `AbstractRepository` を継承します（commons ライブラリから）:
 
 ```python
 from kugel_common.models.repositories.abstract_repository import AbstractRepository
@@ -983,9 +983,9 @@ class SyncStatusRepository(AbstractRepository[SyncStatusModel]):
         return await self.find_many(query, limit=100)
 ```
 
-### Index Creation
+### インデックス作成
 
-Indexes are created during service initialization:
+インデックスはサービス初期化時に作成されます:
 
 ```python
 async def create_indexes(db: AsyncIOMotorDatabase) -> None:
@@ -1080,9 +1080,9 @@ async def create_indexes(db: AsyncIOMotorDatabase) -> None:
     )
 ```
 
-## Data Integrity Guarantees
+## データ整合性保証
 
-### Checksum Verification (FR-007)
+### チェックサム検証 (FR-007)
 
 ```python
 import hashlib
@@ -1106,7 +1106,7 @@ async def verify_master_data_integrity(
     return True
 ```
 
-### Record Count Verification (FR-008)
+### レコード数検証 (FR-008)
 
 ```python
 async def verify_record_count(
@@ -1124,7 +1124,7 @@ async def verify_record_count(
     return True
 ```
 
-### Version Gap Detection (FR-009)
+### バージョンギャップ検出 (FR-009)
 
 ```python
 async def detect_version_gaps(
@@ -1150,11 +1150,11 @@ async def detect_version_gaps(
     return gaps[:20]  # Return max 20 gaps per cycle (FR-009)
 ```
 
-## Constitution Compliance
+## プロジェクト憲章の遵守
 
-### Async-First Principle (II)
+### 非同期優先原則 (II)
 
-All repository operations are async:
+すべてのリポジトリ操作は非同期です:
 
 ```python
 # ✅ Correct
@@ -1164,9 +1164,9 @@ result = await repository.find_one({"edge_id": edge_id})
 result = repository.find_one_sync({"edge_id": edge_id})  # No sync methods
 ```
 
-### Multi-Tenancy (VI)
+### マルチテナンシー (VI)
 
-Database-level isolation enforced:
+データベースレベルの分離が強制されます:
 
 ```python
 def get_database(tenant_id: str) -> AsyncIOMotorDatabase:
@@ -1175,9 +1175,9 @@ def get_database(tenant_id: str) -> AsyncIOMotorDatabase:
     return mongo_client[db_name]
 ```
 
-### TDD (III)
+### テスト駆動開発 (III)
 
-All models have comprehensive tests:
+すべてのモデルには包括的なテストがあります:
 
 ```python
 # Example test structure
@@ -1200,20 +1200,20 @@ async def test_sync_status_validation():
         )
 ```
 
-## Next Steps
+## 次のステップ
 
-With `data-model.md` complete, proceed to:
+`data-model.md` の完成後、以下に進みます:
 
-1. **Phase 1: contracts/** - Generate OpenAPI specifications for:
-   - `auth-api.yaml`: Authentication endpoints
-   - `sync-api.yaml`: Synchronization endpoints
-   - `scheduled-master-api.yaml`: Scheduled master file endpoints
-   - `file-collection-api.yaml`: File collection endpoints
+1. **フェーズ1: contracts/** - 以下の OpenAPI 仕様を生成:
+   - `auth-api.yaml`: 認証エンドポイント
+   - `sync-api.yaml`: 同期エンドポイント
+   - `scheduled-master-api.yaml`: スケジュールされたマスタファイルエンドポイント
+   - `file-collection-api.yaml`: ファイル収集エンドポイント
 
-2. **Phase 1: quickstart.md** - Create developer quickstart guide
+2. **フェーズ1: quickstart.md** - 開発者向けクイックスタートガイドの作成
 
 ---
 
-**Document Version**: 1.0.0
-**Last Updated**: 2025-10-13
-**Status**: Complete
+**ドキュメントバージョン**: 1.0.0
+**最終更新日**: 2025-10-13
+**ステータス**: 完了

@@ -1,36 +1,36 @@
-# Sync Service - Developer Quickstart Guide
+# Sync Service - 開発者向けクイックスタートガイド
 
-## Overview
+## 概要
 
-This guide helps developers quickly set up a development environment for the Sync Service and start implementing features.
+このガイドは、Sync Service の開発環境を素早くセットアップし、機能実装を開始するための手順を提供します。
 
-**Estimated Time**: 30 minutes
+**推定時間**: 30分
 
-**Prerequisites**:
-- Docker & Docker Compose installed
-- Python 3.12+ installed
-- Pipenv installed (`pip install pipenv`)
-- Git repository cloned
-- Basic understanding of FastAPI and MongoDB
+**前提条件**:
+- Docker & Docker Compose がインストール済み
+- Python 3.12+ がインストール済み
+- Pipenv がインストール済み (`pip install pipenv`)
+- Git リポジトリがクローン済み
+- FastAPI と MongoDB の基本的な理解
 
-## Architecture Summary
+## アーキテクチャ概要
 
-The Sync Service provides bidirectional data synchronization between cloud and edge terminals:
+Sync Service は、クラウドとエッジ端末間の双方向データ同期を提供します:
 
-- **Cloud Mode**: Receives data from edge terminals, serves master data
-- **Edge Mode**: Sends transaction data to cloud, receives master data
-- **Dual Mode Design**: Single codebase with mode switching via environment variable
+- **クラウドモード**: エッジ端末からデータを受信し、マスタデータを提供
+- **エッジモード**: クラウドにトランザクションデータを送信し、マスタデータを受信
+- **デュアルモード設計**: 環境変数によるモード切り替えを備えた単一コードベース
 
-**Key Features**:
-- Master data sync (Cloud → Edge): Products, staff, tax rules, settings
-- Transaction sync (Edge → Cloud): Sales, journals, terminal states
-- Scheduled master file application with P2P distribution
-- Remote file collection for troubleshooting
-- JWT-based authentication with 24-hour token expiration
+**主要機能**:
+- マスタデータ同期 (クラウド → エッジ): 商品、スタッフ、税ルール、設定
+- トランザクション同期 (エッジ → クラウド): 売上、ジャーナル、端末状態
+- P2P配信を伴うスケジュールされたマスタファイル適用
+- トラブルシューティング用のリモートファイル収集
+- 24時間有効期限のJWTベース認証
 
-## Quick Start (5 minutes)
+## クイックスタート (5分)
 
-### 1. Clone Repository and Navigate to Sync Service
+### 1. リポジトリのクローンと Sync Service へ移動
 
 ```bash
 # Clone repository (if not already done)
@@ -41,7 +41,7 @@ cd kugelpos-backend
 cd services/sync
 ```
 
-### 2. Create Service Directory Structure
+### 2. サービスディレクトリ構造の作成
 
 ```bash
 # Create directory structure for sync service
@@ -57,9 +57,9 @@ find app -type d -exec touch {}/__init__.py \;
 find tests -type d -exec touch {}/__init__.py \;
 ```
 
-### 3. Create Basic Configuration Files
+### 3. 基本設定ファイルの作成
 
-Create `Pipfile`:
+`Pipfile` を作成:
 
 ```toml
 [[source]]
@@ -100,7 +100,7 @@ format = "ruff format app/"
 typecheck = "mypy app/"
 ```
 
-Create `.env.example`:
+`.env.example` を作成:
 
 ```bash
 # Service Configuration
@@ -148,7 +148,7 @@ LOG_LEVEL=INFO
 LOG_FORMAT=json  # json or text
 ```
 
-### 4. Install Dependencies
+### 4. 依存関係のインストール
 
 ```bash
 # Install all dependencies
@@ -158,9 +158,9 @@ pipenv install
 pipenv install --dev
 ```
 
-## Development Environment Setup (10 minutes)
+## 開発環境のセットアップ (10分)
 
-### 1. Start Infrastructure Services
+### 1. インフラストラクチャサービスの起動
 
 ```bash
 # Navigate to services directory
@@ -176,9 +176,9 @@ docker exec -it mongodb mongosh --eval "rs.status()"
 ../scripts/init-mongodb-replica.sh
 ```
 
-### 2. Initialize Database Collections and Indexes
+### 2. データベースコレクションとインデックスの初期化
 
-Create `scripts/init_db.py`:
+`scripts/init_db.py` を作成:
 
 ```python
 """Initialize database collections and indexes for sync service"""
@@ -239,15 +239,15 @@ if __name__ == "__main__":
     asyncio.run(create_indexes())
 ```
 
-Run initialization:
+初期化を実行:
 
 ```bash
 pipenv run python scripts/init_db.py
 ```
 
-### 3. Create Main Application Entry Point
+### 3. メインアプリケーションエントリポイントの作成
 
-Create `app/main.py`:
+`app/main.py` を作成:
 
 ```python
 """Main FastAPI application for Sync Service"""
@@ -324,7 +324,7 @@ async def health_check():
     return health_info
 ```
 
-### 4. Start Development Server
+### 4. 開発サーバーの起動
 
 ```bash
 # Method 1: Using pipenv script
@@ -338,15 +338,15 @@ curl http://localhost:8007/health
 # Expected: {"status":"healthy","service":"sync","mode":"cloud"}
 ```
 
-## Implementation Workflow (15 minutes)
+## 実装ワークフロー (15分)
 
-### Phase 1: Implement Data Models
+### フェーズ1: データモデルの実装
 
-Start with Pydantic models from `data-model.md`:
+`data-model.md` の Pydantic モデルから開始します:
 
-**Example: SyncStatus Model**
+**例: SyncStatus モデル**
 
-Create `app/models/documents/sync_status.py`:
+`app/models/documents/sync_status.py` を作成:
 
 ```python
 from kugel_common.models.base import BaseDocumentModel
@@ -376,9 +376,9 @@ class SyncStatusModel(BaseDocumentModel):
     next_sync_at: Optional[datetime] = None
 ```
 
-**Write Tests First (TDD)**:
+**テスト駆動開発 (TDD) でテストを先に記述**:
 
-Create `tests/unit/test_sync_status.py`:
+`tests/unit/test_sync_status.py` を作成:
 
 ```python
 import pytest
@@ -413,15 +413,15 @@ def test_sync_status_retry_count_limit():
         )
 ```
 
-Run tests:
+テストを実行:
 
 ```bash
 pipenv run pytest tests/unit/test_sync_status.py -v
 ```
 
-### Phase 2: Implement Repositories
+### フェーズ2: リポジトリの実装
 
-Create repository following repository pattern:
+リポジトリパターンに従ってリポジトリを作成:
 
 `app/models/repositories/sync_status_repository.py`:
 
@@ -458,9 +458,9 @@ class SyncStatusRepository(AbstractRepository[SyncStatusModel]):
         return await self.find_many(query, limit=100)
 ```
 
-### Phase 3: Implement API Endpoints
+### フェーズ3: API エンドポイントの実装
 
-Reference `contracts/*.yaml` for API specifications:
+API 仕様については `contracts/*.yaml` を参照:
 
 `app/api/v1/auth.py`:
 
@@ -518,7 +518,7 @@ async def obtain_token(
     )
 ```
 
-### Phase 4: Implement Background Jobs (APScheduler)
+### フェーズ4: バックグラウンドジョブの実装 (APScheduler)
 
 `app/background/scheduler.py`:
 
@@ -552,9 +552,9 @@ async def stop_scheduler():
     print("Scheduler stopped")
 ```
 
-### Phase 5: Implement JWT Token Management (Edge Mode)
+### フェーズ5: JWT トークン管理の実装 (エッジモード)
 
-**Token Manager** - `app/services/auth/token_manager.py`:
+**トークンマネージャー** - `app/services/auth/token_manager.py`:
 
 ```python
 """JWT token lifecycle management for Edge Mode"""
@@ -618,7 +618,7 @@ def get_token_manager() -> TokenManager:
     return _token_manager
 ```
 
-**Token Refresh Scheduler** - `app/background/token_refresh_scheduler.py`:
+**トークン更新スケジューラー** - `app/background/token_refresh_scheduler.py`:
 
 ```python
 """Proactive JWT token refresh scheduler for Edge Mode"""
@@ -665,7 +665,7 @@ async def check_and_refresh_token():
         logger.error(f"Token refresh failed: {e}", exc_info=True)
 ```
 
-**Authenticated HTTP Client** - `app/utils/authenticated_http_client.py`:
+**認証付きHTTPクライアント** - `app/utils/authenticated_http_client.py`:
 
 ```python
 """HTTP client with automatic token refresh on 401"""
@@ -737,7 +737,7 @@ class AuthenticatedHttpClient:
         logger.info("Authentication successful")
 ```
 
-**Usage Example**:
+**使用例**:
 
 ```python
 # Using AuthenticatedHttpClient for cloud API calls (Edge Mode)
@@ -752,9 +752,9 @@ response = await client.request("POST", "/api/v1/sync/request", json={
 })
 ```
 
-## Testing Strategy
+## テスト戦略
 
-### Test Structure Overview
+### テスト構造の概要
 
 ```
 tests/
@@ -788,7 +788,7 @@ tests/
     └── test_end_to_end.py           # エンドツーエンドテスト
 ```
 
-### Unit Tests（単体テスト）
+### 単体テスト (Unit Tests)
 
 **特徴**:
 - 外部依存なし（DB、API、ファイルシステムをモック化）
@@ -846,7 +846,7 @@ async def test_fetch_master_data_success():
     mock_http_client.post.assert_called_once()
 ```
 
-### Integration Tests（統合テスト）
+### 統合テスト (Integration Tests)
 
 **特徴**:
 - 実サービス使用（MongoDB、Redis、FastAPI）
@@ -905,7 +905,7 @@ async def test_auth_token_endpoint_success(test_db):
     assert data["edge_id"] == "edge-tenant001-store001-001"
 ```
 
-### Test Execution Order
+### テスト実行順序
 
 ```bash
 # 1. データクリーンアップ
@@ -921,9 +921,9 @@ pipenv run pytest tests/ -v
 pipenv run pytest tests/ -v --tb=short
 ```
 
-## Common Development Tasks
+## 一般的な開発タスク
 
-### Run Linting and Formatting
+### リントとフォーマッティングの実行
 
 ```bash
 # Check code style
@@ -936,22 +936,22 @@ pipenv run ruff check --fix app/
 pipenv run format
 ```
 
-### Type Checking
+### 型チェック
 
 ```bash
 pipenv run typecheck
 ```
 
-### Run All Quality Checks
+### すべての品質チェックを実行
 
 ```bash
 # Lint, format, typecheck, and test
 pipenv run lint && pipenv run format && pipenv run typecheck && pipenv run test
 ```
 
-## Docker Development
+## Docker 開発
 
-### Build Docker Image
+### Docker イメージのビルド
 
 ```bash
 # From project root
@@ -959,7 +959,7 @@ cd ../..
 ./scripts/build.sh sync
 ```
 
-### Run with Docker Compose
+### Docker Compose での実行
 
 ```bash
 cd services
@@ -967,34 +967,34 @@ docker-compose up -d sync
 docker-compose logs -f sync
 ```
 
-## Next Steps
+## 次のステップ
 
-1. **Read Design Documents**:
-   - `spec.md`: Functional specification
-   - `data-model.md`: Entity schemas and relationships
-   - `contracts/*.yaml`: API specifications
-   - `research.md`: Technology decisions
+1. **設計ドキュメントを読む**:
+   - `spec.md`: 機能仕様
+   - `data-model.md`: エンティティスキーマとリレーションシップ
+   - `contracts/*.yaml`: API 仕様
+   - `research.md`: 技術決定
 
-2. **Implement Core Features**:
-   - Start with authentication (US-006)
-   - Then master data sync (US-001)
-   - Transaction data sync (US-002)
-   - Scheduled master files (US-003)
-   - File collection (US-005)
+2. **コア機能を実装する**:
+   - 認証から開始 (US-006)
+   - 次にマスタデータ同期 (US-001)
+   - トランザクションデータ同期 (US-002)
+   - スケジュールされたマスタファイル (US-003)
+   - ファイル収集 (US-005)
 
-3. **Follow TDD Workflow**:
-   - Write test first (red)
-   - Implement minimum code (green)
-   - Refactor for quality (refactor)
+3. **TDD ワークフローに従う**:
+   - 最初にテストを記述 (red)
+   - 最小限のコードを実装 (green)
+   - 品質のためにリファクタリング (refactor)
 
-4. **Consult Project Standards**:
-   - `.specify/memory/constitution.md`: Project principles
-   - `CLAUDE.md`: Development conventions
-   - Existing services (cart, report) for patterns
+4. **プロジェクト標準を参照**:
+   - `.specify/memory/constitution.md`: プロジェクト原則
+   - `CLAUDE.md`: 開発規約
+   - 既存サービス (cart, report) をパターンとして参考に
 
-## Troubleshooting
+## トラブルシューティング
 
-### MongoDB Connection Issues
+### MongoDB 接続の問題
 
 ```bash
 # Check MongoDB status
@@ -1007,7 +1007,7 @@ docker exec -it mongodb mongosh --eval "rs.status()"
 ./scripts/init-mongodb-replica.sh
 ```
 
-### Port Conflicts
+### ポート競合
 
 ```bash
 # Check if port 8007 is in use
@@ -1017,7 +1017,7 @@ lsof -i :8007
 kill -9 $(lsof -t -i :8007)
 ```
 
-### Import Errors
+### インポートエラー
 
 ```bash
 # Ensure kugel-common is installed
@@ -1028,16 +1028,16 @@ cd ../sync
 pipenv install ../commons/dist/kugel_common-0.1.0-py3-none-any.whl --force-reinstall
 ```
 
-## Additional Resources
+## 追加リソース
 
-- **Kugelpos Architecture**: See `CLAUDE.md` in project root
-- **FastAPI Documentation**: https://fastapi.tiangolo.com
-- **Motor Documentation**: https://motor.readthedocs.io
-- **Pydantic Documentation**: https://docs.pydantic.dev
-- **APScheduler Documentation**: https://apscheduler.readthedocs.io
+- **Kugelpos アーキテクチャ**: プロジェクトルートの `CLAUDE.md` を参照
+- **FastAPI ドキュメント**: https://fastapi.tiangolo.com
+- **Motor ドキュメント**: https://motor.readthedocs.io
+- **Pydantic ドキュメント**: https://docs.pydantic.dev
+- **APScheduler ドキュメント**: https://apscheduler.readthedocs.io
 
 ---
 
-**Document Version**: 1.0.0
-**Last Updated**: 2025-10-13
-**Estimated Total Time**: 30 minutes
+**ドキュメントバージョン**: 1.0.0
+**最終更新日**: 2025-10-13
+**推定合計時間**: 30分
