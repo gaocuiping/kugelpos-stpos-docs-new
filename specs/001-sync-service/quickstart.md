@@ -313,7 +313,8 @@ async def health_check():
 
     # Add token health for Edge Mode
     if settings.SYNC_MODE == "edge":
-        from app.config.token_manager import token_manager
+        from app.services.auth.token_manager import get_token_manager
+        token_manager = get_token_manager()
         health_info["token"] = {
             "present": token_manager.get_token() is not None,
             "expired": token_manager.is_expired(),
@@ -553,7 +554,7 @@ async def stop_scheduler():
 
 ### Phase 5: Implement JWT Token Management (Edge Mode)
 
-**Token Manager** - `app/config/token_manager.py`:
+**Token Manager** - `app/services/auth/token_manager.py`:
 
 ```python
 """JWT token lifecycle management for Edge Mode"""
@@ -606,8 +607,15 @@ class TokenManager:
         self._token = None
         self._token_expires_at = None
 
-# Global token manager instance
-token_manager = TokenManager()
+# Singleton instance
+_token_manager: Optional[TokenManager] = None
+
+def get_token_manager() -> TokenManager:
+    """Get singleton token manager instance"""
+    global _token_manager
+    if _token_manager is None:
+        _token_manager = TokenManager()
+    return _token_manager
 ```
 
 **Token Refresh Scheduler** - `app/background/token_refresh_scheduler.py`:
@@ -616,8 +624,8 @@ token_manager = TokenManager()
 """Proactive JWT token refresh scheduler for Edge Mode"""
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from app.config.token_manager import token_manager
-from app.services.auth_service import AuthService
+from app.services.auth.token_manager import get_token_manager
+from app.services.auth.auth_service import AuthService
 from app.config.settings import get_settings
 import logging
 
@@ -642,6 +650,7 @@ async def start_token_refresh_job():
 
 async def check_and_refresh_token():
     """Check token expiration and refresh if needed"""
+    token_manager = get_token_manager()
     try:
         if token_manager.should_refresh():
             logger.info("Token refresh needed, requesting new token...")
@@ -661,8 +670,8 @@ async def check_and_refresh_token():
 ```python
 """HTTP client with automatic token refresh on 401"""
 from kugel_common.utils.http_client_helper import get_service_client
-from app.config.token_manager import token_manager
-from app.services.auth_service import AuthService
+from app.services.auth.token_manager import get_token_manager
+from app.services.auth.auth_service import AuthService
 from app.config.settings import get_settings
 import logging
 
@@ -675,15 +684,16 @@ class AuthenticatedHttpClient:
     def __init__(self, base_url: str):
         self.base_url = base_url
         self.auth_service = AuthService()
+        self.token_manager = get_token_manager()
 
     async def request(self, method: str, endpoint: str, **kwargs):
         """Execute HTTP request with automatic re-auth on 401"""
-        token = token_manager.get_token()
+        token = self.token_manager.get_token()
 
         if not token:
             # Token expired or not available, authenticate first
             await self._authenticate()
-            token = token_manager.get_token()
+            token = self.token_manager.get_token()
 
         headers = kwargs.get("headers", {})
         headers["Authorization"] = f"Bearer {token}"
@@ -702,13 +712,13 @@ class AuthenticatedHttpClient:
             # Check for 401 Unauthorized
             if hasattr(e, "status_code") and e.status_code == 401:
                 logger.warning("401 Unauthorized, re-authenticating...")
-                token_manager.clear_token()
+                self.token_manager.clear_token()
 
                 # Retry authentication
                 await self._authenticate()
 
                 # Retry original request
-                headers["Authorization"] = f"Bearer {token_manager.get_token()}"
+                headers["Authorization"] = f"Bearer {self.token_manager.get_token()}"
                 async with get_service_client(self.base_url) as client:
                     if method == "GET":
                         return await client.get(endpoint, **kwargs)
@@ -723,7 +733,7 @@ class AuthenticatedHttpClient:
             edge_id=settings.EDGE_ID,
             secret=settings.EDGE_SECRET
         )
-        token_manager.set_token(new_token)
+        self.token_manager.set_token(new_token)
         logger.info("Authentication successful")
 ```
 

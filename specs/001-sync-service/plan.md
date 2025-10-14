@@ -705,8 +705,7 @@ services/sync/
 │   ├── main.py                          # FastAPI アプリケーションエントリーポイント
 │   ├── config/
 │   │   ├── settings.py                  # 環境変数、設定管理
-│   │   ├── constants.py                 # 定数定義
-│   │   └── token_manager.py             # JWT トークンライフサイクル管理（Edge Mode用）
+│   │   └── constants.py                 # 定数定義
 │   ├── models/                          # データモデル（MongoDB Document）
 │   │   ├── sync_status.py               # 同期ステータス
 │   │   ├── sync_history.py              # 同期履歴
@@ -724,7 +723,8 @@ services/sync/
 │   │   └── file_collection_repository.py
 │   ├── services/                        # ビジネスロジック層
 │   │   ├── auth/
-│   │   │   └── auth_service.py          # 認証サービス（JWT発行・検証）
+│   │   │   ├── auth_service.py          # 認証サービス（JWT発行・検証、Cloud Mode）
+│   │   │   └── token_manager.py         # JWT トークンライフサイクル管理（Edge Mode専用）
 │   │   ├── sync/
 │   │   │   ├── sync_manager.py          # 同期マネージャー（メイン処理）
 │   │   │   ├── master_sync_service.py   # マスターデータ同期
