@@ -20,8 +20,8 @@
 
 ### MongoDB Collection名
 
-- **クラウド**: `sync_{tenant_id}.device_versions`
-- 例: `sync_A1234.device_versions`
+- **クラウド**: `sync_{tenant_id}.info_edge_version`
+- 例: `sync_A1234.info_edge_version`
 
 ### スキーマ定義
 
@@ -70,7 +70,7 @@ class DeviceVersionDocument(BaseDocumentModel):
     error_message: Optional[str] = Field(None, description="Detailed error message on failure")
 
     class Settings:
-        name = "device_versions"
+        name = "info_edge_version"
         indexes = [
             [("edge_id", 1)],  # Unique index
             [("device_type", 1), ("update_status", 1)],  # Query by device type and status
@@ -137,19 +137,19 @@ not_started → in_progress → completed
 
 ```javascript
 // Unique index for device lookup
-db.device_versions.createIndex({ "edge_id": 1 }, { unique: true });
+db.info_edge_version.createIndex({ "edge_id": 1 }, { unique: true });
 
 // Query by device type and update status (for monitoring)
-db.device_versions.createIndex({ "device_type": 1, "update_status": 1 });
+db.info_edge_version.createIndex({ "device_type": 1, "update_status": 1 });
 
 // Query by target version and download status (for seed selection)
-db.device_versions.createIndex({ "target_version": 1, "download_status": 1 });
+db.info_edge_version.createIndex({ "target_version": 1, "download_status": 1 });
 
 // Query for scheduled applies (for apply scheduler)
-db.device_versions.createIndex({ "scheduled_apply_at": 1 });
+db.info_edge_version.createIndex({ "scheduled_apply_at": 1 });
 
 // Query by last check time (for monitoring inactive devices)
-db.device_versions.createIndex({ "last_check_timestamp": -1 });
+db.info_edge_version.createIndex({ "last_check_timestamp": -1 });
 ```
 
 ### バリデーションルール
@@ -228,8 +228,8 @@ class DeviceVersionDocument(BaseDocumentModel):
 
 ### MongoDB Collection名
 
-- **クラウド**: `sync_{tenant_id}.update_histories`
-- 例: `sync_A1234.update_histories`
+- **クラウド**: `sync_{tenant_id}.info_update_history`
+- 例: `sync_A1234.info_update_history`
 
 ### スキーマ定義
 
@@ -280,7 +280,7 @@ class UpdateHistoryDocument(BaseDocumentModel):
     )
 
     class Settings:
-        name = "update_histories"
+        name = "info_update_history"
         indexes = [
             [("update_id", 1)],  # Unique index
             [("edge_id", 1), ("start_time", -1)],  # Query device history by time
@@ -312,16 +312,16 @@ class UpdateHistoryDocument(BaseDocumentModel):
 
 ```javascript
 // Unique index for update operation lookup
-db.update_histories.createIndex({ "update_id": 1 }, { unique: true });
+db.info_update_history.createIndex({ "update_id": 1 }, { unique: true });
 
 // Query device history ordered by time (most recent first)
-db.update_histories.createIndex({ "edge_id": 1, "start_time": -1 });
+db.info_update_history.createIndex({ "edge_id": 1, "start_time": -1 });
 
 // Query by status (for failure analysis)
-db.update_histories.createIndex({ "status": 1, "start_time": -1 });
+db.info_update_history.createIndex({ "status": 1, "start_time": -1 });
 
 // Query by version (for version rollout tracking)
-db.update_histories.createIndex({ "to_version": 1, "start_time": -1 });
+db.info_update_history.createIndex({ "to_version": 1, "start_time": -1 });
 ```
 
 ### バリデーションルール
@@ -406,8 +406,8 @@ class UpdateHistoryDocument(BaseDocumentModel):
 
 ### MongoDB Collection名
 
-- **クラウド**: `sync_{tenant_id}.edge_terminals`
-- 例: `sync_A1234.edge_terminals`
+- **クラウド**: `sync_{tenant_id}.master_edge_terminal`
+- 例: `sync_A1234.master_edge_terminal`
 
 ### スキーマ定義
 
@@ -451,7 +451,7 @@ class EdgeTerminalDocument(BaseDocumentModel):
     last_seen_at: Optional[datetime] = Field(None, description="Last version check timestamp")
 
     class Settings:
-        name = "edge_terminals"
+        name = "master_edge_terminal"
         indexes = [
             [("edge_id", 1)],  # Unique index
             [("tenant_id", 1), ("store_code", 1)],  # Query by tenant and store
@@ -481,16 +481,16 @@ class EdgeTerminalDocument(BaseDocumentModel):
 
 ```javascript
 // Unique index for device lookup
-db.edge_terminals.createIndex({ "edge_id": 1 }, { unique: true });
+db.master_edge_terminal.createIndex({ "edge_id": 1 }, { unique: true });
 
 // Query by tenant and store (for store-level operations)
-db.edge_terminals.createIndex({ "tenant_id": 1, "store_code": 1 });
+db.master_edge_terminal.createIndex({ "tenant_id": 1, "store_code": 1 });
 
 // Query P2P seeds by priority (for seed selection)
-db.edge_terminals.createIndex({ "is_p2p_seed": 1, "p2p_priority": 1 });
+db.master_edge_terminal.createIndex({ "is_p2p_seed": 1, "p2p_priority": 1 });
 
 // Query active devices (for monitoring)
-db.edge_terminals.createIndex({ "is_active": 1, "last_seen_at": -1 });
+db.master_edge_terminal.createIndex({ "is_active": 1, "last_seen_at": -1 });
 ```
 
 ### バリデーションルール
