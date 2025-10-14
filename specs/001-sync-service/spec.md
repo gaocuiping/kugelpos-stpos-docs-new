@@ -232,7 +232,8 @@
 | status | ステータス | 収集状態（`pending`: 待機中、`collecting`: 収集中、`completed`: 完了、`failed`: 失敗） |
 | file_count | ファイル件数 | 収集したファイル数 |
 | archive_size_bytes | アーカイブサイズ（バイト） | 圧縮後のアーカイブサイズ（バイト単位） |
-| download_url | ダウンロードURL | 管理者がアーカイブをダウンロードするためのURL（有効期限付き） |
+| storage_key | ストレージキー | Dapr Binding経由でアーカイブが保存されているストレージパス（形式: `{tenant_id}/file-collections/{YYYYMMDD}/{collection_id}.zip`） |
+| download_url_expires_at | URL有効期限 | Presigned URLの有効期限（S3/GCS使用時、7日間） |
 | started_at | 開始日時 | 収集開始日時（ISO 8601形式） |
 | completed_at | 完了日時 | 収集完了日時（ISO 8601形式） |
 | error_message | エラーメッセージ | 失敗時の詳細エラーメッセージ |

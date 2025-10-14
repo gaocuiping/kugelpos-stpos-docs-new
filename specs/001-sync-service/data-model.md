@@ -530,10 +530,16 @@ class FileCollectionModel(BaseDocumentModel):
         description="Compressed archive size in bytes"
     )
 
-    download_url: Optional[str] = Field(
+    storage_key: Optional[str] = Field(
         None,
-        description="Signed URL for admin to download archive (time-limited)",
-        max_length=500
+        description="Storage path for the archive (managed by Dapr Binding: S3/GCS/Azure/Local Storage)",
+        max_length=500,
+        example="tenant001/file-collections/20251014/550e8400-e29b-41d4-a716-446655440000.zip"
+    )
+
+    download_url_expires_at: Optional[datetime] = Field(
+        None,
+        description="Expiration timestamp for presigned download URL (7 days)"
     )
 
     # Timestamps
@@ -558,8 +564,10 @@ class FileCollectionModel(BaseDocumentModel):
 
 - **Whitelist Validation**: All `target_paths` must match whitelist patterns (security)
 - **Size Limit**: Archive generation stops if `archive_size_bytes` exceeds `max_size_mb * 1024 * 1024`
-- **URL Expiration**: `download_url` expires after 7 days
+- **Storage Path Format**: `{tenant_id}/file-collections/{YYYYMMDD}/{collection_id}.zip`
+- **Presigned URL Expiration**: `download_url_expires_at` is set to 7 days from archive upload (for S3/GCS presigned URLs)
 - **Batch Creation**: For "all edge terminals" collection request, create 1 record per terminal
+- **Storage Backend**: Dapr Binding abstracts S3/GCS/Azure Blob/Local Storage via `sync-storage` component
 
 #### Indexes
 
