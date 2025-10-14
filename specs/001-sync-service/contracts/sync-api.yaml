@@ -6,7 +6,7 @@ info:
 
     **Data Flows**:
     - **Cloud → Edge**: Master data (products, staff, tax rules, settings)
-    - **Edge → Cloud**: Transaction logs, terminal state changes, journals
+    - **Edge → Cloud**: Transaction logs (including journal_text), terminal state changes
 
     **Sync Types**:
     - **Full Sync**: Complete data snapshot (initial setup)
@@ -169,14 +169,17 @@ paths:
         Edge terminals send accumulated transaction logs to cloud.
 
         **Transaction Types**:
-        - `transaction`: Sales, returns, discounts
-        - `opening_closing`: Register opening/closing logs
-        - `cash_inout`: Cash in/out operations
-        - `journal`: Electronic journal entries
+        - `transaction`: Sales, returns, discounts (includes journal_text for Journal Service)
+        - `opening_closing`: Register opening/closing logs (includes journal_text)
+        - `cash_inout`: Cash in/out operations (includes journal_text)
+
+        **Note**: All transaction types include journal_text and receipt_text fields.
+        Cloud Sync Service routes logs to appropriate Dapr Pub/Sub topics (tranlog_report/opencloselog_report/cashlog_report)
+        based on log_type, and Journal Service subscribes to these topics.
 
         **Delivery Guarantee**: At-least-once delivery with idempotent processing
 
-        **Related Requirements**: FR-004, FR-005, FR-006, FR-021
+        **Related Requirements**: FR-004, FR-005, FR-021
       operationId: sendTransactionLogs
       security:
         - BearerAuth: []
@@ -469,8 +472,7 @@ components:
             - transaction
             - opening_closing
             - cash_inout
-            - journal
-          description: Transaction log type
+          description: Transaction log type (all types include journal_text for Journal Service)
         occurred_at:
           type: string
           format: date-time
@@ -599,8 +601,8 @@ components:
           enum:
             - master_data
             - transaction_log
-            - journal
             - terminal_state
+          description: Sync data type (journal data is included in transaction_log via journal_text)
         last_sync_at:
           type: string
           format: date-time
