@@ -11,6 +11,7 @@ ENV LANG=ja_JP.UTF-8
 ENV LANGUAGE=ja_JP.UTF-8
 ENV PIPENV_VENV_IN_PROJECT=0
 ENV PIPENV_IGNORE_VIRTUALENVS=1
+ENV UVICORN_WORKERS=4
 
 WORKDIR /app
 
@@ -22,4 +23,4 @@ RUN pipenv install --deploy --ignore-pipfile --system
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${UVICORN_WORKERS:-1}"

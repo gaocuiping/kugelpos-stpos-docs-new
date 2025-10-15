@@ -305,6 +305,43 @@ cd ..
 docker-compose exec cart env | sort
 ```
 
+### Worker Configuration
+
+All services support configurable worker processes via the `UVICORN_WORKERS` environment variable:
+
+**Default Configuration:**
+- All services are configured with `UVICORN_WORKERS=4` by default in both `Dockerfile` and `Dockerfile.prod`
+- If the environment variable is not set, services will fall back to 1 worker
+
+**Customizing Worker Count:**
+
+```bash
+# Method 1: Override in docker-compose.override.yaml
+services:
+  cart:
+    environment:
+      - UVICORN_WORKERS=8
+
+# Method 2: Set in service-specific .env file
+# services/cart/.env
+UVICORN_WORKERS=8
+
+# Method 3: Override when building/running
+docker build --build-arg UVICORN_WORKERS=8 -f Dockerfile .
+docker-compose up -d -e UVICORN_WORKERS=8
+
+# Method 4: For local development with run.py
+UVICORN_WORKERS=2 pipenv run python run.py
+```
+
+**Worker Count Guidelines:**
+- **Development**: 1-2 workers (easier debugging)
+- **Testing**: 1 worker (predictable test execution)
+- **Production**: 4-8 workers (based on CPU cores)
+- **High Load**: `(2 × CPU cores) + 1` is a common formula
+
+**Note**: More workers consume more memory. Monitor resource usage when adjusting worker count.
+
 ### Troubleshooting
 
 ```bash
@@ -432,6 +469,7 @@ Error codes follow XXYYZZ format:
 - Database connection strings include tenant code in the database name
 - Dapr HTTP port: Default 3500 (configurable via `DAPR_HTTP_PORT`)
 - Circuit breaker thresholds are configurable per service
+- Worker processes: Default 4 workers per service (configurable via `UVICORN_WORKERS`)
 
 ## Project Rules and Conventions
 
