@@ -22,6 +22,11 @@ class TestTranServiceUnit:
         terminal_info.tenant_id = "test_tenant"
         terminal_info.store_code = "S0001"
         terminal_info.terminal_no = 1
+        terminal_info.business_date = "20250101"
+        terminal_info.business_counter = 1234
+        terminal_info.open_counter = 1
+        terminal_info.staff = MagicMock()
+        terminal_info.staff.id = "S001"
         return terminal_info
 
     @pytest.fixture
@@ -77,22 +82,32 @@ class TestTranServiceUnit:
         mock_transaction = MagicMock(spec=BaseTransaction)
         mock_transaction.tenant_id = "test_tenant"
         mock_transaction.store_code = "S0001"
+        mock_transaction.store_name = "Test Store"
         mock_transaction.terminal_no = 1
         mock_transaction.transaction_no = 12345
-        mock_transaction.transaction_type = TransactionType.NormalSales
+        mock_transaction.receipt_no = 1001
+        mock_transaction.transaction_type = TransactionType.NormalSales.value
         mock_transaction.is_voided = False
         mock_transaction.is_refunded = False
+        mock_transaction.generate_date_time = "2025-01-01T10:00:00"
         mock_transaction.sales = MagicMock()
         mock_transaction.sales.total_amount = 1000
         mock_transaction.sales.total_tax = 100
+        mock_transaction.sales.total_amount_with_tax = 1000
         mock_transaction.origin = None  # No origin for normal sale
         mock_transaction.user_info = MagicMock()
         mock_transaction.user_info.id = "test_user"
-        mock_transaction.payments = []
+        # Add payment that matches the add_payment_list
+        mock_payment = MagicMock()
+        mock_payment.payment_code = "01"
+        mock_payment.amount = 1000
+        mock_transaction.payments = [mock_payment]
         mock_transaction.store_id = "S0001"
         mock_transaction.terminal_id = "T0001"
         mock_transaction.business_date = "20250101"
         mock_transaction.transaction_date = "2025-01-01T10:00:00"
+        mock_transaction.additional_info = None
+        mock_transaction.staff = None
 
         # Mock repository methods
         tran_service.transaction_status_repo.get_status_by_transaction_async = AsyncMock(return_value=None)
@@ -165,22 +180,32 @@ class TestTranServiceUnit:
         mock_transaction = MagicMock(spec=BaseTransaction)
         mock_transaction.tenant_id = "test_tenant"
         mock_transaction.store_code = "S0001"
+        mock_transaction.store_name = "Test Store"
         mock_transaction.terminal_no = 1
         mock_transaction.transaction_no = 12345
-        mock_transaction.transaction_type = TransactionType.NormalSales
+        mock_transaction.receipt_no = 1001
+        mock_transaction.transaction_type = TransactionType.NormalSales.value
         mock_transaction.is_voided = False
         mock_transaction.is_refunded = False
+        mock_transaction.generate_date_time = "2025-01-01T10:00:00"
         mock_transaction.sales = MagicMock()
         mock_transaction.sales.total_amount = 1000
         mock_transaction.sales.total_tax = 100
+        mock_transaction.sales.total_amount_with_tax = 1000
         mock_transaction.origin = None  # No origin for normal sale
         mock_transaction.user_info = MagicMock()
         mock_transaction.user_info.id = "test_user"
-        mock_transaction.payments = []
+        # Add payment that matches the add_payment_list
+        mock_payment = MagicMock()
+        mock_payment.payment_code = "01"
+        mock_payment.amount = 1000
+        mock_transaction.payments = [mock_payment]
         mock_transaction.store_id = "S0001"
         mock_transaction.terminal_id = "T0001"
         mock_transaction.business_date = "20250101"
         mock_transaction.transaction_date = "2025-01-01T10:00:00"
+        mock_transaction.additional_info = None
+        mock_transaction.staff = None
 
         # Mock repository methods
         tran_service.transaction_status_repo.get_status_by_transaction_async = AsyncMock(return_value=None)
