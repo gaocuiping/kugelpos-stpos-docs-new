@@ -56,14 +56,16 @@
   - **シンプル化適用**: 初期リリースでは基本インデックスのみ実装、複合インデックスはパフォーマンス測定後に追加
   - 実装内容: 基本インデックス（primary key、TTL）のみ作成
   - 参照: data-model.md の各エンティティ「Indexes」セクション
-  - **基本インデックス一覧** (約10-12インデックス):
+  - **基本インデックス一覧** (約12-14インデックス):
     - **SyncStatus**: `{edge_id, data_type}` (unique) - Primary key相当
     - **SyncHistory**: `{sync_id}` (unique), `{started_at}` (TTL: 90日)
     - **EdgeTerminal**: `{edge_id}` (unique) - Primary key相当
     - **ScheduledMasterFile**: `{file_id}` (unique) - Primary key相当
     - **FileCollection**: `{collection_id}` (unique) - Primary key相当
     - **TransactionLog**: `{log_id}` (unique), `{synced_at}` (TTL: 30日)
-    - **MasterData**: `{category, version}` (unique) - Primary key相当
+    - **MasterData**:
+      - `{category, version}` (unique, partialFilterExpression: {category: {$ne: "master_item_store"}}) - カテゴリー単位バージョン用
+      - **`{category, store_code, version}` (unique, partialFilterExpression: {category: "master_item_store"})** - **店舗別バージョン用（FR-024対応、ハイブリッドバージョニング）**
     - **TerminalStateChange**: `{terminal_id, status_changed_at}` (unique), `{synced_at}` (TTL: 90日)
   - **除外する複合インデックス** (パフォーマンス測定後に追加):
     - SyncStatus: `{status, next_sync_at}`, `{edge_id, updated_at}`
@@ -76,8 +78,34 @@
     - TerminalStateChange: `{sync_status, status_changed_at}`, `{business_date, status}`
   - 実装方法:
     - `create_indexes()` 関数で基本インデックスのみ作成
+    - **MasterDataの2つのユニークインデックスは partialFilterExpression を使用して条件付き適用**
     - 既存インデックスはスキップ (冪等性)
     - 作成完了時にログ出力
+  - **実装例**:
+    ```python
+    # MasterData用インデックス作成例
+    async def create_master_data_indexes(db: AsyncIOMotorDatabase):
+        """
+        MasterDataコレクションのハイブリッドバージョニング対応インデックスを作成
+        """
+        # カテゴリー単位バージョン用（master_item_store以外）
+        await db.cache_master_data.create_index(
+            [("category", 1), ("version", 1)],
+            unique=True,
+            partialFilterExpression={"category": {"$ne": "master_item_store"}},
+            name="category_version_unique"
+        )
+
+        # 店舗別バージョン用（master_item_storeのみ）
+        await db.cache_master_data.create_index(
+            [("category", 1), ("store_code", 1), ("version", 1)],
+            unique=True,
+            partialFilterExpression={"category": "master_item_store"},
+            name="category_store_version_unique"
+        )
+
+        logger.info("MasterData indexes created (hybrid versioning support)")
+    ```
   - **憲章準拠**: "推測ではなく計測に基づいて最適化" (パフォーマンスの意識)
 - [ ] T020 [P] JWT ヘルパーを実装 (`services/sync/app/utils/jwt_helper.py`)
 - [ ] T021 [P] ハッシュヘルパーを実装 (`services/sync/app/utils/hash_helper.py`)
@@ -132,6 +160,19 @@
 - [ ] T036 [US6] 認証 API エンドポイントを実装 (`services/sync/app/api/v1/auth.py` - `/auth/token`, `/auth/refresh`, `/auth/verify`)
   - 期待結果: T035 のテストが GREEN（成功）に変わることを確認
 - [ ] T037 [US6] JWT 検証デコレータを実装 (`services/sync/app/api/dependencies.py` - `verify_jwt_token` 依存関数)
+- [ ] T037.5 [US6 Test] トークンリフレッシュスケジューラーのユニットテストを作成 (`tests/unit/test_token_refresh_scheduler.py`)
+  - 検証項目: 有効期限チェックロジック（1時間未満で更新トリガー）、リフレッシュ成功/失敗時の処理、再認証フォールバック
+  - 期待結果: すべてのテストが RED（失敗）であることを確認
+- [ ] T038 [US6] トークンリフレッシュスケジューラーを実装 (`services/sync/app/background/token_refresh_scheduler.py`)
+  - 実装内容:
+    - APScheduler 使用、1時間間隔でトークン有効期限チェック（環境変数: `TOKEN_REFRESH_CHECK_INTERVAL`、デフォルト: 3600秒）
+    - 有効期限が1時間未満の場合、自動的に `/auth/refresh` を呼び出し
+    - 新しいトークンを取得して、Token Manager に保存
+    - リフレッシュ失敗時（401エラー）は `/auth/token` で再認証
+    - 再認証失敗時はログ記録とアラート送信
+  - 期待結果: T037.5 のテストが GREEN（成功）に変わることを確認
+  - 検証項目: 統合テストで有効期限1時間前のトークンが自動更新されることを確認
+- [ ] T039 [US6] main.py に Edge Mode 用トークンリフレッシュスケジューラー起動ロジックを統合
 
 **Checkpoint**: 認証機能が完全に動作し、独立してテスト可能
 
@@ -171,8 +212,22 @@
   - 実装内容: チェックサム検証 (FR-007)、レコード件数検証 (FR-008)、バージョンギャップ検出 (FR-009)
 - [ ] T050 [US1 Test] Master Data Sync Service のユニットテストを作成 (`tests/unit/test_master_sync_service.py`)
   - 検証項目: 一括同期、差分同期、補完同期、Last Write Wins (FR-018)
+- [ ] T050.5 [US1 Test] 店舗別フィルタリングの統合テストを作成 (`tests/integration/test_store_filtering.py`)
+  - 検証項目:
+    - master_item_store が指定店舗のデータのみ取得されること
+    - 他店舗のデータが含まれないこと
+    - master_item_common 等の他カテゴリーは全レコード取得されること
+    - store_code パラメータが正しく master-data サービスに渡されること
+  - 期待結果: すべてのテストが RED（失敗）であることを確認
 - [ ] T051 [US1] Master Data Sync Service を実装 (`services/sync/app/services/sync/master_sync_service.py`)
-  - 実装内容: 一括同期 (FR-002)、差分同期 (FR-003)、補完同期 (FR-009)、Last Write Wins (FR-018)
+  - 実装内容: 一括同期 (FR-002)、差分同期 (FR-003)、補完同期 (FR-009)、Last Write Wins (FR-018)、**店舗別フィルタリング (FR-024)**
+  - **FR-024実装詳細**:
+    - master-dataサービスへのリクエストに `store_code` パラメータを含める
+    - `master_item_store` カテゴリーのみ店舗別フィルタリング適用
+    - フィルタリング条件: `record.store_code == target_store_code`
+    - その他のカテゴリー（master_category, master_item_common等）は全レコード同期
+    - レスポンスの `master_item_store.store_code` フィールドを検証
+  - 期待結果: T050およびT050.5のテストが GREEN（成功）に変わることを確認
 - [ ] T052 [P] [US1] 同期リクエスト/レスポンススキーマを実装 (`services/sync/app/schemas/sync_schemas.py`)
 - [ ] T053 [US1 Test] 同期 API の統合テストを作成 (`tests/integration/test_sync_api.py`)
   - 検証シナリオ:
@@ -228,7 +283,7 @@
 - [ ] T069 [US2] トランザクション同期 API エンドポイントを実装 (`services/sync/app/api/v1/sync.py` に追加)
   - 実装内容: `POST /sync/transactions`, `POST /sync/terminal-state`
 - [ ] T070 [US2] トランザクション送信スケジューラージョブを実装 (`services/sync/app/background/jobs/transaction_sender.py`)
-  - 実装内容: 30-60秒間隔でクラウド送信、TransactionLog Repository の `find_pending_logs()` でバッチ取得
+  - 実装内容: 30-60秒間隔でクラウド送信（環境変数: `TRANSACTION_SEND_INTERVAL`、デフォルト: 30秒）、TransactionLog Repository の `find_pending_logs()` でバッチ取得
 - [ ] T071 [US2] Dapr Pub/Sub トピック購読ハンドラーを実装 (`services/sync/app/api/v1/pubsub.py`)
   - 実装内容: `tranlog_report`, `cashlog_report`, `opencloselog_report` 受信
 
@@ -289,13 +344,28 @@
   - 実装内容: `GET /p2p/files/{file_id}` (StreamingResponse 使用), `GET /p2p/peers` (シード検索)
 - [ ] T088 [US3] 予約反映スケジューラーを実装 (`services/sync/app/background/scheduled_master_executor.py`)
   - 実装内容: 1分間隔でスキャン、指定日時に反映実行 (FR-011: scheduled_at ±30秒以内)
-  - 検証項目: 指定日時±30秒以内での反映精度を統合テストで検証 (SC-010)
+  - **検証シナリオ**: 統合テストで以下を検証 (SC-010)
+    - scheduled_at = 現在時刻 + 90秒のファイルが、90±30秒後（60-120秒の範囲内）に反映されること
+    - scheduled_at = 現在時刻 - 60秒（過去）のファイルが、次回スキャン時（最大60秒後）に即座に反映されること
+    - 同一日時に複数ファイル（priority 01, 02, 03）がある場合、priority 昇順で反映されること
+    - 反映中にエラーが発生した場合、次のファイルの反映がブロックされないこと（順次処理だが、1ファイルのエラーで全体が停止しない）
+  - **反映精度測定**: 実際の反映時刻（applied_at）と scheduled_at の差分を記録、±30秒以内であることを assert
+  - **タイムゾーン**: すべての日時はUTC（ISO 8601形式）で処理、ローカルタイムゾーンは考慮しない
 - [ ] T089 [US3] P2P ダウンロード + フォールバックロジックを実装 (p2p_manager.py に追加)
   - 実装内容: P2P優先、失敗時はクラウドフォールバック
   - **フォールバック条件**: P2Pダウンロードが以下のいずれかの条件で失敗した場合、クラウドから直接ダウンロード
     - タイムアウト: 30秒以内に応答なし
     - リトライ上限: 3回連続失敗（異なるシード端末で各1回試行）
     - エラー条件: HTTP 5xx系エラー、接続エラー（ConnectionError、Timeout）、チェックサム不一致
+  - **シード選択アルゴリズム**:
+    1. 同一store_codeのエッジ端末を取得（EdgeTerminal Repository: `find_by_store_code(store_code)`）
+    2. `is_p2p_seed=true` かつ `status='online'` かつ `last_heartbeat_at`が5分以内でフィルタ
+    3. `p2p_priority` 昇順でソート（0=最優先、1-9=セカンダリシード、99=非シード）
+    4. 上位3つのシード端末に対して順次ダウンロード試行（自端末は除外）
+    5. 各シードで1回失敗したら次のシードへ（最大3シード × 1回 = 3回試行）
+    6. すべて失敗したらクラウドフォールバック（`GET /scheduled-master/files/{file_id}/download`）
+  - **ダウンロードタイムアウト**: 各シードへのHTTPリクエストは30秒タイムアウト（httpx.AsyncClient timeout設定）
+  - **チェックサム検証**: ダウンロード完了後、ScheduledMasterFileのchecksumフィールド（SHA-256）と照合、不一致時は次のシードへ
 
 **Checkpoint**: 予約反映と P2P 共有が完全に動作し、独立してテスト可能
 
@@ -354,6 +424,13 @@
       5. **再圧縮**: すべてのファイルを含む最終zipアーカイブを生成（最大100MB制限チェック）
       6. **一時ファイル削除**: 一時ディレクトリを削除
       7. **ストレージアップロード**: Dapr Binding経由でクラウドストレージにアップロード（plan.md:373-485参照）
+    - **エラーハンドリング**:
+      - 特定サービスからの収集失敗時: 他サービスの収集を継続、metadata.jsonにエラー記録（`"errors": {"cart": "Connection timeout"}`形式）
+      - 最終アーカイブサイズが100MB超過: 収集中止、FileCollectionステータスを`failed`に更新、エラーメッセージ記録
+      - 一時ファイル削除失敗時: ログ出力のみ、処理継続（クリーンアップは定期ジョブで実施）
+    - **ロールバック処理**:
+      - アーカイブ生成失敗時: 一時ディレクトリを完全削除（`shutil.rmtree`）
+      - ストレージアップロード失敗時: 一時ファイルを保持（再試行用）、FileCollectionステータスを`failed`に更新、リトライ可能フラグを設定
 
 **Checkpoint**: ファイル収集機能が完全に動作し、独立してテスト可能
 
@@ -395,8 +472,15 @@
 - [ ] T111 カバレッジ不足箇所のテスト追加
   - 優先度: 認証、整合性チェック、データ同期ロジック、TransactionLog Repository
 - [ ] T112 quickstart.md の手順を検証
-  - 検証内容: `services/sync/` で 30分以内にセットアップ完了できることを確認
-  - テスト実行: `pipenv run pytest tests/` が成功すること
+  - **検証チェックリスト**:
+    1. 新規開発者が quickstart.md を読みながらセットアップ実行（クリーン環境から開始）
+    2. 所要時間を計測（開始: リポジトリクローン完了後、終了: `pipenv run pytest tests/` 完了まで）
+    3. 目標: 30分以内にすべてのテストが成功すること
+    4. 手順で不明瞭な箇所があれば quickstart.md を修正
+    5. 依存関係のインストール時間を記録（`pipenv install` の所要時間、ネットワーク速度に依存）
+    6. MongoDB/Redis起動確認（`docker-compose up -d` が正常完了）
+  - テスト実行: `pipenv run pytest tests/` が成功すること（全テストパス、エラー0件）
+  - **記録事項**: セットアップ所要時間、失敗した手順、改善提案
 - [ ] T113 [P] README.md を最終更新
   - 更新内容: セットアップ手順、環境変数一覧、API ドキュメントへのリンク、テスト実行方法
 - [ ] T114 パフォーマンス最適化
@@ -526,11 +610,11 @@ Task: "[US1] MasterData リポジトリを実装"
 
 ## Task Count Summary
 
-- **Total Tasks**: 113 (シンプル化適用後: Transaction Queue Manager 削除、基本インデックスのみ)
+- **Total Tasks**: 117 (HIGH/MEDIUM問題修正後: JWT トークンリフレッシュスケジューラー追加、T037.5, T038, T039追加)
 - **Setup (Phase 1)**: 12 tasks (テスト基盤含む)
-- **Foundational (Phase 2)**: 15 tasks (コード品質ツール設定含む、基本インデックスのみ)
-- **US-006 (認証) - P1**: 10 tasks (テスト3 + 実装7)
-- **US-001 (マスターデータ同期) - P1**: 20 tasks (テスト7 + 実装13)
+- **Foundational (Phase 2)**: 15 tasks (コード品質ツール設定含む、ハイブリッドバージョニング対応インデックス追加)
+- **US-006 (認証) - P1**: 13 tasks (テスト4 + 実装9、JWT トークンリフレッシュスケジューラー追加)
+- **US-001 (マスターデータ同期) - P1**: 21 tasks (テスト8 + 実装13、T050.5追加: 店舗フィルタリングテスト)
 - **US-002 (トランザクション集約) - P1**: 12 tasks (テスト1 + 実装11、TransactionLog Repository で直接管理)
   - **削除**: T060 (Transaction Queue Manager テスト), T065 (Transaction Queue Manager 実装)
 - **US-004 (整合性保証) - P2**: 6 tasks
@@ -538,19 +622,71 @@ Task: "[US1] MasterData リポジトリを実装"
 - **US-005 (ファイル収集) - P3**: 11 tasks (テスト2 + 実装9)
 - **Polish (Phase 9)**: 15 tasks (コード品質チェック、テストカバレッジ測定含む)
 
-**Test Tasks**: 全113タスク中、15タスクがテスト専用タスク (約13%)
+**Test Tasks**: 全117タスク中、17タスクがテスト専用タスク (約15%)
 
 **Parallel Opportunities**:
 - Setup: 8 tasks (67%)
 - Foundational: 9 tasks (60%)
 - User Stories: 各ストーリー内のテスト・モデル・スキーマ作成タスク
 
-**Suggested MVP Scope**: Phase 1-5 (Setup + Foundational + US-006 + US-001 + US-002) = 69 tasks
-  - **シンプル化効果**: 71タスク → 69タスク (約3%削減)
+**Suggested MVP Scope**: Phase 1-5 (Setup + Foundational + US-006 + US-001 + US-002) = 73 tasks
+  - **CRITICAL問題修正効果**: T050.5追加（店舗フィルタリングテスト）、T019更新（ハイブリッドバージョニング対応インデックス）、T051更新（FR-024実装詳細）
+  - **HIGH/MEDIUM問題修正効果**: T037.5, T038, T039追加（JWT トークンリフレッシュスケジューラー）
 
 ---
 
 ## 変更履歴
+
+**Version 2.4.0** (2025-10-27):
+- **MEDIUM/LOW問題修正**: 分析結果に基づく実装詳細の明確化
+  - **M1修正 (tasks.md T100)**: ファイル収集実行ロジックにエラーハンドリング・ロールバック処理を追加
+    - 特定サービス収集失敗時の継続処理
+    - アーカイブサイズ超過時の中止処理
+    - ストレージアップロード失敗時のリトライ対応
+  - **M2修正 (tasks.md T089)**: P2Pダウンロードのシード選択アルゴリズムを詳細化
+    - EdgeTerminal Repository検索条件（is_p2p_seed, status, last_heartbeat_at）
+    - p2p_priority昇順ソート、最大3シード試行
+    - 各シード30秒タイムアウト、チェックサム検証
+  - **M3修正 (tasks.md T088)**: 予約反映時刻精度の検証シナリオを追加
+    - scheduled_at±30秒以内の反映精度測定
+    - priority昇順処理検証
+    - エラー時の継続処理検証
+  - **M5修正 (spec.md)**: ハイブリッドバージョニングの採番ロジックを詳細化
+    - 各レコードに連番でバージョン番号割当（部分失敗検出可能）
+    - パフォーマンス考慮（1回のMAXクエリ + インメモリカウンター）
+    - バージョンギャップ検出による自動補完対応
+  - **M6修正 (spec.md FR-006)**: チェックサム検証アルゴリズムの選択理由を追加
+    - SHA-256選択理由（衝突耐性、標準ライブラリ、計算コスト）
+    - チェックサム対象・計算方法の明記
+  - **L1修正 (tasks.md T070)**: 環境変数名を追加（`TRANSACTION_SEND_INTERVAL`、デフォルト: 30秒）
+  - **L2修正 (tasks.md T112)**: quickstart.md検証チェックリストを詳細化
+    - 所要時間計測方法、記録事項を明記
+- 総タスク数: 117（変更なし）
+- ドキュメント品質向上: 実装時の参照性・明確性を大幅に改善
+
+**Version 2.3.0** (2025-10-27):
+- **HIGH/MEDIUM問題修正**: 分析結果に基づく仕様明確化とタスク追加
+  - **H2修正 (spec.md)**: ScheduledMasterFile の `store_id` を `store_code` に統一（既存サービスとの命名規則統一）
+  - **H4修正 (spec.md)**: サーキットブレーカー動作の曖昧性を解消（半開状態の復旧条件を明記）
+  - **H5修正 (spec.md)**: heartbeat機能をスコープ外として明記（同期API呼び出し時に last_heartbeat_at を更新）
+  - **M4修正 (tasks.md)**: JWT トークンリフレッシュスケジューラータスクを追加
+    - T037.5 (新規追加): トークンリフレッシュスケジューラーのユニットテスト
+    - T038 (新規追加): トークンリフレッシュスケジューラー実装（1時間間隔チェック、自動更新）
+    - T039 (新規追加): main.py への統合
+- 総タスク数: 114 → 117 (3タスク追加)
+- MVP スコープ: 70タスク → 73タスク (3タスク追加)
+
+**Version 2.2.0** (2025-10-27):
+- **CRITICAL問題修正1**: FR-024（店舗別フィルタリング）カバレッジギャップ解消
+  - T050.5 (新規追加): 店舗別フィルタリング統合テスト
+  - T051 (更新): FR-024実装詳細を追加（master-dataサービスへのstore_codeパラメータ送信、フィルタリング条件、レスポンス検証）
+- **CRITICAL問題修正2**: ハイブリッドバージョニング対応インデックス追加
+  - T019 (更新): MasterDataコレクションに2つのユニークインデックスを追加
+    - `{category, version}` (master_item_store以外用)
+    - `{category, store_code, version}` (master_item_store用、FR-024対応)
+  - partialFilterExpression を使用した条件付きインデックス実装例を追加
+- 総タスク数: 113 → 114 (1タスク追加)
+- MVP スコープ: 69タスク → 70タスク (1タスク追加)
 
 **Version 2.1.0** (2025-10-13):
 - **シンプル化提案1**: Transaction Queue Manager を削除、TransactionLog Repository で直接管理
