@@ -14,15 +14,24 @@
 """
 Locust performance test for Cart Service
 
-This test simulates the following scenario:
+This test simulates the following scenario (repeated continuously during test duration):
 1. Create a cart
-2. Add 20 items (with 5 second intervals)
+2. Add 20 items (with configurable second intervals, default: 3s)
 3. Cancel the cart
-4. Wait 5 seconds before repeating
+4. Wait before repeating (configurable, default: 3s)
+
+The test runs continuously for the specified duration, with each user
+repeatedly executing the cart scenario. Errors are logged but do not
+stop the test, ensuring continuous load generation.
 
 Test can be run in two modes:
 - Web UI mode: locust -f locustfile.py --host=http://localhost:8003
-- Headless mode: locust -f locustfile.py --host=http://localhost:8003 --users 20 --spawn-rate 2 --run-time 5m --headless
+- Headless mode: locust -f locustfile.py --host=http://localhost:8003 --users 20 --spawn-rate 2 --run-time 30m --headless
+
+Environment variables:
+- PERF_TEST_ITEMS_PER_CART: Number of items per cart (default: 20)
+- PERF_TEST_ITEM_ADD_INTERVAL: Seconds between item additions (default: 3)
+- PERF_TEST_POST_CANCEL_WAIT: Seconds to wait after cart cancel (default: 3)
 """
 
 from locust import HttpUser, task, between, events
@@ -72,6 +81,9 @@ class CartPerformanceUser(HttpUser):
         2. Add items (configurable count with configurable intervals)
         3. Cancel cart
         4. Wait before repeating
+
+        Note: This task runs continuously during the test duration.
+        Errors are logged but do not stop the user from continuing.
         """
         cart_id = None
         scenario_start_time = time.time()
@@ -80,6 +92,8 @@ class CartPerformanceUser(HttpUser):
             # Step 1: Create cart
             cart_id = self._create_cart()
             if not cart_id:
+                logger.warning("Cart creation failed, waiting before retry...")
+                time.sleep(5)  # Wait before retrying
                 return
 
             # Step 2: Add items
@@ -96,7 +110,8 @@ class CartPerformanceUser(HttpUser):
 
         except Exception as e:
             logger.error(f"Scenario failed for cart {cart_id}: {str(e)}")
-            raise
+            # Don't raise - allow the task to continue for the next iteration
+            time.sleep(5)  # Wait before next iteration after error
 
     def _create_cart(self) -> str:
         """
@@ -134,10 +149,14 @@ class CartPerformanceUser(HttpUser):
 
         Args:
             cart_id: The cart ID to add items to
+
+        Note: Continues adding items even if some fail, to maintain test continuity.
         """
         # Generate random unique item indices for this cart (avoid duplicates)
         # We have 100 items (ITEM000-ITEM099), so sample randomly without replacement
         item_indices = random.sample(range(100), self.items_per_cart)
+
+        failed_items = 0
 
         for i, item_idx in enumerate(item_indices):
             item_data = [{
@@ -158,12 +177,16 @@ class CartPerformanceUser(HttpUser):
                     logger.debug(f"Item {i+1}/{self.items_per_cart} (ITEM{item_idx:03d}) added to cart {cart_id}")
                 else:
                     response.failure(f"Failed to add item: {response.status_code} - {response.text}")
-                    logger.error(f"Item add failed for cart {cart_id}: {response.status_code}")
-                    raise Exception(f"Failed to add item {i+1}")
+                    logger.warning(f"Item add failed for cart {cart_id}: {response.status_code}")
+                    failed_items += 1
+                    # Continue to next item instead of raising exception
 
             # Wait between item additions (except after the last item)
             if i < self.items_per_cart - 1:
                 time.sleep(self.item_add_interval)
+
+        if failed_items > 0:
+            logger.warning(f"Cart {cart_id}: {failed_items}/{self.items_per_cart} items failed to add")
 
     def _cancel_cart(self, cart_id: str):
         """
@@ -171,6 +194,8 @@ class CartPerformanceUser(HttpUser):
 
         Args:
             cart_id: The cart ID to cancel
+
+        Note: Logs errors but does not raise exceptions to maintain test continuity.
         """
         with self.client.post(
             f"/api/v1/carts/{cart_id}/cancel?terminal_id={self.terminal_id}",
@@ -183,8 +208,8 @@ class CartPerformanceUser(HttpUser):
                 logger.debug(f"Cart cancelled: {cart_id}")
             else:
                 response.failure(f"Failed to cancel cart: {response.status_code} - {response.text}")
-                logger.error(f"Cart cancel failed: {response.status_code}")
-                raise Exception("Failed to cancel cart")
+                logger.warning(f"Cart cancel failed for {cart_id}: {response.status_code}")
+                # Continue instead of raising exception
 
 
 @events.test_start.add_listener
