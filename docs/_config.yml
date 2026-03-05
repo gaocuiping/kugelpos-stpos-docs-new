@@ -1,0 +1,6 @@
+title: Kugelpos Documentation
+baseurl: ""
+url: ""
+theme: minima
+plugins:
+  - jekyll-feed
