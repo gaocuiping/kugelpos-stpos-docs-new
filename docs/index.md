@@ -1,8 +1,41 @@
 ---
+title: Home
 layout: home
-title: "Kugelpos Docs"
+nav_order: 1
 ---
 
 # Kugelpos Documentation
 
-Welcome to the Kugelpos documentation site. Use the navigation to explore topics.
+Welcome to the Kugelpos POS Backend documentation site.
+
+---
+
+## Choose Your Language / 言語を選択
+
+| Language | Link |
+|----------|------|
+| 🇬🇧 English | [English Documentation]({{ site.baseurl }}/en/) |
+| 🇯🇵 日本語 | [日本語ドキュメント]({{ site.baseurl }}/ja/) |
+
+---
+
+## Services Overview
+
+| Service | Description | Port |
+|---------|-------------|------|
+| Account | User authentication & JWT management | 8000 |
+| Terminal | Terminal & store management | 8001 |
+| Master-data | Master data management | 8002 |
+| Cart | Product registration & transactions | 8003 |
+| Report | Sales report generation | 8004 |
+| Journal | Electronic journal search | 8005 |
+| Stock | Inventory management | 8006 |
+
+---
+
+## Quick Links
+
+- [Architecture Overview]({{ site.baseurl }}/en/general/architecture/)
+- [Design Patterns]({{ site.baseurl }}/en/general/design_patterns/)
+- [Error Code Specification]({{ site.baseurl }}/en/general/error_code_spec/)
+- [アーキテクチャ概要]({{ site.baseurl }}/ja/general/architecture/)

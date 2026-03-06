@@ -1,3 +1,10 @@
+---
+title: "API Specification"
+parent: Stock
+grand_parent: English
+nav_order: 1
+---
+
 # Stock Service API Specification
 
 ## Overview

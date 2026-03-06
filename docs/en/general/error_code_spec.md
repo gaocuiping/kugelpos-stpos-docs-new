@@ -1,3 +1,10 @@
+---
+title: "Error Code Specification"
+parent: General
+grand_parent: English
+nav_order: 3
+---
+
 # Kugelpos Error Code Specification
 
 ## Overview

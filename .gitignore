@@ -37,3 +37,11 @@ venv/
 
 # ignore git worktrees
 worktrees/
+
+# Jekyll
+docs/_site/
+docs/.jekyll-cache/
+docs/.jekyll-metadata
+docs/Gemfile.lock
+docs/vendor/
+docs/.bundle/

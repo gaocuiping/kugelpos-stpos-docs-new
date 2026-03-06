@@ -1,3 +1,10 @@
+---
+title: "Model Specification"
+parent: Terminal
+grand_parent: English
+nav_order: 2
+---
+
 # Terminal Service Model Specification
 
 ## Overview

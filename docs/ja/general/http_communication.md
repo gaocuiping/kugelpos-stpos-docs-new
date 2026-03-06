@@ -1,3 +1,10 @@
+---
+title: "HTTP 通信"
+parent: 共通
+grand_parent: 日本語
+nav_order: 6
+---
+
 # Kugelpos HTTP通信仕様
 
 ## 概要

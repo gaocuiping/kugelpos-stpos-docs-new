@@ -1,3 +1,10 @@
+---
+title: "モデル仕様"
+parent: カート
+grand_parent: 日本語
+nav_order: 2
+---
+
 # カートサービス モデル仕様
 
 ## 概要

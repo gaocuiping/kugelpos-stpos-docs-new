@@ -1,3 +1,10 @@
+---
+title: "Architecture"
+parent: General
+grand_parent: English
+nav_order: 1
+---
+
 # Kugelpos System Architecture
 
 ## Overview

@@ -1,3 +1,10 @@
+---
+title: "WebSocket 仕様"
+parent: 在庫
+grand_parent: 日本語
+nav_order: 4
+---
+
 # 在庫サービス WebSocket仕様
 
 ## 概要

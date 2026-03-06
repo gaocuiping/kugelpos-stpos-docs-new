@@ -1,3 +1,10 @@
+---
+title: "API 仕様"
+parent: レポート
+grand_parent: 日本語
+nav_order: 1
+---
+
 # レポートサービス API仕様
 
 ## 概要

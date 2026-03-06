@@ -1,3 +1,10 @@
+---
+title: "Model Specification"
+parent: Master Data
+grand_parent: English
+nav_order: 2
+---
+
 # Master Data Service Model Specification
 
 ## Overview

@@ -1,3 +1,9 @@
+---
+title: "Overview"
+parent: English
+nav_order: 1
+---
+
 # Kugelpos Documentation Index
 
 English documentation index for the Kugelpos POS system, organized by category.

@@ -1,3 +1,10 @@
+---
+title: "API 仕様"
+parent: マスターデータ
+grand_parent: 日本語
+nav_order: 1
+---
+
 # マスターデータサービス API仕様
 
 ## 概要

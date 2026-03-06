@@ -1,3 +1,10 @@
+---
+title: "Snapshot Specification"
+parent: Stock
+grand_parent: English
+nav_order: 3
+---
+
 # Stock Service Snapshot Specification
 
 ## Overview

@@ -1,3 +1,10 @@
+---
+title: "API 仕様"
+parent: ジャーナル
+grand_parent: 日本語
+nav_order: 1
+---
+
 # ジャーナルサービス API仕様
 
 ## 概要

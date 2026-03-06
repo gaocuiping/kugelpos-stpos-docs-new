@@ -1,3 +1,10 @@
+---
+title: "API 仕様"
+parent: ターミナル
+grand_parent: 日本語
+nav_order: 1
+---
+
 # ターミナルサービス API仕様
 
 ## 概要

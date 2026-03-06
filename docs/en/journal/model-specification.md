@@ -1,3 +1,10 @@
+---
+title: "Model Specification"
+parent: Journal
+grand_parent: English
+nav_order: 2
+---
+
 # Journal Service Model Specification
 
 ## Overview

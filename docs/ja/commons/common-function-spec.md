@@ -1,3 +1,10 @@
+---
+title: "共通関数"
+parent: 共通ライブラリ
+grand_parent: 日本語
+nav_order: 1
+---
+
 # Kugel Commons 共通機能仕様書
 
 ## 概要
