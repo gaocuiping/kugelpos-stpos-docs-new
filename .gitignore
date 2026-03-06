@@ -45,3 +45,4 @@ docs/.jekyll-metadata
 docs/Gemfile.lock
 docs/vendor/
 docs/.bundle/
+scripts/check_links.py
