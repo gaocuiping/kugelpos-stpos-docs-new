@@ -74,7 +74,9 @@ docs/
 | 構成要素 | ファイル | 役割 |
 |---------|---------|------|
 | 生成スクリプト | `scripts/generate_docs.sh` | FastAPI ソースコードから API 概要を抽出・生成 |
-| GitHub Actions | `.github/workflows/generate-docs.yml` | ソースコード変更時に自動トリガー |
+| 解析スクリプト | `scripts/sync_testcases.py` | Pythonの `ast` でテストコードの `@TestCaseID: XXX` Docstringを解析し、Markdown表を自動更新 |
+| GitHub Actions | `.github/workflows/generate-docs.yml` | APIソース変更時に自動化APIドキュメント生成をトリガー |
+| GitHub Actions | `.github/workflows/sync-test-docs.yml` | テスト用Pythonコード変更時にテスト仕様書の Markdown 状態（`❌ 補充` → `✅ 実装済`）を自動更新 |
 
 ```
 ソースコード変更 → push → 自動スキャン → ドキュメント生成 → 自動コミット
@@ -138,7 +140,41 @@ docs/
           14 ファイル生成完了
 ```
 
-### フロー 2: GitHub Actions — ドキュメント自動生成ワークフロー
+### フロー 2: テスト仕様書自動同期（Docs-as-Code）
+
+```
+┌─ 開発者が tests/ 配下のテストコードを作成・修正 ─┐
+│                                              │
+│  例: services/cart/tests/test_cart.py         │
+│  def test_subtotal():                        │
+│      \"\"\"                                    │
+│      @TestCaseID: CT-U-011                   │
+│      \"\"\"                                    │
+│      assert ...                              │
+└──────────────────┬───────────────────────────┘
+                   ↓
+┌─ GitHub Action: sync-test-docs.yml 自動起動 ──┐
+│                                              │
+│  Step 1: check out repository                 │
+│                                              │
+│  Step 2: scripts/sync_testcases.py 実行       │
+│    - Python ast モジュールで全 test_*.py を解析 │
+│    - Docstring から @TestCaseID を全て抽出      │
+│    - docs/ja/testing/ および docs/en/testing/  │
+│      配下の testcases-*.md を走査し、            │
+│      一致する ID 行の「❌ 補充」を「✅ 実装済」に  │
+│      自動で置換                                │
+│                                              │
+│  Step 3: 自動コミット＆プッシュ                 │
+│    git commit -m "docs: auto-sync testcase"  │
+│    git push                                  │
+└──────────────────┬───────────────────────────┘
+                   ↓
+        Markdown テスト仕様書が自動更新
+        → フロー 4（Jekyllビルド）が自動トリガー
+```
+
+### フロー 3: GitHub Actions — ドキュメント自動生成ワークフロー
 
 **ファイル:** `.github/workflows/generate-docs.yml`
 
@@ -176,10 +212,10 @@ docs/
 └──────────────────┬───────────────────────────┘
                    ↓
         docs/ 変更がリポジトリに反映
-        → フロー 3 が自動トリガー
+        → フロー 4 が自動トリガー
 ```
 
-### フロー 3: GitHub Actions — Jekyll ビルド＆デプロイワークフロー
+### フロー 4: GitHub Actions — Jekyll ビルド＆デプロイワークフロー
 
 **ファイル:** `.github/workflows/jekyll-gh-pages.yml`
 
@@ -241,6 +277,17 @@ docs/
                  services/**           docs/**
                  変更時トリガー         変更時トリガー
 ```
+
+### Docs-as-Code（他プロジェクトへの設定移植手順）
+
+新しいプロジェクトでこの「テストドキュメントの自動更新基盤」を再現するには、以下の4ステップを実行します：
+
+1. **解析スクリプトの移植**：`scripts/sync_testcases.py` ファイルをコピー
+2. **CI/CD の移植**：`.github/workflows/sync-test-docs.yml` ファイルをコピー
+3. **Markdownの移植**：`docs/ja/testing/` および `docs/en/testing/` 配下の `testcases-*.md` テンプレートをコピー
+4. **プッシュ**：全ファイルをコミット＆プッシュ
+
+開発チームは、テストの Python コード内の docstring に `@TestCaseID: [ID]` を記述するだけで、以後のドキュメント更新はすべて GitHub Actions が全自動で行います。
 
 ---
 
