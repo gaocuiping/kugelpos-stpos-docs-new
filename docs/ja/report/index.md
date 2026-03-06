@@ -5,4 +5,16 @@ nav_order: 6
 has_children: true
 ---
 
-# レポート
+# レポートサービス
+
+速報売上・日次売上レポート生成。
+
+**ポート:** 8004 | **フレームワーク:** FastAPI | **データベース:** MongoDB
+
+## ドキュメント一覧
+
+| ドキュメント | 説明 |
+|-------------|------|
+| [API 仕様](api-specification/) | API エンドポイント・リクエスト・レスポンス仕様 |
+| [モデル仕様](model-specification/) | データモデル・スキーマ定義 |
+| [API 概要 (自動生成)](api-overview-generated/) | ソースコードから自動生成された API 概要 |

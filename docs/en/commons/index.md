@@ -5,4 +5,12 @@ nav_order: 9
 has_children: true
 ---
 
-# Commons
+# Commons Library
+
+Shared library providing common utilities used across all services.
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Common Functions](common-function-spec/) | Common functions & utilities specification |
