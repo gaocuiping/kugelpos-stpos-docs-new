@@ -16,6 +16,6 @@ Master data including products, categories, payment methods, and staff.
 
 | Document | Description |
 |----------|-------------|
-| [API Specification](api-specification/) | API endpoints, requests & responses |
-| [Model Specification](model-specification/) | Data models & schema definitions |
-| [API Overview (Auto-generated)](api-overview-generated/) | Auto-generated API overview from source code |
+| [API Specification](api-specification.html) | API endpoints, requests & responses |
+| [Model Specification](model-specification.html) | Data models & schema definitions |
+| [API Overview (Auto-generated)](api-overview-generated.html) | Auto-generated API overview from source code |

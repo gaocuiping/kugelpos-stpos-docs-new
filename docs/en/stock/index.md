@@ -16,8 +16,8 @@ Inventory management, stock tracking, and real-time updates.
 
 | Document | Description |
 |----------|-------------|
-| [API Specification](api-specification/) | API endpoints, requests & responses |
-| [Model Specification](model-specification/) | Data models & schema definitions |
-| [Snapshot Specification](snapshot-specification/) | Stock snapshot specification |
-| [WebSocket Specification](websocket-specification/) | Real-time WebSocket communication spec |
-| [API Overview (Auto-generated)](api-overview-generated/) | Auto-generated API overview from source code |
+| [API Specification](api-specification.html) | API endpoints, requests & responses |
+| [Model Specification](model-specification.html) | Data models & schema definitions |
+| [Snapshot Specification](snapshot-specification.html) | Stock snapshot specification |
+| [WebSocket Specification](websocket-specification.html) | Real-time WebSocket communication spec |
+| [API Overview (Auto-generated)](api-overview-generated.html) | Auto-generated API overview from source code |

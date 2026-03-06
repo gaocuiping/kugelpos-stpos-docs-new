@@ -14,4 +14,4 @@ layout: default
 
 | ドキュメント | 説明 |
 |-------------|------|
-| [共通関数](common-function-spec/) | 共通関数・ユーティリティ仕様 |
+| [共通関数](common-function-spec.html) | 共通関数・ユーティリティ仕様 |

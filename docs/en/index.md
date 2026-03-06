@@ -14,12 +14,12 @@ Welcome to the Kugelpos POS Backend documentation.
 
 | Section | Description |
 |---------|-------------|
-| [General](general/) | Architecture, design patterns, error codes, Dapr components |
-| [Account](account/) | User authentication and JWT management (port: 8000) |
-| [Terminal](terminal/) | Terminal and store management (port: 8001) |
-| [Master Data](master-data/) | Master data management (port: 8002) |
-| [Cart](cart/) | Product registration and transactions (port: 8003) |
-| [Report](report/) | Sales report generation (port: 8004) |
-| [Journal](journal/) | Electronic journal search (port: 8005) |
-| [Stock](stock/) | Inventory management (port: 8006) |
-| [Commons](commons/) | Shared library and common functions |
+| [General](general.html) | Architecture, design patterns, error codes, Dapr components |
+| [Account](account.html) | User authentication and JWT management (port: 8000) |
+| [Terminal](terminal.html) | Terminal and store management (port: 8001) |
+| [Master Data](master-data.html) | Master data management (port: 8002) |
+| [Cart](cart.html) | Product registration and transactions (port: 8003) |
+| [Report](report.html) | Sales report generation (port: 8004) |
+| [Journal](journal.html) | Electronic journal search (port: 8005) |
+| [Stock](stock.html) | Inventory management (port: 8006) |
+| [Commons](commons.html) | Shared library and common functions |

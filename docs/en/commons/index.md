@@ -14,4 +14,4 @@ Shared library providing common utilities used across all services.
 
 | Document | Description |
 |----------|-------------|
-| [Common Functions](common-function-spec/) | Common functions & utilities specification |
+| [Common Functions](common-function-spec.html) | Common functions & utilities specification |
