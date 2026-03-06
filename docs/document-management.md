@@ -6,295 +6,132 @@ nav_order: 5
 
 # ドキュメント管理 — Jekyll + GitHub Pages
 
-## Jekyll とは
+本プロジェクトの公式ドキュメント（当サイト）は、**「Jekyll による静的サイト自動構築」** と **「Docs-as-Code（文書即コード）による自動同期」** という2つの強力な自動化基盤によって運用されています。
 
-**Jekyll** は静的サイトジェネレーターです。Markdown で書いたドキュメントを HTML サイトに自動変換します。
-
-| 特徴 | 説明 |
-|------|------|
-| Markdown 対応 | `.md` ファイルをそのまま Web ページに変換 |
-| テーマシステム | `just-the-docs` 等のテーマでプロフェッショナルな見た目を実現 |
-| 検索機能 | サイト内全文検索を標準搭載 |
-| ナビゲーション | Front Matter でサイドバーの階層構造を自動生成 |
-| ローカルプレビュー | `bundle exec jekyll serve` で即座にプレビュー可能 |
-
-## GitHub Pages とは
-
-**GitHub Pages** は GitHub リポジトリから直接 Web サイトをホスティングするサービスです。
-
-| 特徴 | 説明 |
-|------|------|
-| 無料ホスティング | パブリックリポジトリは無料で公開可能 |
-| 自動デプロイ | push するだけでサイトが自動更新 |
-| カスタムドメイン | 独自ドメインの設定に対応 |
-| HTTPS 対応 | SSL 証明書を自動提供 |
-| アクセス制御 | プライベートリポジトリで閲覧制限可能（Enterprise） |
+このページでは、サイトの基本構成と、開発チームが日常的に活用する「自動化フロー」の仕組み、および新たなプロジェクトへの設定移植手順を解説します。
 
 ---
 
-## 本プロジェクトでの活用
+## 🏗️ サイトの基本構成
 
-### 🔧 サイト構成
-
-| 項目 | 設定 |
-|------|------|
-| テーマ | `just-the-docs`（ダークモード） |
-| 多言語対応 | English / 日本語 |
-| 検索 | サイト内全文検索有効 |
-| 構成ファイル | `docs/_config.yml` |
-
-### 📁 ディレクトリ構成
-
-```
-docs/
-├── _config.yml          # Jekyll 設定
-├── Gemfile              # Ruby 依存関係
-├── index.md             # トップページ
-├── en/                  # 英語ドキュメント
-│   ├── index.md
-│   ├── account/         # サービス別ドキュメント
-│   ├── terminal/
-│   ├── master-data/
-│   ├── cart/
-│   ├── report/
-│   ├── journal/
-│   ├── stock/
-│   └── commons/
-└── ja/                  # 日本語ドキュメント
-    ├── index.md
-    └── ...（同上）
-```
+| 項目 | 設定・利用技術 | 説明 |
+|------|-------------|------|
+| **ビルダー** | [Jekyll](https://jekyllrb.com/) | Markdown ファイル群を高速に HTML サイトへ変換する静的サイトジェネレーター |
+| **ホスティング** | [GitHub Pages](https://pages.github.com/) | サーバー構築不要で GitHub リポジトリから直接 Web サイトを公開 |
+| **テーマ** | `just-the-docs` | 検索機能つき・多階層サイドバー付きのモダンなドキュメントUI（ダークモード対応） |
+| **多言語対応** | Collections 活用 | `docs/ja/` (日本語) と `docs/en/` (英語) の言語切り替え構造を実装 |
 
 ---
 
-## ✅ 自動化機能
+## ⚡ 2つのコア自動化機能（Docs-as-Code）
 
-### 1. 仕様ドキュメント自動生成（ソースベース）
+本サイトは手動でのドキュメント保守作業を極限まで減らすため、以下の **2大自動化システム** を組み込んでいます。
 
-| 構成要素 | ファイル | 役割 |
-|---------|---------|------|
-| 生成スクリプト | `scripts/generate_docs.sh` | FastAPI ソースコードから API 概要を抽出・生成 |
-| 解析スクリプト | `scripts/sync_testcases.py` | Pythonの `ast` でテストコードの `@TestCaseID: XXX` Docstringを解析し、Markdown表を自動更新 |
-| GitHub Actions | `.github/workflows/generate-docs.yml` | APIソース変更時に自動化APIドキュメント生成をトリガー |
-| GitHub Actions | `.github/workflows/sync-test-docs.yml` | テスト用Pythonコード変更時にテスト仕様書の Markdown 状態（`❌ 補充` → `✅ 実装済`）を自動更新 |
+### 柱1：API 仕様書の自動生成 (FastAPI → Markdown)
+開発者が `services/` 配下の **Python (FastAPI) コード**や Pydantic モデルを変更して Push すると、スクリプトがコードをスキャンし、各サービスの API エンドポイントやデータモデルの Markdown ドキュメントを全自動で生成します。
 
+### 柱2：テスト仕様書の自動同期 (Test Code → Markdown)
+開発者が `tests/` 配下に **Python テストコード**を作成して Push すると、スクリプトが Docstring の特定タグを解析し、事前に定義されたテスト要件一覧表（Markdown）のステータスを自動で「実装済」に更新します。
+
+---
+
+## 🔄 詳細な実装フローと仕組み
+
+これら2つの自動化は、いずれも `main` ブランチへの **Push** をトリガーとして、GitHub Actions が背後で全てのスクリプト実行・Commit・デプロイを代行します。
+
+### Flow A : API ドキュメントの自動生成フロー
+
+* **設定ファイル**: `.github/workflows/generate-docs.yml`
+* **実行スクリプト**: `scripts/generate_docs.sh`
+
+```mermaid
+graph TD;
+    A[開発者が API の Python コードを修正・Push] --> B[GitHub Action: generate-docs.yml 起動]
+    B --> C[generate_docs.sh 実行]
+    C --> D[各サービスの @router などを解析]
+    D --> E[api-overview-generated.md 14ファイル出力]
+    E --> F[自動 Commit & Push]
+    F --> G[Flow C: サイト公開フローへ連携]
 ```
-ソースコード変更 → push → 自動スキャン → ドキュメント生成 → 自動コミット
+
+### Flow B : テスト仕様書の自動同期フロー
+
+* **設定ファイル**: `.github/workflows/sync-test-docs.yml`
+* **実行スクリプト**: `scripts/sync_testcases.py`
+
+```mermaid
+graph TD;
+    A[開発者が Python テストコードを修正・Push] --> B[GitHub Action: sync-test-docs.yml 起動]
+    B --> C[sync_testcases.py 実行]
+    C --> D[テスト関数の @TestCaseID: 〇〇 タグを ast 解析]
+    D --> E[テスト表 md の該当行 ❌ を ✅ にマーク]
+    E --> F[自動 Commit & Push]
+    F --> G[Flow C: サイト公開フローへ連携]
 ```
 
-### 2. サイト自動公開・更新
+### Flow C : サイトビルド＆公開フロー
 
-| 構成要素 | ファイル | 役割 |
-|---------|---------|------|
-| ビルド＆デプロイ | `.github/workflows/jekyll-gh-pages.yml` | docs/ 変更時に自動ビルド＆デプロイ |
+* **設定ファイル**: `.github/workflows/jekyll-gh-pages.yml`
 
-```
-ドキュメント変更 → push → Jekyll ビルド → GitHub Pages 自動デプロイ
-```
-
-### 3. エンドツーエンド自動化フロー
-
-```
-ソースコード変更 → 自動ドキュメント生成 → 自動コミット → 自動ビルド → 自動デプロイ
+```text
+Flow A / Flow B によるドキュメントの自動更新
+⬇
+GitHub Action `jekyll-gh-pages.yml` 起動
+⬇
+Ruby / Jekyll 環境セットアップ ＆ `bundle exec jekyll build`
+⬇
+生成された HTML の Artifacts を GitHub Pages 環境へデプロイ
+⬇
+🌐 https://<org>.github.io/<repo>/ で公開完了（数分で反映）
 ```
 
 ---
 
-## � 詳細実装フロー
+## ⚠️ 【重要】テストコード実装時の必須ルール（Flow B 関連）
 
-### フロー 1: ドキュメント自動生成（generate_docs.sh）
+テストドキュメントの自動同期（Flow B）を正常に稼働させるため、機能テスト（単体・結合・総合）を作成・修正する際は、**必ず関数（またはクラス）の Docstring に `@TestCaseID: [ID]` を記述してください。**
 
-```
-┌─ 開発者が services/ 配下のソースコードを修正 ─┐
-│                                              │
-│  例: services/account/app/api/v1/auth.py     │
-│      @router.post("/login") を追加            │
-└──────────────────┬───────────────────────────┘
-                   ↓
-┌─ generate_docs.sh 実行 ─────────────────────┐
-│                                              │
-│  Step 1: サービスディレクトリをスキャン         │
-│    services/* を走査し、各サービスを検出        │
-│    → account, terminal, master-data, ...     │
-│                                              │
-│  Step 2: API エンドポイント抽出               │
-│    app/api/ 配下の .py ファイルから            │
-│    @router.get/post/put/delete を grep        │
-│    → メソッド、パス、関数名、ソースファイルを取得 │
-│                                              │
-│  Step 3: データモデル抽出                     │
-│    app/schemas/ と app/models/ から           │
-│    class XxxModel(BaseModel) を grep          │
-│    → クラス名、親クラス、ソースファイルを取得    │
-│                                              │
-│  Step 4: 環境変数抽出                         │
-│    app/config/settings.py から               │
-│    変数名 = デフォルト値 を抽出                │
-│                                              │
-│  Step 5: Markdown ファイル生成                │
-│    docs/en/<service>/api-overview-generated.md │
-│    docs/ja/<service>/api-overview-generated.md │
-│    Jekyll Front Matter 付きで出力             │
-└──────────────────┬───────────────────────────┘
-                   ↓
-          14 ファイル生成完了
+```python
+def test_calc_subtotal_discount():
+    """
+    カートの小計金額割引計算ロジックをテスト
+    
+    @TestCaseID: CT-U-011  <-- 🎯 必須：この1行がないと仕様書が自動更新されません
+    """
+    assert result == 900
 ```
 
-### フロー 2: テスト仕様書自動同期（Docs-as-Code）
-
-```
-┌─ 開発者が tests/ 配下のテストコードを作成・修正 ─┐
-│                                              │
-│  例: services/cart/tests/test_cart.py         │
-│  def test_subtotal():                        │
-│      \"\"\"                                    │
-│      @TestCaseID: CT-U-011                   │
-│      \"\"\"                                    │
-│      assert ...                              │
-└──────────────────┬───────────────────────────┘
-                   ↓
-┌─ GitHub Action: sync-test-docs.yml 自動起動 ──┐
-│                                              │
-│  Step 1: check out repository                 │
-│                                              │
-│  Step 2: scripts/sync_testcases.py 実行       │
-│    - Python ast モジュールで全 test_*.py を解析 │
-│    - Docstring から @TestCaseID を全て抽出      │
-│    - docs/ja/testing/ および docs/en/testing/  │
-│      配下の testcases-*.md を走査し、            │
-│      一致する ID 行の「❌ 補充」を「✅ 実装済」に  │
-│      自動で置換                                │
-│                                              │
-│  Step 3: 自動コミット＆プッシュ                 │
-│    git commit -m "docs: auto-sync testcase"  │
-│    git push                                  │
-└──────────────────┬───────────────────────────┘
-                   ↓
-        Markdown テスト仕様書が自動更新
-        → フロー 4（Jekyllビルド）が自動トリガー
-```
-
-### フロー 3: GitHub Actions — ドキュメント自動生成ワークフロー
-
-**ファイル:** `.github/workflows/generate-docs.yml`
-
-```
-┌─ トリガー条件 ──────────────────────────────┐
-│  push to main ブランチで以下のパスが変更された場合: │
-│    - services/**/app/api/**                  │
-│    - services/**/app/schemas/**              │
-│    - services/**/app/models/**               │
-│    - services/**/app/config/settings.py      │
-│    - services/**/app/main.py                 │
-└──────────────────┬───────────────────────────┘
-                   ↓
-┌─ ワークフロー実行 ──────────────────────────┐
-│                                              │
-│  Job: generate-docs                          │
-│  Runner: ubuntu-latest                       │
-│                                              │
-│  Step 1: actions/checkout@v4                 │
-│    → リポジトリをチェックアウト               │
-│                                              │
-│  Step 2: scripts/generate_docs.sh 実行       │
-│    → 全サービスの API 概要ドキュメントを生成    │
-│                                              │
-│  Step 3: 変更チェック                         │
-│    git diff --quiet docs/ で変更有無を確認     │
-│    → 変更なし: ワークフロー終了               │
-│    → 変更あり: 次のステップへ                  │
-│                                              │
-│  Step 4: 自動コミット＆プッシュ               │
-│    git config user.name "github-actions[bot]" │
-│    git add docs/                             │
-│    git commit -m "docs: auto-update API docs" │
-│    git push                                  │
-└──────────────────┬───────────────────────────┘
-                   ↓
-        docs/ 変更がリポジトリに反映
-        → フロー 4 が自動トリガー
-```
-
-### フロー 4: GitHub Actions — Jekyll ビルド＆デプロイワークフロー
-
-**ファイル:** `.github/workflows/jekyll-gh-pages.yml`
-
-```
-┌─ トリガー条件 ──────────────────────────────┐
-│  push to main ブランチで以下のパスが変更された場合: │
-│    - docs/**                                 │
-│  または workflow_dispatch（手動トリガー）       │
-└──────────────────┬───────────────────────────┘
-                   ↓
-┌─ Job 1: build ──────────────────────────────┐
-│  Runner: ubuntu-latest                       │
-│                                              │
-│  Step 1: actions/checkout@v4                 │
-│    → リポジトリをチェックアウト               │
-│                                              │
-│  Step 2: actions/configure-pages@v5          │
-│    → GitHub Pages の設定を取得               │
-│                                              │
-│  Step 3: ruby/setup-ruby@v1                  │
-│    → Ruby 環境セットアップ                    │
-│    → bundler-cache: true でキャッシュ有効     │
-│                                              │
-│  Step 4: Jekyll ビルド                       │
-│    working-directory: docs/                  │
-│    bundle exec jekyll build                  │
-│    → _site/ ディレクトリに HTML を生成        │
-│                                              │
-│  Step 5: actions/upload-pages-artifact@v3    │
-│    → ビルド成果物を Artifact としてアップロード │
-└──────────────────┬───────────────────────────┘
-                   ↓
-┌─ Job 2: deploy（build 完了後に実行）──────────┐
-│  environment: github-pages                   │
-│                                              │
-│  Step 1: actions/deploy-pages@v4             │
-│    → Artifact を GitHub Pages にデプロイ      │
-│    → https://<org>.github.io/<repo>/ で公開   │
-│                                              │
-│  並行制御:                                    │
-│    concurrency: "pages" グループで             │
-│    同時に1つのデプロイのみ実行                  │
-└──────────────────┬───────────────────────────┘
-                   ↓
-       ドキュメントサイト公開完了 ✅
-       （push から約 1-2 分で反映）
-```
-
-### 全体フロー図
-
-```
-┌──────────┐     ┌──────────────┐     ┌──────────────┐     ┌───────────┐
-│ 開発者が  │     │ generate-docs│     │ jekyll-gh-   │     │ ユーザーが │
-│ ソース   │────→│ .yml         │────→│ pages.yml    │────→│ ブラウザで │
-│ コード修正│ push│ ドキュメント  │commit│ Jekyll ビルド│deploy│ ドキュメント│
-│          │     │ 自動生成      │     │ ＆デプロイ    │     │ を閲覧     │
-└──────────┘     └──────────────┘     └──────────────┘     └───────────┘
-                      ↑                     ↑
-                 services/**           docs/**
-                 変更時トリガー         変更時トリガー
-```
-
-### Docs-as-Code（他プロジェクトへの設定移植手順）
-
-新しいプロジェクトでこの「テストドキュメントの自動更新基盤」を再現するには、以下の4ステップを実行します：
-
-1. **解析スクリプトの移植**：`scripts/sync_testcases.py` ファイルをコピー
-2. **CI/CD の移植**：`.github/workflows/sync-test-docs.yml` ファイルをコピー
-3. **Markdownの移植**：`docs/ja/testing/` および `docs/en/testing/` 配下の `testcases-*.md` テンプレートをコピー
-4. **プッシュ**：全ファイルをコミット＆プッシュ
-
-開発チームは、テストの Python コード内の docstring に `@TestCaseID: [ID]` を記述するだけで、以後のドキュメント更新はすべて GitHub Actions が全自動で行います。
+* **このタグがある場合**：Push 後に自動で Markdown 仕様書の「❌ 補充」が「✅ 実装済」に置き換わります（要件との完全なトレースバック）。
+* **このタグがない場合**：スクリプトは無視してスキップし、テスト自体は成功しても仕様書には反映されません（補助的・一時的なデバッグ用テスト等として扱われます）。
 
 ---
 
-## �📋 デプロイ手順（初回のみ）
+## 📦 新規プロジェクトへの全サイト基盤（Docs + Automation）の移植手順
 
-1. `git push origin main` でリポジトリに Push
-2. Settings → Pages → Source を **「GitHub Actions」** に変更
-3. Settings → Actions → Workflow permissions を **「Read and write」** に設定
+この Jekyll ドキュメントサイト、API自動生成、およびテスト仕様書自動更新の強力な基盤を別プロジェクト全体に適用するには、以下の 5 ステップを実行します。
 
-以降、すべての更新が自動化されます。
+| 移植レイヤー | 対象ファイル/ディレクトリ | 説明 |
+| :--- | :--- | :--- |
+| **1. Jekyll 基盤** | `docs/` (コンテンツ除く), `Gemfile`, `_config.yml` | サイトのデザイン、検索機能、多言語構造を移植します。 |
+| **2. 自動化スクリプト** | `scripts/generate_docs.sh`, `scripts/sync_testcases.py` | API 抽出エンジンとテスト ID 解析エンジンを移植します。 |
+| **3. CI/CD (GitHub)** | `.github/workflows/` 配下の全 `.yml` | 自動デプロイ、自動生成、自動同期のワークフローを移植します。 |
+| **4. テンプレート** | `docs/ja/index.md`, `testcases-*.md` 等 | プロジェクト構成合わせたナビゲーションとテスト表の雛形を移植します。 |
+| **5. 基本設定** | `_config.yml` | 移植先プロジェクトの `baseurl` やリポジトリ名を設定に合わせて微調整します。 |
+
+### 移行後の運用イメージ
+1. **通常ドキュメント**: `docs/` 配下にマークダウンを追加するだけで、1分後にサイトに反映されます。
+2. **API 仕様**: ソースコードに新しいエンドポイントを書く（`@router.xxx`）だけで、仕様書が自動生成されます。
+3. **テスト進捗**: テストコードに `@TestCaseID: xxx` を書き込むだけで、仕様書の表が「✅ 実装済」に自動更新されます。
+
+
+---
+
+## � 初回セットアップ・手動デプロイ手順
+
+サイトの初回立ち上げ時のみ、以下の GitHub リポジトリ設定が必要です。
+
+1. `git push origin main` で全てのリポジトリ内容を Push
+2. GitHub Web 画面の **Settings** → **Pages** → **Source** を「**GitHub Actions**」に変更
+3. **Settings** → **Actions** → Workflow permissions を「**Read and write**」に設定（これにより Actions ボットが自動 Commit できるようになります）
+
+以降、すべてのサイト更新は自動化されます。
