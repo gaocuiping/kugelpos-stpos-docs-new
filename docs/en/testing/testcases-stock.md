@@ -1,50 +1,68 @@
 ---
-title: "Stock Service Test Cases"
+title: "Stock サービス テストケース"
 parent: Testing
 grand_parent: English
 nav_order: 17
 layout: default
 ---
 
-# Stock Service Test Specification
+# Stock サービス テスト設計書
 
-Focuses on real-time inventory allocation and asynchronous WebSocket notifications for reorder alerts.
-
-## 1. Overview and Test Strategy
-
-Accurately manages inventory increments/decrements from Cart (purchases) and Admin Panel (receiving).
-Crucially, tests behavior of real-time alerts (WebSocket) pushed to the frontend when inventory falls below appropriate levels.
+This document is a restructured test case design based on the Test Review Report.
+It cleanly separates existing implemented tests and recommended supplementary tests (edge cases, negative flows) into three distinct levels: Unit, Integration, and Scenario/E2E.
 
 ---
 
-## 2. Unit Tests (API & Logic)
+## 1. サービスの概要とテスト戦略 (Overview & Strategy)
+Overall policy regarding specific business logic, dependencies, and main test focuses for this service.
 
-### 2.1 Stock Adjustment & Concurrency Control
+---
 
-| ID | Target API | Scenario (Before/When/Then) | Expected Outcome | Status |
-|----|------------|---------------------------|------------------|--------|
-| **SK-U-010** | `GET /stock/{item}` | Stock list retrieval across multiple warehouses/stores | Stock quantity for each location returned as array | ✅ Implemented |
-| **SK-U-011** | `POST /stock/adjust`| Minus adjustment processing due to sales | Stock count decreased, stock history log appended | ✅ Implemented |
-| **SK-U-012** | `Logic` | Negative Stock Allowed flag verification | If OFF, allocations dropping stock below 0 raise exception (400) and are blocked | ✅ Implemented |
-| **SK-U-013** | `Concurrency` | Two concurrent allocation requests for same item (race condition) | Stock accurately adjusted via atomic operations | ❌ Recommended |
+## 2. 単体テスト (Unit / ロジック単位)
+Validates functions and classes in Service/Model layers isolated from external I/O using Mocks.
 
-### 2.2 Alerts & WebSocket Notifications
+### 2.1 既存のテストケース (test-review.md より抽出実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| test_snapshot_scheduler.py | Snapshot Scheduler | ✅ Med |
 
-| ID | Target Flow | Scenario (Before/When/Then) | Expected Outcome | Status |
-|----|-------------|---------------------------|------------------|--------|
-| **SK-U-020** | `Reorder Logic` | Stock drops below "reorder point" after deduction | Reorder Alert flag on Database updated to True | ✅ Implemented |
-| **SK-U-021** | `WebSocket` | Execute alert-triggering deduction while WS client connected | Alert message in JSON format pushed immediately to connected client | ✅ Implemented |
-| **SK-U-022** | `WebSocket` | WebSocket connection attempt from unauthorized client without token | Connection rejected (Close/401) | ✅ Implemented |
+### 2.2 推奨・補充テストケース (不足分の強化対象)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| **SK-U-013** | `Concurrency` | Concurrent deduction on same item | Atomic subtraction applied | ❌ Missing Unit |
 
-## 3. Integration & Scheduled Tests
+---
 
-| ID | Component Integration | Scenario | Check Point | Status |
-|----|-----------------------|----------|-------------|--------|
-| **SK-I-001** | `CRON Scheduler` | Auto-generation of end-of-month "Inventory Snapshot" via Dapr CRON binding | Schedule trigger fires at designated time, stock counts copied to history table | ✅ Implemented |
+## 3. 結合テスト (Integration / サービス間連携)
+Validates component combinations, including actual Redis/DB access and Pub/Sub message chains between microservices.
 
-## 4. Supplementary & Edge Cases
+### 3.1 既存のテストケース (実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| - | No integration tests currently implemented | ❌ |
 
-| ID | Target | Scenario (Non-functional/Negative) | Expected Outcome | Status |
-|----|--------|------------------------------------|------------------|--------|
-| **SK-E-001** | `Resilience` | Reorder alert triggers while WebSocket client temporarily disconnected | Upon reconnect, queued/missed alerts are recovered/sent, or fetch API available | ❌ Recommended |
-| **SK-E-002** | `Concurrency`| 10 Cart terminals fire allocation event for an item with exactly "1" stock perfectly concurrently | Tx-lock applies; only 1 succeeds, remaining 9 receive "Out of Stock" event reply | ❌ Recommended |
+### 3.2 推奨・補充テストケース (不足分の連携強化)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| - | - | No recommended integration tests at the moment | - | - |
+
+---
+
+## 4. 総合テスト (Scenario & E2E / API横断フロー)
+End-to-end validation of business workflows (e.g. entry -> discount -> cancel -> payment) acting via HTTP clients.
+
+### 4.1 既存のテストケース (実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| test_stock.py | Stock CRUD, tranlog reception, Snapshot | ✅ High |
+| test_reorder_alerts.py | Reorder Alerts | ✅ High |
+| test_snapshot_date_range.py | Snapshot boundary | ✅ High |
+| test_snapshot_schedule_api.py | Schedule Management API | ✅ Med |
+| test_websocket_alerts.py | WebSocket Notifications | ✅ Med |
+| test_websocket_reorder_new.py | WebSocket new design | ✅ Med |
+
+### 4.2 推奨・補充テストケース (巨大過付加・長期セッション等)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| **SK-E-001** | `Resilience` | WS disconnect during alert trigger | Queued & re-sent on connect | ❌ Missing Scenario |
+| **SK-E-002** | `Concurrency` | 10 registers deduct stock=1 perfectly concurrently | 1 success, 9 failure replies | ❌ Missing Scenario |

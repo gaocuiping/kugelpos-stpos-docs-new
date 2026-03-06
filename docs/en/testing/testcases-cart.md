@@ -1,76 +1,78 @@
 ---
-title: "Cart サービス Testingケース"
+title: "Cart サービス テストケース"
 parent: Testing
 grand_parent: English
 nav_order: 14
 layout: default
 ---
 
-# Cart サービス Testing設計書
+# Cart サービス テスト設計書
 
-本ドキュメントは、POSシステムの中核をなす Cart サービスの詳細なTestingケースとシナリオです。
-
-## 1. サービスの概要とTesting戦略
-
-**Cart サービス**は、「スキャン → 小計 → 割引 → 決済 → 確定」という最も複雑な業務ロジックを持ちます。
-税計算、小計ロジック、二重送信（二重Void/Refund）防止などがクリティカルとなるため、シナリオTestingを通じた**整合性の検証**が最重要です。
-
-### 1.1 前提条件・Testingデータ
-- **依存サービス**: Master Data (gRPC), Terminal (REST), Stock & Journal (Dapr Pub/Sub)
-- **Testing用マスターデータ**: 内税商品、外税商品、単一税率、複数税率の組み合わせを含むこと。
+This document is a restructured test case design based on the Test Review Report.
+It cleanly separates existing implemented tests and recommended supplementary tests (edge cases, negative flows) into three distinct levels: Unit, Integration, and Scenario/E2E.
 
 ---
 
-## 2. ユニットTesting (API・ロジック単位)
-
-### 2.1 商品登録・カート状態管理 (Item Entry & State)
-
-| ID | ターゲットAPI | Testingシナリオ (Before/When/Then) | 期待される結果 | 状態 |
-|----|-------------|--------------------------------|--------------|------|
-| **CT-U-001** | `POST /entry` | JANコードをスキャンして商品を1点登録する | Master Data から情報取得し、カートに商品が追加されること | ✅ Implemented |
-| **CT-U-002** | `resume_item_entry` | 強制終了後の再開（レジューム）処理 | dapr statestore から前回のカート状態が復元されること | ✅ Implemented |
-| **CT-U-003** | `DELETE /entry/{id}`| 登録した商品の一部を取消（行キャンセル）する | 指定された行が削除され、小計が再計算されること | ❌ Recommended |
-
-### 2.2 金額・税・割引計算 (Calculation Engine)
-
-| ID | ターゲットモジュール | Testingシナリオ (Before/When/Then) | 期待される結果 | 状態 |
-|----|------------------|--------------------------------|--------------|------|
-| **CT-U-010** | `calc_subtotal` | 複数商品の合計金額計算（税抜・税込混在） | 精度落ちなく1円単位まで正確に小計が計算されること | ✅ Implemented |
-| **CT-U-011** | `tax_engine` | 単一商品に複数の税率（例：消費税10% + 軽減税率8%） | 各税金が正しく按分・計算されること | ❌ Recommended |
-| **CT-U-012** | `discount_engine`| 単品「100円引き」と全体「10%引き」の複合 | 割引適用順序（単品→全体）に従い、正確な最終金額を算出すること | ❌ Recommended |
-| **CT-U-013** | `calc_subtotal` | 割引適用によって金額がマイナスになる場合 | エラーまたは0円下限として処理されること | ❌ Recommended |
-
-### 2.3 決済とトランザクション状態 (Payment & Status)
-
-| ID | ターゲットAPI | Testingシナリオ (Before/When/Then) | 期待される結果 | 状態 |
-|----|-------------|--------------------------------|--------------|------|
-| **CT-U-020** | `POST /payment` | 現金での全額支払い完了 | トランザクションステータスが「完了」になること | ✅ Implemented |
-| **CT-U-021** | `POST /payment` | キャッシュレス決済中の通信エラー等 | ロールバックされ、ステータスが未決に維持されること | ✅ Implemented |
-| **CT-U-022** | `Void/Return` | 既に取り消し済みの取引に対する再取消（二重Void） | 二重実行がブロックされ、例外が発生すること | ✅ Implemented |
+## 1. サービスの概要とテスト戦略 (Overview & Strategy)
+Overall policy regarding specific business logic, dependencies, and main test focuses for this service.
 
 ---
 
-## 3. インテグレーションTesting (統合検証)
+## 2. 単体テスト (Unit / ロジック単位)
+Validates functions and classes in Service/Model layers isolated from external I/O using Mocks.
 
-| ID | コンポーネント連携 | Testingシナリオ | 確認ポイント | 状態 |
-|----|-----------------|--------------|------------|------|
-| **CT-I-001** | Cart → Master Data | gRPC を用いた商品情報の直接取得 | キャッシュ・フェイルオーバーが機能し、高速に応答すること | ✅ Implemented |
-| **CT-I-002** | Cart → Dapr (Stock) | 購入完了時の Dapr Pub/Sub 経由の在庫引当通知 | メッセージが正しくブローカーに送信されること | ❌ Recommended |
-| **CT-I-003** | Cart → Dapr (Journal) | 決済完了後のジャーナル生成通知 | 取引詳細データ（JSON）が正しく構築・送信されること | ❌ Recommended |
+### 2.1 既存のテストケース (test-review.md より抽出実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| test_calc_subtotal_logic.py | Subtotal calculation logic (Inclusive/Exclusive Tax) | ✅ High |
+| test_tran_service_unit_simple.py | Pre-validation for Void/Return | ✅ Med |
+| test_tran_service_status.py | Transaction status management | ✅ Med |
+| test_terminal_cache.py | Terminal cache management | ✅ Med |
+| test_text_helper.py | Text utility helpers | ✅ Med |
+| repositories/test_item_master_grpc_repository.py | gRPC Repository | ✅ Med |
+| utils/test_grpc_channel_helper.py | gRPC channel | ✅ Med |
+| utils/test_dapr_statestore_session_helper.py | Dapr statestore | ✅ Med |
+
+### 2.2 推奨・補充テストケース (不足分の強化対象)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| **CT-U-003** | `DELETE /entry/{id}` | Cancel part of cart item | Specific line deleted, subtotal recalculated | ❌ Missing Unit |
+| **CT-U-011** | `tax_engine` | Multiple tax rates on a single item | Tax prorated and calculated correctly | ❌ Missing Unit |
+| **CT-U-012** | `discount_engine` | Compound discounts (Item -100 & Cart -10%) | Applied in correct sequence | ❌ Missing Unit |
+| **CT-U-013** | `calc_subtotal` | Discount results in negative subtotal | Handled as error or floored at 0 | ❌ Missing Unit |
+| **CT-E-003** | `Security` | Send invalid discount rate (150%) | Validation 422 triggers | ❌ Missing Boundary |
 
 ---
 
-## 4. エンドツーエンド (E2E) シナリオTesting
+## 3. 結合テスト (Integration / サービス間連携)
+Validates component combinations, including actual Redis/DB access and Pub/Sub message chains between microservices.
 
-| ID | シナリオフロー (item-book scenario) | 期待される結果とアサーション | 状態 |
-|----|-----------------------------------|--------------------------|------|
-| **CT-S-001** | **標準的買い物フロー** <br>1. 商品 A, B をスキャン<br>2. 商品 A の数量を 3 に変更<br>3. 商品 B に 5% 割引適用<br>4. 現金とクレジットカードで分割払い(Split) | 計算結果が全て正確であり、最終的に Dapr イベントが発行されること | ❌ Recommended |
-| **CT-S-002** | **返品フロー** <br>1. 過去のトランザクションIDを指定して返品依頼<br>2. マイナス金額でのジャーナル登録 | 対象トランザクションが Refunded になり、二重返品が拒否されること | ❌ Recommended |
+### 3.1 既存のテストケース (実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| - | No integration tests currently implemented | ❌ |
 
-## 4. Supplementary & Edge Cases
+### 3.2 推奨・補充テストケース (不足分の連携強化)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| **CT-I-002** | `Cart → Dapr (Stock)` | Inventory deduction via Dapr Pub/Sub | Message correctly sent | ❌ Missing Int |
+| **CT-I-003** | `Cart → Dapr (Journal)` | Journal generation via Dapr Pub/Sub | Message correctly sent | ❌ Missing Int |
 
-| ID | Target | Scenario (Non-functional/Negative) | Expected Outcome | Status |
-|----|--------|------------------------------------|------------------|--------|
-| **CT-E-001** | `Boundary` | Setting cart item quantity to 9,999 (or system max) | Subtotal calculated accurately without overflow, or appropriate limit error (`400`) returned | ❌ Recommended |
-| **CT-E-002** | `State Ttl`| Unsettled cart session left in Dapr StateStore for 72 hours | Automatically garbage collected via TTL, not eating memory | ❌ Recommended |
-| **CT-E-003** | `Security` | Sending invalid discount rate like `1.5` (150% off) | Validation error (`422`) triggered, no negative billing occurs | ❌ Recommended |
+---
+
+## 4. 総合テスト (Scenario & E2E / API横断フロー)
+End-to-end validation of business workflows (e.g. entry -> discount -> cancel -> payment) acting via HTTP clients.
+
+### 4.1 既存のテストケース (実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| test_cart.py | Normal sales, discounts, quantity | ✅ 86% |
+| test_void_return.py | Void & Return flow | ✅ High |
+| test_payment_cashless_error.py | Cashless error scenario | ⚠️ Partial |
+| test_resume_item_entry.py | Resume item entry | ✅ Med |
+
+### 4.2 推奨・補充テストケース (巨大過付加・長期セッション等)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| **CT-E-001** | `Boundary` | Qty = 9999 | Overflow prevented | ❌ Missing Scenario |
+| **CT-E-002** | `State Ttl` | Cart idle for 72hr | Collected via TTL | ❌ Missing Scenario |

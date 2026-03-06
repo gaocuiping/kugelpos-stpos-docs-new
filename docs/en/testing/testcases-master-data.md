@@ -1,48 +1,64 @@
 ---
-title: "Master Data Service Test Cases"
+title: "Master Data サービス テストケース"
 parent: Testing
 grand_parent: English
 nav_order: 13
 layout: default
 ---
 
-# Master Data Service Test Specification
+# Master Data サービス テスト設計書
 
-Focuses on master data integrity and rapid provisioning (caching) to other services (especially Cart).
-
-## 1. Overview and Test Strategy
-
-Manages static data fundamental to transactions: item prices, taxes, categories, and payment methods.
-The most critical test point is **cache invalidation** upon master data updates.
+This document is a restructured test case design based on the Test Review Report.
+It cleanly separates existing implemented tests and recommended supplementary tests (edge cases, negative flows) into three distinct levels: Unit, Integration, and Scenario/E2E.
 
 ---
 
-## 2. Unit Tests (API & Logic)
+## 1. サービスの概要とテスト戦略 (Overview & Strategy)
+Overall policy regarding specific business logic, dependencies, and main test focuses for this service.
 
-### 2.1 Item Master
+---
 
-| ID | Target API | Scenario (Before/When/Then) | Expected Outcome | Status |
-|----|------------|---------------------------|------------------|--------|
-| **MD-U-010** | `GET /items/{jan}` | Item lookup with existing JAN code | `200 OK`, correct price, tax class, and department returned | ❌ Recommended |
-| **MD-U-011** | `GET /items/{jan}` | Invalid JAN code or deleted item | `404 Not Found` returned | ❌ Recommended |
-| **MD-U-012** | `PUT /items/{jan}` | Item price revision (unit price update) | After DB update, cache entry in Dapr StateStore is deleted (invalidated) | ❌ Recommended |
+## 2. 単体テスト (Unit / ロジック単位)
+Validates functions and classes in Service/Model layers isolated from external I/O using Mocks.
 
-### 2.2 Tax & Payment Master
+### 2.1 既存のテストケース (test-review.md より抽出実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| - | No unit tests currently implemented | ❌ |
 
-| ID | Target Module | Scenario (Before/When/Then) | Expected Outcome | Status |
-|----|---------------|---------------------------|------------------|--------|
-| **MD-U-020** | `GET /taxes` | Fetch list of currently valid tax rates (standard, reduced) | `200 OK`, returns only tax info within valid date ranges | ❌ Recommended |
-| **MD-U-021** | `GET /payments` | Fetch available payment methods (Cash, CC, QR) | `200 OK`, returns valid payment methods based on store config | ❌ Recommended |
+### 2.2 推奨・補充テストケース (不足分の強化対象)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| **MD-U-010** | `GET /items` | Valid JAN code search logic | Fields correctly parsed | ❌ Missing Unit |
+| **MD-U-012** | `PUT /items` | Cache purge on price update logic | Purge invoked | ❌ Missing Unit |
+| **MD-U-020** | `GET /taxes` | Tax date filtering logic | Only active tax filtered | ❌ Missing Unit |
 
-## 3. End-to-End Inter-System Scenarios
+---
 
-| ID | Scenario Flow (Cache Invalidation) | Expected Result & Assertions | Status |
-|----|----------------------------------|------------------------------|--------|
-| **MD-S-001** | **Immediate Master Reflection Flow** <br>1. Update Item A from 100 to 120 yen in MasterData<br>2. Scan Item A in Cart service | Cart cache is invalidated by MasterData update Pub/Sub event, scanned as 120 yen | ❌ Recommended |
+## 3. 結合テスト (Integration / サービス間連携)
+Validates component combinations, including actual Redis/DB access and Pub/Sub message chains between microservices.
 
-## 4. Supplementary & Edge Cases
+### 3.1 既存のテストケース (実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| - | No integration tests currently implemented | ❌ |
 
-| ID | Target | Scenario (Non-functional/Negative) | Expected Outcome | Status |
-|----|--------|------------------------------------|------------------|--------|
-| **MD-E-001** | `Performance`| Bulk cache refresh batch execution for 100,000 item records | Completes within target time (e.g. 5 min) without causing memory leaks (OOM) | ❌ Recommended |
-| **MD-E-002** | `Integrity` | Network error during saving to Cache (Dapr Redis) (Split-brain) | Distributed retry or Self-Healing functions correctly to prevent MongoDB-Redis data inconsistency | ❌ Recommended |
+### 3.2 推奨・補充テストケース (不足分の連携強化)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| **MD-E-002** | `Integrity` | Network failure during Dapr state update | Self-healing triggers | ❌ Missing Int |
+
+---
+
+## 4. 総合テスト (Scenario & E2E / API横断フロー)
+End-to-end validation of business workflows (e.g. entry -> discount -> cancel -> payment) acting via HTTP clients.
+
+### 4.1 既存のテストケース (実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| 複数ファイル | Staff/Category/Item/Payment/Settings CRUD operations | ⚠️ 63% |
+
+### 4.2 推奨・補充テストケース (巨大過付加・長期セッション等)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| **MD-E-001** | `Performance` | Bulk refresh 100K records | Completes w/o OOM | ❌ Missing Scenario |

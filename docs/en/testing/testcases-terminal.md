@@ -1,45 +1,65 @@
 ---
-title: "Terminal Service Test Cases"
+title: "Terminal サービス テストケース"
 parent: Testing
 grand_parent: English
 nav_order: 12
 layout: default
 ---
 
-# Terminal Service Test Specification
+# Terminal サービス テスト設計書
 
-This document details the test cases for the Terminal service, which manages the startup and configuration of POS registers.
-Key areas include preventing terminal registration conflicts and monitoring operational status (heartbeat).
-
-## 1. Overview and Test Strategy
-
-**Prerequisites & Test Data**:
-- **DB**: MongoDB `terminals` and `stores` collections
-- **Cache**: Heartbeat management utilizing Dapr StateStore (Redis)
+This document is a restructured test case design based on the Test Review Report.
+It cleanly separates existing implemented tests and recommended supplementary tests (edge cases, negative flows) into three distinct levels: Unit, Integration, and Scenario/E2E.
 
 ---
 
-## 2. Unit Tests (API & Logic)
+## 1. サービスの概要とテスト戦略 (Overview & Strategy)
+Overall policy regarding specific business logic, dependencies, and main test focuses for this service.
 
-### 2.1 Terminal Registration & Management (Terminal CRUD)
+---
 
-| ID | Target API | Scenario (Before/When/Then) | Expected Outcome | Status |
-|----|------------|---------------------------|------------------|--------|
-| **TM-U-010** | `POST /terminals` | New registration with unregistered MAC and Store ID | `201 Created`, initial settings saved to DB | ❌ Recommended |
-| **TM-U-011** | `POST /terminals` | Registration attempt with MAC already bound to another store | `409 Conflict`, double registration blocked | ❌ Recommended |
-| **TM-U-012** | `GET /terminals/{id}` | Fetch configuration for existing terminal ID | `200 OK`, configuration returned | ❌ Recommended |
-| **TM-U-013** | `PUT /terminals/{id}` | Update terminal device settings | `200 OK`, DB updated and changes reflected | ❌ Recommended |
+## 2. 単体テスト (Unit / ロジック単位)
+Validates functions and classes in Service/Model layers isolated from external I/O using Mocks.
 
-### 2.2 Heartbeat Monitoring
+### 2.1 既存のテストケース (test-review.md より抽出実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| - | No unit tests currently implemented | ❌ |
 
-| ID | Target API | Scenario (Before/When/Then) | Expected Outcome | Status |
-|----|------------|---------------------------|------------------|--------|
-| **TM-U-020** | `POST /heartbeat` | Periodic transmission from active terminal | `200 OK`, `last_active_at` updated in Redis | ❌ Recommended |
-| **TM-U-021** | `GET /status` | Fetching terminal statuses from admin panel | Accurately returns Online/Offline based on last heartbeat | ❌ Recommended |
+### 2.2 推奨・補充テストケース (不足分の強化対象)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| **TM-U-010** | `POST /terminals` | Register unregistered MAC | DB insert data built | ❌ Missing Unit |
+| **TM-U-011** | `POST /terminals` | Register MAC already bound | 409 Conflict raised | ❌ Missing Unit |
+| **TM-U-020** | `POST /heartbeat` | Heartbeat reception logic | last_active_at updated | ❌ Missing Unit |
+| **TM-E-002** | `Concurrency` | Concurrent registration requested at once | Tx lock applies, one 409 | ❌ Missing Unit |
 
-## 4. Supplementary & Edge Cases
+---
 
-| ID | Target | Scenario (Non-functional/Negative) | Expected Outcome | Status |
-|----|--------|------------------------------------|------------------|--------|
-| **TM-E-001** | `Resilience` | Dapr Redis connection failure (timeout) during `POST /heartbeat` | Does not crash; logs error and handles gracefully (e.g. `503 Service Unavailable` or degraded mode) | ❌ Recommended |
-| **TM-E-002** | `Concurrency` | Sending "terminal initial registration" to the same store at the exact same millisecond | DB unique index/locking ensures only one succeeds, the other returns `409` | ❌ Recommended |
+## 3. 結合テスト (Integration / サービス間連携)
+Validates component combinations, including actual Redis/DB access and Pub/Sub message chains between microservices.
+
+### 3.1 既存のテストケース (実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| - | No integration tests currently implemented | ❌ |
+
+### 3.2 推奨・補充テストケース (不足分の連携強化)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| **TM-E-001** | `Resilience` | Dapr Redis down during heartbeat | 503 Fail-safe, no crash | ❌ Missing Int |
+
+---
+
+## 4. 総合テスト (Scenario & E2E / API横断フロー)
+End-to-end validation of business workflows (e.g. entry -> discount -> cancel -> payment) acting via HTTP clients.
+
+### 4.1 既存のテストケース (実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| test_terminal.py | Tenant/Store/Terminal CRUD, Open/Close, Cash | ✅ 91% |
+
+### 4.2 推奨・補充テストケース (巨大過付加・長期セッション等)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| - | - | No recommended scenario tests at the moment | - | - |

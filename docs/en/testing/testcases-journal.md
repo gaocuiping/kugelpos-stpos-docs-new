@@ -1,41 +1,64 @@
 ---
-title: "Journal Service Test Cases"
+title: "Journal サービス テストケース"
 parent: Testing
 grand_parent: English
 nav_order: 16
 layout: default
 ---
 
-# Journal Service Test Specification
+# Journal サービス テスト設計書
 
-Aims to guarantee the persistence and search performance of "Electronic Journals" which carry legal requirements.
-
-## 1. Overview and Test Strategy
-
-Receives transaction completion events from Cart and settlement events from Report, saving them as immutable logs.
-Tests focus primarily on preventing data loss (message lost countermeasures) and high-speed full-text/conditional search.
+This document is a restructured test case design based on the Test Review Report.
+It cleanly separates existing implemented tests and recommended supplementary tests (edge cases, negative flows) into three distinct levels: Unit, Integration, and Scenario/E2E.
 
 ---
 
-## 2. Unit Tests (Log Reception & Conversion)
+## 1. サービスの概要とテスト戦略 (Overview & Strategy)
+Overall policy regarding specific business logic, dependencies, and main test focuses for this service.
 
-| ID | Target Process | Scenario (Before/When/Then) | Expected Outcome | Status |
-|----|----------------|---------------------------|------------------|--------|
-| **JN-U-010** | `Transaction Type` | Interpretation and saving of Normal Sales log | Status accurately mapped and saved to Journal DB | ✅ Implemented |
-| **JN-U-011** | `Transaction Type` | Reception of Cancelled (immediate void) sales log | Transformed internally as a cancellation (negative transaction) and saved | ✅ Implemented |
-| **JN-U-012** | `Search API` | Search parameters by Date Range and Terminal ID | Only matching logs returned with correct pagination | ❌ Recommended |
-| **JN-U-013** | `Search API` | Search when no data exists within target period | Empty list and total pages 0 returned with `200 OK` | ❌ Recommended |
+---
 
-## 3. Integration Tests (Async & Messaging)
+## 2. 単体テスト (Unit / ロジック単位)
+Validates functions and classes in Service/Model layers isolated from external I/O using Mocks.
 
-| ID | Component Flow | Scenario | Check Point | Status |
-|----|----------------|----------|-------------|--------|
-| **JN-I-001** | Pub/Sub Fault Tolerance | DB connection lost during message receiving thread | Transaction rolled back on DB error, Dapr performs retry | ✅ Implemented |
-| **JN-I-002** | Elasticsearch Sync | Syncing to full-text search engine after saving journal to RDBMS | Free-word text search within transaction details returns hits | ❌ Recommended |
+### 2.1 既存のテストケース (test-review.md より抽出実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| test_log_service.py | Tranlog reception & TxType conversion | ✅ High |
+| test_transaction_type_conversion.py | TxType conversion | ✅ High |
 
-## 4. Supplementary & Edge Cases
+### 2.2 推奨・補充テストケース (不足分の強化対象)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| **JN-U-012** | `Search Logic` | Date/Term_id search parameter building | Correct query object | ❌ Missing Unit |
 
-| ID | Target | Scenario (Non-functional/Negative) | Expected Outcome | Status |
-|----|--------|------------------------------------|------------------|--------|
-| **JN-E-001** | `Security` | Requesting catastrophic pagination size via `GET /search?limit=10000000` | Defended at app-level; `400 Bad Request` or forced hard-limit (e.g. 100) applied | ❌ Recommended |
-| **JN-E-002** | `Edge Case`| Receiving ultra-long receipt data > 5MB payload from message queue | Parses JSON without OOM, streams/saves appropriately to DB (or Blob) | ❌ Recommended |
+---
+
+## 3. 結合テスト (Integration / サービス間連携)
+Validates component combinations, including actual Redis/DB access and Pub/Sub message chains between microservices.
+
+### 3.1 既存のテストケース (実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| - | No integration tests currently implemented | ❌ |
+
+### 3.2 推奨・補充テストケース (不足分の連携強化)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| **JN-I-002** | `Elasticsearch` | Sync to local search engine | Hit searchable text | ❌ Missing Int |
+
+---
+
+## 4. 総合テスト (Scenario & E2E / API横断フロー)
+End-to-end validation of business workflows (e.g. entry -> discount -> cancel -> payment) acting via HTTP clients.
+
+### 4.1 既存のテストケース (実装済)
+| Test File | Coverage Target | Status |
+|---|---|---|
+| test_journal.py | Journal Query API | ⚠️ 29% |
+
+### 4.2 推奨・補充テストケース (巨大過付加・長期セッション等)
+| ID | Target | Test Scenario | Expected Outcome | Status |
+|---|---|---|---|---|
+| **JN-E-001** | `Security` | Catastrophic pagination (limit=10,000,000) | Hard limit applied (400) | ❌ Missing Scenario |
+| **JN-E-002** | `Edge Case` | Huge 5MB receipt payload | Stream saved w/o OOM | ❌ Missing Scenario |
