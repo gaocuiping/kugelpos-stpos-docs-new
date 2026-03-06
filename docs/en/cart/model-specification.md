@@ -3,6 +3,7 @@ title: "Model Specification"
 parent: Cart
 grand_parent: English
 nav_order: 2
+layout: default
 ---
 
 # Cart Service Model Specification

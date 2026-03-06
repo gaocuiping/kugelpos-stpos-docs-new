@@ -3,6 +3,7 @@ title: "WebSocket Specification"
 parent: Stock
 grand_parent: English
 nav_order: 4
+layout: default
 ---
 
 # Stock Service WebSocket Specification

@@ -3,6 +3,7 @@ title: "API Overview (Auto-generated)"
 parent: Journal
 grand_parent: English
 nav_order: 10
+layout: default
 ---
 
 # Journal Service - API Overview

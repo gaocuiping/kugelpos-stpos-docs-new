@@ -3,6 +3,7 @@ title: "API Overview (Auto-generated)"
 parent: Terminal
 grand_parent: English
 nav_order: 10
+layout: default
 ---
 
 # Terminal Service - API Overview

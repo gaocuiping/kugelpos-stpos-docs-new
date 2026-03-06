@@ -3,6 +3,7 @@ title: "モデル仕様"
 parent: アカウント
 grand_parent: 日本語
 nav_order: 2
+layout: default
 ---
 
 # Account Service モデル仕様書

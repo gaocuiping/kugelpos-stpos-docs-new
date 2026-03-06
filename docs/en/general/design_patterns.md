@@ -3,6 +3,7 @@ title: "Design Patterns"
 parent: General
 grand_parent: English
 nav_order: 2
+layout: default
 ---
 
 # Kugelpos Design Patterns Specification

@@ -3,6 +3,7 @@ title: "モデル仕様"
 parent: 在庫
 grand_parent: 日本語
 nav_order: 2
+layout: default
 ---
 
 # 在庫サービス モデル仕様

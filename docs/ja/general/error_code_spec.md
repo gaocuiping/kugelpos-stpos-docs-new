@@ -3,6 +3,7 @@ title: "エラーコード仕様"
 parent: 共通
 grand_parent: 日本語
 nav_order: 3
+layout: default
 ---
 
 # Kugelpos エラーコード仕様

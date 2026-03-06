@@ -3,6 +3,7 @@ title: "アクセス制御ガイド"
 parent: 共通
 grand_parent: 日本語
 nav_order: 7
+layout: default
 ---
 
 # アクセス制御・権限管理

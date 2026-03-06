@@ -3,6 +3,7 @@ title: "API 概要 (自動生成)"
 parent: アカウント
 grand_parent: 日本語
 nav_order: 10
+layout: default
 ---
 
 # アカウントサービス - API 概要

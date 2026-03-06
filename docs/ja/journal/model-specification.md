@@ -3,6 +3,7 @@ title: "モデル仕様"
 parent: ジャーナル
 grand_parent: 日本語
 nav_order: 2
+layout: default
 ---
 
 # ジャーナルサービス モデル仕様

@@ -2,6 +2,7 @@
 title: "Overview"
 parent: English
 nav_order: 1
+layout: default
 ---
 
 # Kugelpos Documentation Index

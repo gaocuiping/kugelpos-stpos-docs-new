@@ -3,6 +3,7 @@ title: "API Overview (Auto-generated)"
 parent: Cart
 grand_parent: English
 nav_order: 10
+layout: default
 ---
 
 # Cart Service - API Overview

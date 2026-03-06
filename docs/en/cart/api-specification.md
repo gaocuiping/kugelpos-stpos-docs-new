@@ -3,6 +3,7 @@ title: "API Specification"
 parent: Cart
 grand_parent: English
 nav_order: 1
+layout: default
 ---
 
 # Cart Service API Specification

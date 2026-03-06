@@ -3,6 +3,7 @@ title: "API Specification"
 parent: Report
 grand_parent: English
 nav_order: 1
+layout: default
 ---
 
 # Report Service API Specification

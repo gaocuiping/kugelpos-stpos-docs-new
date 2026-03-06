@@ -3,6 +3,7 @@ title: "API 仕様"
 parent: アカウント
 grand_parent: 日本語
 nav_order: 1
+layout: default
 ---
 
 # Account Service API 仕様書

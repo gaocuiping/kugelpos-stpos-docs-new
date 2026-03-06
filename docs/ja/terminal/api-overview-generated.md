@@ -3,6 +3,7 @@ title: "API 概要 (自動生成)"
 parent: ターミナル
 grand_parent: 日本語
 nav_order: 10
+layout: default
 ---
 
 # ターミナルサービス - API 概要

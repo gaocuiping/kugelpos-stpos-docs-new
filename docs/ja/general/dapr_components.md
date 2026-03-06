@@ -3,6 +3,7 @@ title: "Dapr コンポーネント"
 parent: 共通
 grand_parent: 日本語
 nav_order: 5
+layout: default
 ---
 
 # Kugelpos Daprコンポーネント仕様

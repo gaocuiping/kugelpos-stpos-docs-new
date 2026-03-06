@@ -3,6 +3,7 @@ title: "API 仕様"
 parent: マスターデータ
 grand_parent: 日本語
 nav_order: 1
+layout: default
 ---
 
 # マスターデータサービス API仕様

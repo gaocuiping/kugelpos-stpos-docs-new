@@ -3,6 +3,7 @@ title: "Model Specification"
 parent: Terminal
 grand_parent: English
 nav_order: 2
+layout: default
 ---
 
 # Terminal Service Model Specification

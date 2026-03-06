@@ -3,6 +3,7 @@ title: "API 概要 (自動生成)"
 parent: レポート
 grand_parent: 日本語
 nav_order: 10
+layout: default
 ---
 
 # レポートサービス - API 概要

@@ -3,6 +3,7 @@ title: "Access Control Guide"
 parent: General
 grand_parent: English
 nav_order: 7
+layout: default
 ---
 
 # Access Control & Permission Management

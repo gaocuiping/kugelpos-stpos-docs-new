@@ -3,6 +3,7 @@ title: "API 概要 (自動生成)"
 parent: ジャーナル
 grand_parent: 日本語
 nav_order: 10
+layout: default
 ---
 
 # ジャーナルサービス - API 概要

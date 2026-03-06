@@ -3,6 +3,7 @@ title: "API Specification"
 parent: Account
 grand_parent: English
 nav_order: 1
+layout: default
 ---
 
 # Account Service API Specification

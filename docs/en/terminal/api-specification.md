@@ -3,6 +3,7 @@ title: "API Specification"
 parent: Terminal
 grand_parent: English
 nav_order: 1
+layout: default
 ---
 
 # Terminal Service API Specification

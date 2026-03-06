@@ -3,6 +3,7 @@ title: "設定優先度"
 parent: 共通
 grand_parent: 日本語
 nav_order: 4
+layout: default
 ---
 
 # Kugelpos 設定優先順位仕様

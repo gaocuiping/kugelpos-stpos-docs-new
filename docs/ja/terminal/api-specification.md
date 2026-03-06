@@ -3,6 +3,7 @@ title: "API 仕様"
 parent: ターミナル
 grand_parent: 日本語
 nav_order: 1
+layout: default
 ---
 
 # ターミナルサービス API仕様

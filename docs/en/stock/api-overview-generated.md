@@ -3,6 +3,7 @@ title: "API Overview (Auto-generated)"
 parent: Stock
 grand_parent: English
 nav_order: 10
+layout: default
 ---
 
 # Stock Service - API Overview

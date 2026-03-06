@@ -3,6 +3,7 @@ title: "スナップショット仕様"
 parent: 在庫
 grand_parent: 日本語
 nav_order: 3
+layout: default
 ---
 
 # 在庫サービス スナップショット仕様

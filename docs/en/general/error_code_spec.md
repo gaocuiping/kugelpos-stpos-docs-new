@@ -3,6 +3,7 @@ title: "Error Code Specification"
 parent: General
 grand_parent: English
 nav_order: 3
+layout: default
 ---
 
 # Kugelpos Error Code Specification

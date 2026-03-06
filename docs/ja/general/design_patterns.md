@@ -3,6 +3,7 @@ title: "設計パターン"
 parent: 共通
 grand_parent: 日本語
 nav_order: 2
+layout: default
 ---
 
 # Kugelpos デザインパターン仕様

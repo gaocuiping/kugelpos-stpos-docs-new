@@ -3,6 +3,7 @@ title: "アーキテクチャ"
 parent: 共通
 grand_parent: 日本語
 nav_order: 1
+layout: default
 ---
 
 # Kugelpos システムアーキテクチャ

@@ -3,6 +3,7 @@ title: "API Specification"
 parent: Journal
 grand_parent: English
 nav_order: 1
+layout: default
 ---
 
 # Journal Service API Specification

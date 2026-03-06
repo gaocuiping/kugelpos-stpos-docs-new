@@ -3,6 +3,7 @@ title: "API Overview (Auto-generated)"
 parent: Report
 grand_parent: English
 nav_order: 10
+layout: default
 ---
 
 # Report Service - API Overview

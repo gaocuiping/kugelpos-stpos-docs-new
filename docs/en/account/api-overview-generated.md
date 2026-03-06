@@ -3,6 +3,7 @@ title: "API Overview (Auto-generated)"
 parent: Account
 grand_parent: English
 nav_order: 10
+layout: default
 ---
 
 # Account Service - API Overview

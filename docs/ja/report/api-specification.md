@@ -3,6 +3,7 @@ title: "API 仕様"
 parent: レポート
 grand_parent: 日本語
 nav_order: 1
+layout: default
 ---
 
 # レポートサービス API仕様

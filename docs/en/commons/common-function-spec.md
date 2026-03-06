@@ -3,6 +3,7 @@ title: "Common Functions"
 parent: Commons
 grand_parent: English
 nav_order: 1
+layout: default
 ---
 
 # Kugel Commons Common Function Specification

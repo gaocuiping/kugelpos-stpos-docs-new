@@ -3,6 +3,7 @@ title: "HTTP Communication"
 parent: General
 grand_parent: English
 nav_order: 6
+layout: default
 ---
 
 # Kugelpos HTTP Communication Specification

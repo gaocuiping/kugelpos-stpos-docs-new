@@ -2,6 +2,7 @@
 title: "概要"
 parent: 日本語
 nav_order: 1
+layout: default
 ---
 
 # Kugelpos ドキュメント一覧

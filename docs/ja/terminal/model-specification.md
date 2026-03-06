@@ -3,6 +3,7 @@ title: "モデル仕様"
 parent: ターミナル
 grand_parent: 日本語
 nav_order: 2
+layout: default
 ---
 
 # ターミナルサービス モデル仕様
