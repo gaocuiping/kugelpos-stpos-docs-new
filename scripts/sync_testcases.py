@@ -7,23 +7,46 @@ print("Starting Docs-as-Code synchronization process...")
 docs_dir = "/home/gaocuiping/myself/kugelpos-stpos-docs-new/docs"
 services_dir = "/home/gaocuiping/myself/kugelpos-stpos-docs-new/services"
 
-# 1. Parse AST to find implemented Test Case IDs
+# 1. Parse AST to find implemented Test Case IDs and Scenario Descriptions
 implemented_test_ids = set()
+implemented_scenarios = set()
 
 def scan_test_file(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+            lines = f.readlines()
+            content = "".join(lines)
             tree = ast.parse(content)
             
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                func_name = node.name
+                implemented_scenarios.add(func_name) # Always add function name
+                
+                # Method 1: Look for explicit @TestCaseID: XX-X-000 or scenario in Docstring
                 docstring = ast.get_docstring(node)
                 if docstring:
-                    # Look for @TestCaseID: XX-X-000
                     match = re.search(r'@TestCaseID:\s*([A-Za-z0-9-]+)', docstring)
                     if match:
                         implemented_test_ids.add(match.group(1).upper())
+                    
+                    first_line = docstring.strip().split('\n')[0].strip()
+                    if first_line:
+                        implemented_scenarios.add(first_line)
+                
+                # Method 2: Look for comments immediately above the function
+                idx = node.lineno - 2 # 0-indexed, and line before lineno
+                while idx >= 0:
+                    line = lines[idx].strip()
+                    if line.startswith('#'):
+                        comment = line.lstrip('#').strip()
+                        if comment and not comment.startswith('pytest'): # Ignore pytest markers
+                            implemented_scenarios.add(comment)
+                        idx -= 1
+                    elif line.startswith('@'): # Skip decorators
+                        idx -= 1
+                    else:
+                        break
     except Exception as e:
         print(f"Failed to parse {file_path}: {e}")
 
@@ -39,7 +62,9 @@ if os.path.exists(services_dir):
 else:
     print(f"Warning: Services directory {services_dir} not found.")
 
-print(f"Scanned {count} test files. Found {len(implemented_test_ids)} implemented TestCaseIDs: {implemented_test_ids}")
+print(f"Scanned {count} test files.")
+print(f"Found {len(implemented_test_ids)} explicit TestCaseIDs.")
+print(f"Found {len(implemented_scenarios)} scenario descriptions.")
 
 # 2. Update Markdown Tables
 def update_markdown(file_path, lang):
@@ -49,26 +74,39 @@ def update_markdown(file_path, lang):
     modified = False
     new_lines = []
     
-    # We look for markdown table rows that start with | and might contain the ID.
-    # Ex: | **CT-U-012** | ... | ❌ 補充(単体) |
-    
     for line in lines:
         if line.strip().startswith('|') and '❌' in line:
-            # Check if this line contains one of the implemented IDs
-            for test_id in implemented_test_ids:
-                if f"**{test_id}**" in line or f"`{test_id}`" in line or test_id in line.split('|')[1]:
-                    # Build the updated status
+            parts = line.split('|')
+            if len(parts) > 4:
+                # Column indices: 1=ID, 2=Target, 3=Scenario
+                row_id = parts[1].replace('*', '').replace('`', '').strip().upper()
+                row_target = parts[2].replace('*', '').replace('`', '').strip()
+                row_scenario = parts[3].replace('*', '').replace('`', '').strip()
+                
+                is_matched = False
+                # 1. Check ID match
+                if row_id and row_id in implemented_test_ids:
+                    is_matched = True
+                    print(f"Matched by ID: {row_id} in {os.path.basename(file_path)}")
+                
+                # 2. Check Scenario or Target match (using collected scenarios/comments/func_names)
+                if not is_matched:
+                    for key in implemented_scenarios:
+                        # Exact match or contained in row content
+                        if key == row_target or key in row_target or row_target in key:
+                            is_matched = True
+                            print(f"Matched by Target key: '{key}' (matches '{row_target}')")
+                            break
+                        if key == row_scenario or key in row_scenario or row_scenario in key:
+                            is_matched = True
+                            print(f"Matched by Scenario key: '{key}' (matches '{row_scenario}')")
+                            break
+                
+                if is_matched:
                     status_str = "✅ 実装済" if lang == 'ja' else "✅ Implemented"
-                    
-                    # Split line into parts
-                    parts = line.split('|')
-                    if len(parts) > 2:
-                        # Replace the last cell (status)
-                        old_status = parts[-2]
-                        parts[-2] = f" {status_str} "
-                        line = '|'.join(parts)
-                        modified = True
-                        print(f"Updated {test_id} to implemented in {os.path.basename(file_path)}")
+                    parts[-2] = f" {status_str} "
+                    line = '|'.join(parts)
+                    modified = True
         new_lines.append(line)
 
     if modified:

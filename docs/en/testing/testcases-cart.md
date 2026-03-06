@@ -40,8 +40,8 @@ Validates functions and classes in Service/Model layers isolated from external I
 |---|---|---|---|---|
 | **CT-U-003** | `DELETE /entry/{id}` | Cancel part of cart item | Specific line deleted, subtotal recalculated | ❌ Missing Unit |
 | **CT-U-011** | `tax_engine` | Multiple tax rates on a single item | Tax prorated and calculated correctly | ❌ Missing Unit |
-| **CT-U-012** | `discount_engine` | Compound discounts (Item -100 & Cart -10%) | Applied in correct sequence | ❌ Missing Unit |
-| **CT-U-013** | `calc_subtotal` | Discount results in negative subtotal | Handled as error or floored at 0 | ❌ Missing Unit |
+| **CT-U-012** | `discount_engine` | Compound discounts (Item -100 & Cart -10%) | Applied in correct sequence | ✅ Implemented |
+| **CT-U-013** | `calc_subtotal` | Discount results in negative subtotal | Handled as error or floored at 0 | ✅ Implemented |
 | **CT-E-003** | `Security` | Send invalid discount rate (150%) | Validation 422 triggers | ❌ Missing Boundary |
 
 ---
