@@ -215,6 +215,7 @@ layout: default
 {"ビジネスロジックが集中する Service 層や Model 層のクラス・関数群を、外部通信（DBやgRPC）から隔離(Mock)して検証します。" if lang == 'ja' else "Validates functions and classes in Service/Model layers isolated from external I/O using Mocks."}
 
 ### 2.1 既存のテストケース (test-review.md より抽出実装済)
+
 | {"テストファイル" if lang == 'ja' else "Test File"} | {"カバー内容" if lang == 'ja' else "Coverage Target"} | {"状態" if lang == 'ja' else "Status"} |
 |---|---|---|
 """
@@ -227,6 +228,7 @@ layout: default
             
         md += f"""
 ### 2.2 推奨・補充テストケース (不足分の強化対象)
+
 | ID | {"ターゲット" if lang == 'ja' else "Target"} | {"テストシナリオ (非機能・異常系含む)" if lang == 'ja' else "Test Scenario"} | {"期待される結果" if lang == 'ja' else "Expected Outcome"} | {"状態" if lang == 'ja' else "Status"} |
 |---|---|---|---|---|
 """
@@ -243,6 +245,7 @@ layout: default
 {"Redis(Dapr StateStore) や 複数サービス間の Pub/Sub メッセージチェーンなど、コンポーネントを実際につなげた状態でのシステム連携を検証します。" if lang == 'ja' else "Validates component combinations, including actual Redis/DB access and Pub/Sub message chains between microservices."}
 
 ### 3.1 既存のテストケース (実装済)
+
 | {"テストファイル" if lang == 'ja' else "Test File"} | {"カバー内容" if lang == 'ja' else "Coverage Target"} | {"状態" if lang == 'ja' else "Status"} |
 |---|---|---|
 """
@@ -255,6 +258,7 @@ layout: default
             
         md += f"""
 ### 3.2 推奨・補充テストケース (不足分の連携強化)
+
 | ID | {"ターゲット" if lang == 'ja' else "Target"} | {"テストシナリオ" if lang == 'ja' else "Test Scenario"} | {"期待される結果" if lang == 'ja' else "Expected Outcome"} | {"状態" if lang == 'ja' else "Status"} |
 |---|---|---|---|---|
 """
@@ -271,6 +275,7 @@ layout: default
 {"一連の業務フロー（例：商品追加→値引→キャンセル→決済完了）を、実際の HTTP クライアント経由でエンドツーエンドで検証します。" if lang == 'ja' else "End-to-end validation of business workflows (e.g. entry -> discount -> cancel -> payment) acting via HTTP clients."}
 
 ### 4.1 既存のテストケース (実装済)
+
 | {"テストファイル" if lang == 'ja' else "Test File"} | {"カバー内容" if lang == 'ja' else "Coverage Target"} | {"状態" if lang == 'ja' else "Status"} |
 |---|---|---|
 """
@@ -283,6 +288,7 @@ layout: default
             
         md += f"""
 ### 4.2 推奨・補充テストケース (巨大過付加・長期セッション等)
+
 | ID | {"ターゲット" if lang == 'ja' else "Target"} | {"テストシナリオ (非機能含む)" if lang == 'ja' else "Test Scenario"} | {"期待される結果" if lang == 'ja' else "Expected Outcome"} | {"状態" if lang == 'ja' else "Status"} |
 |---|---|---|---|---|
 """

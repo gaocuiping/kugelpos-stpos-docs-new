@@ -41,44 +41,45 @@ logger = getLogger(__name__)
         status.HTTP_500_INTERNAL_SERVER_ERROR: StatusCodes.get(status.HTTP_500_INTERNAL_SERVER_ERROR),
     },
 )
-async def create_cart(
-    create_req: CartCreateRequest,
-    cart_service: CartService = Depends(get_cart_service_async),
-):
-    """
-    Create a new shopping cart.
+#async def create_cart(
+#   create_req: CartCreateRequest,
 
-    Initializes a new cart for the current terminal with optional user information
-    and transaction type.
+#    cart_service: CartService = Depends(get_cart_service_async),
+#):
+#   """
+#    Create a new shopping cart.#
 
-    Args:
-        create_req: Cart creation parameters including user info and transaction type
-        cart_service: Injected cart service instance
+#   Initializes a new cart for the current terminal with optional user information
+#   and transaction type.
 
-    Returns:
-        API response with the ID of the newly created cart
-    """
-    logger.debug(f"Creating cart for user {create_req.user_id}")
-    terminal_id = cart_service.terminal_info.terminal_id
-    try:
-        cart_id = await cart_service.create_cart_async(
-            terminal_id=terminal_id,
-            transaction_type=create_req.transaction_type,
-            user_id=create_req.user_id,
-            user_name=create_req.user_name,
-        )
-    except Exception as e:
-        raise e
+#    Args:
+#        create_req: Cart creation parameters including user info and transaction type
+#        cart_service: Injected cart service instance
 
-    response = ApiResponse(
-        success=True,
-        code=status.HTTP_201_CREATED,
-        message=f"Cart Created. cart_id: {cart_id}",
-        data=CartCreateResponse(cart_id=cart_id).model_dump(),
-        operation=f"{inspect.currentframe().f_code.co_name}",
-    )
-    logger.debug(f"create_cart_response: {response}")
-    return response
+#    Returns:
+#        API response with the ID of the newly created cart
+#    """
+#    logger.debug(f"Creating cart for user {create_req.user_id}")
+#    terminal_id = cart_service.terminal_info.terminal_id
+#    try:
+#        cart_id = await cart_service.create_cart_async(
+##            terminal_id=terminal_id,
+#            transaction_type=create_req.transaction_type,
+ #           user_id=create_req.user_id,
+ #           user_name=create_req.user_name,
+#        )
+#    except Exception as e:
+#        raise e
+
+ #   response = ApiResponse(
+#        success=True,
+#        code=status.HTTP_201_CREATED,
+#        message=f"Cart Created. cart_id: {cart_id}",
+#        data=CartCreateResponse(cart_id=cart_id).model_dump(),
+#        operation=f"{inspect.currentframe().f_code.co_name}",
+ #   )
+#    logger.debug(f"create_cart_response: {response}")
+#    return response
 
 
 @router.get(

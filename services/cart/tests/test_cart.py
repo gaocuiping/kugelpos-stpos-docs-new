@@ -26,31 +26,6 @@ async def get_authentication_token():
         raise e
 
 
-# ヘルパー関数 - テナント作成
-async def create_tenant(http_client, token):
-    tenant_id = os.environ.get("TENANT_ID")
-    req_data = {"tenant_id": tenant_id}
-    header = {"Authorization": f"Bearer {token}"}
-
-    try:
-        response = await http_client.post("/api/v1/tenants", json=req_data, headers=header)
-
-        if response.status_code == status.HTTP_201_CREATED:
-            res = response.json()
-            assert res.get("success") is True
-            assert res.get("code") == status.HTTP_201_CREATED
-            assert res.get("data").get("tenantId") == tenant_id
-            return tenant_id
-        elif response.status_code == status.HTTP_409_CONFLICT:
-            # テナントが既に存在する場合も成功とみなす
-            print(f"Tenant {tenant_id} already exists")
-            return tenant_id
-        else:
-            print(f"Failed to create tenant: {response.status_code} {response.text}")
-            raise Exception(f"Failed to create tenant: {response.status_code} {response.text}")
-    except Exception as e:
-        print(f"Tenant creation error: {str(e)}")
-        raise e
 
 
 # ヘルパー関数 - ターミナル情報取得
