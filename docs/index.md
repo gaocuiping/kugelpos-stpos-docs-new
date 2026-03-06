@@ -35,7 +35,7 @@ Welcome to the Kugelpos POS Backend documentation site.
 
 ## Quick Links
 
-- [Architecture Overview]({{ site.baseurl }}/en/general/architecture/)
-- [Design Patterns]({{ site.baseurl }}/en/general/design_patterns/)
-- [Error Code Specification]({{ site.baseurl }}/en/general/error_code_spec/)
-- [アーキテクチャ概要]({{ site.baseurl }}/ja/general/architecture/)
+- [Architecture Overview]({{ site.baseurl }}/en/general/architecture.html)
+- [Design Patterns]({{ site.baseurl }}/en/general/design_patterns.html)
+- [Error Code Specification]({{ site.baseurl }}/en/general/error_code_spec.html)
+- [アーキテクチャ概要]({{ site.baseurl }}/ja/general/architecture.html)
