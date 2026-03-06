@@ -1,0 +1,26 @@
+/* Custom CSS for Table Styling */
+table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    white-space: normal;
+    -webkit-overflow-scrolling: touch;
+}
+
+table th,
+table td {
+    min-width: 120px;
+    padding: 12px 16px;
+    word-break: normal;
+    overflow-wrap: break-word;
+}
+
+/* Target specifically the Scenario and Expected Outcome columns to give them more room to wrap naturally */
+table th:nth-child(2),
+table td:nth-child(2),
+table th:nth-child(3),
+table td:nth-child(3),
+table th:nth-child(4),
+table td:nth-child(4) {
+    min-width: 200px;
+}
