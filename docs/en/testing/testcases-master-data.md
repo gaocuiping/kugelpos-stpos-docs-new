@@ -6,27 +6,36 @@ nav_order: 13
 layout: default
 ---
 
-# Master Data Service Test Cases
+# Master Data Service Test Specification
 
-List of test cases extracted from current test code and missing recommended scenarios.
+Focuses on master data integrity and rapid provisioning (caching) to other services (especially Cart).
 
-## Unit Tests
+## 1. Overview and Test Strategy
 
-| ID | Test Case | Type | Priority | Status |
-|----|-----------|------|----------|--------|
-| MD-U-01 | Health check API and response time validation | Health | 🟡 Med | ✅ Implemented |
-| MD-U-02 | Verify basic operations | Basic | 🟡 Med | ✅ Implemented |
-| MD-U-03 | Item master retrieval (all/individual) | Item | 🔴 High | ❌ Recommended |
-| MD-U-04 | Category master retrieval and hierarchy validation | Category | 🟠 High | ❌ Recommended |
-| MD-U-05 | Tax master retrieval validation | Tax | 🔴 High | ❌ Recommended |
-| MD-U-06 | Payment method master retrieval validation | Payment | 🟠 High | ❌ Recommended |
-| MD-U-07 | Master cache retrieval from Dapr Statestore (Redis) | Cache | 🔴 High | ❌ Recommended |
-| MD-U-08 | 404 error handling when requesting non-existent master data | Error | 🟡 Med | ❌ Recommended |
+Manages static data fundamental to transactions: item prices, taxes, categories, and payment methods.
+The most critical test point is **cache invalidation** upon master data updates.
 
-## Integration & Scenario Tests
+---
 
-| ID | Test Case | Type | Priority | Status |
-|----|-----------|------|----------|--------|
-| MD-I-01 | Cache invalidation notification via Dapr pub/sub on master data update | Integration | 🔴 High | ❌ Recommended |
-| MD-I-02 | Loading item data from MongoDB and saving cache to Redis | Integration | 🔴 High | ❌ Recommended |
-| MD-S-01 | Item info retrieval flow via gRPC from other services like Cart | Scenario | 🟠 High | ❌ Recommended |
+## 2. Unit Tests (API & Logic)
+
+### 2.1 Item Master
+
+| ID | Target API | Scenario (Before/When/Then) | Expected Outcome | Status |
+|----|------------|---------------------------|------------------|--------|
+| **MD-U-010** | `GET /items/{jan}` | Item lookup with existing JAN code | `200 OK`, correct price, tax class, and department returned | ❌ Recommended |
+| **MD-U-011** | `GET /items/{jan}` | Invalid JAN code or deleted item | `404 Not Found` returned | ❌ Recommended |
+| **MD-U-012** | `PUT /items/{jan}` | Item price revision (unit price update) | After DB update, cache entry in Dapr StateStore is deleted (invalidated) | ❌ Recommended |
+
+### 2.2 Tax & Payment Master
+
+| ID | Target Module | Scenario (Before/When/Then) | Expected Outcome | Status |
+|----|---------------|---------------------------|------------------|--------|
+| **MD-U-020** | `GET /taxes` | Fetch list of currently valid tax rates (standard, reduced) | `200 OK`, returns only tax info within valid date ranges | ❌ Recommended |
+| **MD-U-021** | `GET /payments` | Fetch available payment methods (Cash, CC, QR) | `200 OK`, returns valid payment methods based on store config | ❌ Recommended |
+
+## 3. End-to-End Inter-System Scenarios
+
+| ID | Scenario Flow (Cache Invalidation) | Expected Result & Assertions | Status |
+|----|----------------------------------|------------------------------|--------|
+| **MD-S-001** | **Immediate Master Reflection Flow** <br>1. Update Item A from 100 to 120 yen in MasterData<br>2. Scan Item A in Cart service | Cart cache is invalidated by MasterData update Pub/Sub event, scanned as 120 yen | ❌ Recommended |

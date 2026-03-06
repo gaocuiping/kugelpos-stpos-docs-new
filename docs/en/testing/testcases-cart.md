@@ -1,38 +1,68 @@
 ---
-title: "Cart Service Test Cases"
+title: "Cart サービス Testingケース"
 parent: Testing
 grand_parent: English
 nav_order: 14
 layout: default
 ---
 
-# Cart Service Test Cases
+# Cart サービス Testing設計書
 
-Rich business logic with many tests already implemented.
+本ドキュメントは、POSシステムの中核をなす Cart サービスの詳細なTestingケースとシナリオです。
 
-## Unit Tests
+## 1. サービスの概要とTesting戦略
 
-| ID | Test Case | Type | Priority | Status |
-|----|-----------|------|----------|--------|
-| CT-U-01 | Health check API normal operation | Health | 🟡 Med | ✅ Implemented |
-| CT-U-02 | Item Entry resume function | Main | 🔴 High | ✅ Implemented |
-| CT-U-03 | Error handling during cashless payment | Payment | 🔴 High | ✅ Implemented |
-| CT-U-04 | Subtotal logic calculation accuracy validation | Calc | 🔴 High | ✅ Implemented |
-| CT-U-05 | Terminal cache retrieval and update | Cache | 🟡 Med | ✅ Implemented |
-| CT-U-06 | Transaction status validation | Status | 🟠 High | ✅ Implemented |
-| CT-U-07 | Prevention of double void on already voided transactions | Void | 🔴 High | ✅ Implemented |
-| CT-U-08 | Prevention of double return on already returned transactions | Return | 🔴 High | ✅ Implemented |
-| CT-U-09 | List status and single retrieval consistency with double void/return prevention | Void/Return | 🔴 High | ✅ Implemented |
-| CT-U-10 | Dapr Statestore session creation, reuse, timeout | Session | 🟠 High | ✅ Implemented |
-| CT-U-11 | gRPC channel creation and reuse | gRPC | 🟠 High | ✅ Implemented |
-| CT-U-12 | Single/multiple item tax calculation (mixed internal/external tax) | Tax | 🔴 High | ❌ Recommended |
-| CT-U-13 | Discount calculation (single item, whole cart) | Discount | 🟠 High | ❌ Recommended |
+**Cart サービス**は、「スキャン → 小計 → 割引 → 決済 → 確定」という最も複雑な業務ロジックを持ちます。
+税計算、小計ロジック、二重送信（二重Void/Refund）防止などがクリティカルとなるため、シナリオTestingを通じた**整合性の検証**が最重要です。
 
-## Integration & Scenario Tests
+### 1.1 前提条件・Testingデータ
+- **依存サービス**: Master Data (gRPC), Terminal (REST), Stock & Journal (Dapr Pub/Sub)
+- **Testing用マスターデータ**: 内税商品、外税商品、単一税率、複数税率の組み合わせを含むこと。
 
-| ID | Test Case | Type | Priority | Status |
-|----|-----------|------|----------|--------|
-| CT-I-01 | Item info retrieval via direct gRPC from Cart to Master-data | Integration | 🔴 High | ✅ Implemented |
-| CT-I-02 | Inventory allocation to Stock service on purchase completion (Pub/Sub) | Integration | 🔴 High | ❌ Recommended |
-| CT-I-03 | History saving to Journal service on transaction completion (Pub/Sub) | Integration | 🔴 High | ❌ Recommended |
-| CT-S-01 | item-book scenario (item scan → qty change → discount → payment) | Scenario | 🔴 High | ❌ Recommended |
+---
+
+## 2. ユニットTesting (API・ロジック単位)
+
+### 2.1 商品登録・カート状態管理 (Item Entry & State)
+
+| ID | ターゲットAPI | Testingシナリオ (Before/When/Then) | 期待される結果 | 状態 |
+|----|-------------|--------------------------------|--------------|------|
+| **CT-U-001** | `POST /entry` | JANコードをスキャンして商品を1点登録する | Master Data から情報取得し、カートに商品が追加されること | ✅ Implemented |
+| **CT-U-002** | `resume_item_entry` | 強制終了後の再開（レジューム）処理 | dapr statestore から前回のカート状態が復元されること | ✅ Implemented |
+| **CT-U-003** | `DELETE /entry/{id}`| 登録した商品の一部を取消（行キャンセル）する | 指定された行が削除され、小計が再計算されること | ❌ Recommended |
+
+### 2.2 金額・税・割引計算 (Calculation Engine)
+
+| ID | ターゲットモジュール | Testingシナリオ (Before/When/Then) | 期待される結果 | 状態 |
+|----|------------------|--------------------------------|--------------|------|
+| **CT-U-010** | `calc_subtotal` | 複数商品の合計金額計算（税抜・税込混在） | 精度落ちなく1円単位まで正確に小計が計算されること | ✅ Implemented |
+| **CT-U-011** | `tax_engine` | 単一商品に複数の税率（例：消費税10% + 軽減税率8%） | 各税金が正しく按分・計算されること | ❌ Recommended |
+| **CT-U-012** | `discount_engine`| 単品「100円引き」と全体「10%引き」の複合 | 割引適用順序（単品→全体）に従い、正確な最終金額を算出すること | ❌ Recommended |
+| **CT-U-013** | `calc_subtotal` | 割引適用によって金額がマイナスになる場合 | エラーまたは0円下限として処理されること | ❌ Recommended |
+
+### 2.3 決済とトランザクション状態 (Payment & Status)
+
+| ID | ターゲットAPI | Testingシナリオ (Before/When/Then) | 期待される結果 | 状態 |
+|----|-------------|--------------------------------|--------------|------|
+| **CT-U-020** | `POST /payment` | 現金での全額支払い完了 | トランザクションステータスが「完了」になること | ✅ Implemented |
+| **CT-U-021** | `POST /payment` | キャッシュレス決済中の通信エラー等 | ロールバックされ、ステータスが未決に維持されること | ✅ Implemented |
+| **CT-U-022** | `Void/Return` | 既に取り消し済みの取引に対する再取消（二重Void） | 二重実行がブロックされ、例外が発生すること | ✅ Implemented |
+
+---
+
+## 3. インテグレーションTesting (統合検証)
+
+| ID | コンポーネント連携 | Testingシナリオ | 確認ポイント | 状態 |
+|----|-----------------|--------------|------------|------|
+| **CT-I-001** | Cart → Master Data | gRPC を用いた商品情報の直接取得 | キャッシュ・フェイルオーバーが機能し、高速に応答すること | ✅ Implemented |
+| **CT-I-002** | Cart → Dapr (Stock) | 購入完了時の Dapr Pub/Sub 経由の在庫引当通知 | メッセージが正しくブローカーに送信されること | ❌ Recommended |
+| **CT-I-003** | Cart → Dapr (Journal) | 決済完了後のジャーナル生成通知 | 取引詳細データ（JSON）が正しく構築・送信されること | ❌ Recommended |
+
+---
+
+## 4. エンドツーエンド (E2E) シナリオTesting
+
+| ID | シナリオフロー (item-book scenario) | 期待される結果とアサーション | 状態 |
+|----|-----------------------------------|--------------------------|------|
+| **CT-S-001** | **標準的買い物フロー** <br>1. 商品 A, B をスキャン<br>2. 商品 A の数量を 3 に変更<br>3. 商品 B に 5% 割引適用<br>4. 現金とクレジットカードで分割払い(Split) | 計算結果が全て正確であり、最終的に Dapr イベントが発行されること | ❌ Recommended |
+| **CT-S-002** | **返品フロー** <br>1. 過去のトランザクションIDを指定して返品依頼<br>2. マイナス金額でのジャーナル登録 | 対象トランザクションが Refunded になり、二重返品が拒否されること | ❌ Recommended |

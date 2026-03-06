@@ -6,33 +6,37 @@ nav_order: 15
 layout: default
 ---
 
-# Report Service Test Cases
+# Report Service Test Specification
 
-Extensively tested, especially around aggregation logic.
+Test specifications aimed at complex aggregation logic and preventing Cartesian product bugs.
 
-## Unit Tests
+## 1. Overview and Test Strategy
 
-| ID | Test Case | Type | Priority | Status |
-|----|-----------|------|----------|--------|
-| RP-U-01 | Basic report operations verification | Basic | 🟡 Med | ✅ Implemented |
-| RP-U-02 | Validation of cancelled transaction exclusion flag | Cancel | 🔴 High | ✅ Implemented |
-| RP-U-03 | Category report formatting and date calculation | Category | 🔴 High | ✅ Implemented |
-| RP-U-04 | Unique identification across multiple stores and terminals | Multi | 🟠 High | ✅ Implemented |
-| RP-U-05 | Aggregation logic validation for Return transactions | Return | 🔴 High | ✅ Implemented |
-| RP-U-06 | Cartesian product bug prevention for mixed multiple tax rates | Tax | 🔴 High | ✅ Implemented |
-| RP-U-07 | Mixed payment methods (split payment) verification | Payment | 🔴 High | ✅ Implemented |
-| RP-U-08 | Data integrity: payment amount always equals sales + tax | Integrity | 🔴 High | ✅ Implemented |
-| RP-U-09 | Edge cases: 0 yen transaction, empty tax array | Edge | 🟡 Med | ✅ Implemented |
-| RP-U-10 | Flash report date validation (Store/Terminal) | Flash | 🟠 High | ✅ Implemented |
-| RP-U-11 | Item report date calculation verification | Item | 🟠 High | ✅ Implemented |
-| RP-U-12 | Journal integration (Flash/Daily report transmission) | Journal | 🔴 High | ✅ Implemented |
-| RP-U-13 | Payment report error handling and date validation | Payment | 🟠 High | ✅ Implemented |
-| RP-U-14 | Internal/external mixed tax rates display and breakdown | Tax | 🔴 High | ✅ Implemented |
-| RP-U-15 | Complex scenarios of voided sales and returns | Void | 🔴 High | ✅ Implemented |
+Aggregates payment histories (Journal) to generate settlement and sales reports.
+Already possesses extremely high coverage for calculation logic. Continuous monitoring of integrity is required.
 
-## Integration & Scenario Tests
+---
 
-| ID | Test Case | Type | Priority | Status |
-|----|-----------|------|----------|--------|
-| RP-I-01 | Dapr StateStore saving verification on report creation | Integration | 🔴 High | ❌ Recommended |
-| RP-I-02 | Dapr Pub/Sub report publishing test to Journal service | Integration | 🔴 High | ❌ Recommended |
+## 2. Unit Tests (API & Logic)
+
+### 2.1 Aggregation Engine Accuracy
+
+| ID | Target Analysis | Scenario (Before/When/Then) | Expected Outcome | Status |
+|----|-----------------|---------------------------|------------------|--------|
+| **RP-U-010** | `Category Report` | Aggregate sales by department (category) over period | Cancelled transactions accurately excluded from aggregation | ✅ Implemented |
+| **RP-U-011** | `Item Report` | Aggregate sales quantity/amount for specific items | Negative amounts from return transactions correctly factored | ✅ Implemented |
+| **RP-U-012** | `Payment Report`| Split payments (e.g., Cash + CC) | Amounts per payment method correctly prorated without double counting | ✅ Implemented |
+
+### 2.2 Data Integrity & Edge Cases
+
+| ID | Risk Area | Scenario (Before/When/Then) | Expected Outcome | Status |
+|----|-----------|---------------------------|------------------|--------|
+| **RP-U-020** | Integrity | Calculate "Total Payments == Total Sales + Total Tax" | The equation is always True without exception | ✅ Implemented |
+| **RP-U-021** | Cartesian Bug | Slip with [Item A & Item B] × [3-way split payment] | No Cartesian product bug from SQL joins; only actual amounts aggregated | ✅ Implemented |
+| **RP-U-022** | Rounding Error | Sub-yen rounding when calculating internal tax kickbacks | No multi-yen discrepancies based on legal rounding rules | ✅ Implemented |
+
+## 3. Integration Tests
+
+| ID | Component Integration | Scenario | Check Point | Status |
+|----|-----------------------|----------|-------------|--------|
+| **RP-I-001** | Report → Journal | Sending report to Journal upon Z-closing | Issued settlement report reliably ingested into E-Journal via Dapr Pub/Sub | ❌ Recommended |

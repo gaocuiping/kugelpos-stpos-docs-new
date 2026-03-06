@@ -6,27 +6,33 @@ nav_order: 12
 layout: default
 ---
 
-# Terminal Service Test Cases
+# Terminal Service Test Specification
 
-List of test cases extracted from current test code and missing recommended scenarios. Currently, business logic tests are significantly lacking.
+This document details the test cases for the Terminal service, which manages the startup and configuration of POS registers.
+Key areas include preventing terminal registration conflicts and monitoring operational status (heartbeat).
 
-## Unit Tests
+## 1. Overview and Test Strategy
 
-| ID | Test Case | Type | Priority | Status |
-|----|-----------|------|----------|--------|
-| TM-U-01 | Health check API normal operation (including background job details) | Health | 🟡 Med | ✅ Implemented |
-| TM-U-02 | Verify basic terminal operations | Basic | 🟡 Med | ✅ Implemented |
-| TM-U-03 | New terminal registration succeeds | CRUD | 🔴 High | ❌ Recommended |
-| TM-U-04 | Registering existing terminal ID returns 409 | CRUD | 🔴 High | ❌ Recommended |
-| TM-U-05 | Terminal information update succeeds | CRUD | 🟠 High | ❌ Recommended |
-| TM-U-06 | Fetching non-existent terminal ID returns 404 | CRUD | 🟠 High | ❌ Recommended |
-| TM-U-07 | Terminal heartbeat (last access time update) functions | Status | 🔴 High | ❌ Recommended |
-| TM-U-08 | Terminal status (active/inactive) change process validation | Status | 🟠 High | ❌ Recommended |
+**Prerequisites & Test Data**:
+- **DB**: MongoDB `terminals` and `stores` collections
+- **Cache**: Heartbeat management utilizing Dapr StateStore (Redis)
 
-## Integration & Scenario Tests
+---
 
-| ID | Test Case | Type | Priority | Status |
-|----|-----------|------|----------|--------|
-| TM-I-01 | Persistence of terminal/store information to MongoDB | Integration | 🔴 High | ❌ Recommended |
-| TM-I-02 | Terminal info retrieval acceleration via Redis cache | Integration | 🟠 High | ❌ Recommended |
-| TM-S-01 | Terminal boot → registration → heartbeat end-to-end flow | Scenario | 🟠 High | ❌ Recommended |
+## 2. Unit Tests (API & Logic)
+
+### 2.1 Terminal Registration & Management (Terminal CRUD)
+
+| ID | Target API | Scenario (Before/When/Then) | Expected Outcome | Status |
+|----|------------|---------------------------|------------------|--------|
+| **TM-U-010** | `POST /terminals` | New registration with unregistered MAC and Store ID | `201 Created`, initial settings saved to DB | ❌ Recommended |
+| **TM-U-011** | `POST /terminals` | Registration attempt with MAC already bound to another store | `409 Conflict`, double registration blocked | ❌ Recommended |
+| **TM-U-012** | `GET /terminals/{id}` | Fetch configuration for existing terminal ID | `200 OK`, configuration returned | ❌ Recommended |
+| **TM-U-013** | `PUT /terminals/{id}` | Update terminal device settings | `200 OK`, DB updated and changes reflected | ❌ Recommended |
+
+### 2.2 Heartbeat Monitoring
+
+| ID | Target API | Scenario (Before/When/Then) | Expected Outcome | Status |
+|----|------------|---------------------------|------------------|--------|
+| **TM-U-020** | `POST /heartbeat` | Periodic transmission from active terminal | `200 OK`, `last_active_at` updated in Redis | ❌ Recommended |
+| **TM-U-021** | `GET /status` | Fetching terminal statuses from admin panel | Accurately returns Online/Offline based on last heartbeat | ❌ Recommended |
