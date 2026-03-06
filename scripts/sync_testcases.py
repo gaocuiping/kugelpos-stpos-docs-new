@@ -73,15 +73,33 @@ def update_markdown(file_path, lang):
 
     modified = False
     new_lines = []
+    header_indices = {}
     
     for line in lines:
-        if line.strip().startswith('|') and '❌' in line:
+        stripped_line = line.strip()
+        
+        # Identify table header to find column indices
+        if stripped_line.startswith('|') and ('ID' in stripped_line or 'ID' in stripped_line.upper()):
+            parts = [p.strip() for p in stripped_line.split('|')]
+            for i, part in enumerate(parts):
+                if not part: continue
+                if 'ID' in part.upper(): header_indices['id'] = i
+                elif 'ターゲット' in part or 'Target' in part: header_indices['target'] = i
+                elif 'テストシナリオ' in part or 'Scenario' in part: header_indices['scenario'] = i
+                elif '状態' in part or 'Status' in part: header_indices['status'] = i
+
+        if stripped_line.startswith('|') and '❌' in line:
             parts = line.split('|')
-            if len(parts) > 4:
-                # Column indices: 1=ID, 2=Target, 3=Scenario
-                row_id = parts[1].replace('*', '').replace('`', '').strip().upper()
-                row_target = parts[2].replace('*', '').replace('`', '').strip()
-                row_scenario = parts[3].replace('*', '').replace('`', '').strip()
+            # Minimum required columns: ID, Target, Scenario, Status
+            if len(parts) > 4 and 'status' in header_indices:
+                idx_id = header_indices.get('id', 1)
+                idx_target = header_indices.get('target', 2)
+                idx_scenario = header_indices.get('scenario', 3)
+                idx_status = header_indices['status']
+
+                row_id = parts[idx_id].replace('*', '').replace('`', '').strip().upper()
+                row_target = parts[idx_target].replace('*', '').replace('`', '').strip()
+                row_scenario = parts[idx_scenario].replace('*', '').replace('`', '').strip()
                 
                 is_matched = False
                 # 1. Check ID match
@@ -89,10 +107,9 @@ def update_markdown(file_path, lang):
                     is_matched = True
                     print(f"Matched by ID: {row_id} in {os.path.basename(file_path)}")
                 
-                # 2. Check Scenario or Target match (using collected scenarios/comments/func_names)
+                # 2. Check Scenario or Target match
                 if not is_matched:
                     for key in implemented_scenarios:
-                        # Exact match or contained in row content
                         if key == row_target or key in row_target or row_target in key:
                             is_matched = True
                             print(f"Matched by Target key: '{key}' (matches '{row_target}')")
@@ -104,7 +121,8 @@ def update_markdown(file_path, lang):
                 
                 if is_matched:
                     status_str = "✅ 実装済" if lang == 'ja' else "✅ Implemented"
-                    parts[-2] = f" {status_str} "
+                    # Handle " ❌ 補充(単体) " style status preservation if needed, or overwrite
+                    parts[idx_status] = f" {status_str} "
                     line = '|'.join(parts)
                     modified = True
         new_lines.append(line)
