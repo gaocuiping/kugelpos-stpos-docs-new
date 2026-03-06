@@ -58,8 +58,8 @@ extract_endpoints() {
     find "$api_dir" -name "*.py" -not -name "__init__.py" -not -name "schemas.py" | sort | while read -r file; do
         local rel_path="${file#$service_dir/}"
         
-        # Extract route decorators and function signatures
-        grep -n '@router\.\|@app\.' "$file" 2>/dev/null || true | while read -r line; do
+        # Extract route decorators and function signatures (ignoring commented out lines)
+        grep -n '^[[:space:]]*@router\.\|^[[:space:]]*@app\.' "$file" 2>/dev/null || true | while read -r line; do
             local line_num=$(echo "$line" | cut -d: -f1)
             local content=$(echo "$line" | cut -d: -f2-)
             
