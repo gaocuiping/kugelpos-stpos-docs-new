@@ -79,3 +79,10 @@ layout: default
 | パスワード漏洩耐性 | プレーンテキストでの保存試行 | `500` / `400` | BCrypt 非適用での保存はアプリケーション側でブロックされること |
 | XSS / Injection | IDや名前フィールドに `<script>` 等を含む | `422` / サニタイズ | Pydantic によるサニタイズ、または拒否 |
 | 不正署名トークン | `alg` ヘッダーを変更、または署名偽装 | `401 Unauthorized` | Signature Verification Failed がログに記録される |
+
+## 4. Supplementary & Edge Cases
+
+| ID | Target | Scenario (Non-functional/Negative) | Expected Outcome | Status |
+|----|--------|------------------------------------|------------------|--------|
+| **AC-E-001** | `Security` | 50 `POST /login` requests in 1 second from same IP (Brute-force) | Rate limiter triggers, returning `429 Too Many Requests` | ❌ Recommended |
+| **AC-E-002** | `Security` | Requesting with a valid JWT immediately after logout | Token is blacklisted/revoked, rejected with `401` (Anti-replay) | ❌ Recommended |

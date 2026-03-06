@@ -40,3 +40,10 @@ Already possesses extremely high coverage for calculation logic. Continuous moni
 | ID | Component Integration | Scenario | Check Point | Status |
 |----|-----------------------|----------|-------------|--------|
 | **RP-I-001** | Report → Journal | Sending report to Journal upon Z-closing | Issued settlement report reliably ingested into E-Journal via Dapr Pub/Sub | ❌ Recommended |
+
+## 4. Supplementary & Edge Cases
+
+| ID | Target | Scenario (Non-functional/Negative) | Expected Outcome | Status |
+|----|--------|------------------------------------|------------------|--------|
+| **RP-E-001** | `Boundary` | Monthly/Weekly aggregation across Feb 28 to Mar 1 in a Leap Year (2024) | No date-handling bugs; data for Feb 29 accurately included | ❌ Recommended |
+| **RP-E-002** | `Timezone` | Transaction at 23:59:59 in UTC+9 (JST) environment | Exactly counted towards the "same day" settlement report regardless of timezone conversions | ❌ Recommended |

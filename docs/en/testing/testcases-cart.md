@@ -66,3 +66,11 @@ layout: default
 |----|-----------------------------------|--------------------------|------|
 | **CT-S-001** | **標準的買い物フロー** <br>1. 商品 A, B をスキャン<br>2. 商品 A の数量を 3 に変更<br>3. 商品 B に 5% 割引適用<br>4. 現金とクレジットカードで分割払い(Split) | 計算結果が全て正確であり、最終的に Dapr イベントが発行されること | ❌ Recommended |
 | **CT-S-002** | **返品フロー** <br>1. 過去のトランザクションIDを指定して返品依頼<br>2. マイナス金額でのジャーナル登録 | 対象トランザクションが Refunded になり、二重返品が拒否されること | ❌ Recommended |
+
+## 4. Supplementary & Edge Cases
+
+| ID | Target | Scenario (Non-functional/Negative) | Expected Outcome | Status |
+|----|--------|------------------------------------|------------------|--------|
+| **CT-E-001** | `Boundary` | Setting cart item quantity to 9,999 (or system max) | Subtotal calculated accurately without overflow, or appropriate limit error (`400`) returned | ❌ Recommended |
+| **CT-E-002** | `State Ttl`| Unsettled cart session left in Dapr StateStore for 72 hours | Automatically garbage collected via TTL, not eating memory | ❌ Recommended |
+| **CT-E-003** | `Security` | Sending invalid discount rate like `1.5` (150% off) | Validation error (`422`) triggered, no negative billing occurs | ❌ Recommended |

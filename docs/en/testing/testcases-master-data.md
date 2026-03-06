@@ -39,3 +39,10 @@ The most critical test point is **cache invalidation** upon master data updates.
 | ID | Scenario Flow (Cache Invalidation) | Expected Result & Assertions | Status |
 |----|----------------------------------|------------------------------|--------|
 | **MD-S-001** | **Immediate Master Reflection Flow** <br>1. Update Item A from 100 to 120 yen in MasterData<br>2. Scan Item A in Cart service | Cart cache is invalidated by MasterData update Pub/Sub event, scanned as 120 yen | ❌ Recommended |
+
+## 4. Supplementary & Edge Cases
+
+| ID | Target | Scenario (Non-functional/Negative) | Expected Outcome | Status |
+|----|--------|------------------------------------|------------------|--------|
+| **MD-E-001** | `Performance`| Bulk cache refresh batch execution for 100,000 item records | Completes within target time (e.g. 5 min) without causing memory leaks (OOM) | ❌ Recommended |
+| **MD-E-002** | `Integrity` | Network error during saving to Cache (Dapr Redis) (Split-brain) | Distributed retry or Self-Healing functions correctly to prevent MongoDB-Redis data inconsistency | ❌ Recommended |

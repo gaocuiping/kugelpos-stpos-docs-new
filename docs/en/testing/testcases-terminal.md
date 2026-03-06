@@ -36,3 +36,10 @@ Key areas include preventing terminal registration conflicts and monitoring oper
 |----|------------|---------------------------|------------------|--------|
 | **TM-U-020** | `POST /heartbeat` | Periodic transmission from active terminal | `200 OK`, `last_active_at` updated in Redis | ❌ Recommended |
 | **TM-U-021** | `GET /status` | Fetching terminal statuses from admin panel | Accurately returns Online/Offline based on last heartbeat | ❌ Recommended |
+
+## 4. Supplementary & Edge Cases
+
+| ID | Target | Scenario (Non-functional/Negative) | Expected Outcome | Status |
+|----|--------|------------------------------------|------------------|--------|
+| **TM-E-001** | `Resilience` | Dapr Redis connection failure (timeout) during `POST /heartbeat` | Does not crash; logs error and handles gracefully (e.g. `503 Service Unavailable` or degraded mode) | ❌ Recommended |
+| **TM-E-002** | `Concurrency` | Sending "terminal initial registration" to the same store at the exact same millisecond | DB unique index/locking ensures only one succeeds, the other returns `409` | ❌ Recommended |

@@ -32,3 +32,10 @@ Tests focus primarily on preventing data loss (message lost countermeasures) and
 |----|----------------|----------|-------------|--------|
 | **JN-I-001** | Pub/Sub Fault Tolerance | DB connection lost during message receiving thread | Transaction rolled back on DB error, Dapr performs retry | ✅ Implemented |
 | **JN-I-002** | Elasticsearch Sync | Syncing to full-text search engine after saving journal to RDBMS | Free-word text search within transaction details returns hits | ❌ Recommended |
+
+## 4. Supplementary & Edge Cases
+
+| ID | Target | Scenario (Non-functional/Negative) | Expected Outcome | Status |
+|----|--------|------------------------------------|------------------|--------|
+| **JN-E-001** | `Security` | Requesting catastrophic pagination size via `GET /search?limit=10000000` | Defended at app-level; `400 Bad Request` or forced hard-limit (e.g. 100) applied | ❌ Recommended |
+| **JN-E-002** | `Edge Case`| Receiving ultra-long receipt data > 5MB payload from message queue | Parses JSON without OOM, streams/saves appropriately to DB (or Blob) | ❌ Recommended |

@@ -41,3 +41,10 @@ Crucially, tests behavior of real-time alerts (WebSocket) pushed to the frontend
 | ID | Component Integration | Scenario | Check Point | Status |
 |----|-----------------------|----------|-------------|--------|
 | **SK-I-001** | `CRON Scheduler` | Auto-generation of end-of-month "Inventory Snapshot" via Dapr CRON binding | Schedule trigger fires at designated time, stock counts copied to history table | ✅ Implemented |
+
+## 4. Supplementary & Edge Cases
+
+| ID | Target | Scenario (Non-functional/Negative) | Expected Outcome | Status |
+|----|--------|------------------------------------|------------------|--------|
+| **SK-E-001** | `Resilience` | Reorder alert triggers while WebSocket client temporarily disconnected | Upon reconnect, queued/missed alerts are recovered/sent, or fetch API available | ❌ Recommended |
+| **SK-E-002** | `Concurrency`| 10 Cart terminals fire allocation event for an item with exactly "1" stock perfectly concurrently | Tx-lock applies; only 1 succeeds, remaining 9 receive "Out of Stock" event reply | ❌ Recommended |
