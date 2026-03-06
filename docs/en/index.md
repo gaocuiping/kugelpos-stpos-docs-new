@@ -23,3 +23,4 @@ Welcome to the Kugelpos POS Backend documentation.
 | [Journal](journal/) | Electronic journal search (port: 8005) |
 | [Stock](stock/) | Inventory management (port: 8006) |
 | [Commons](commons/) | Shared library and common functions |
+| [Testing](testing/) | Test review, strategy, and guides |
