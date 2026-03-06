@@ -1,5 +1,6 @@
 ---
 title: "日本語"
+layout: default
 nav_order: 3
 has_children: true
 permalink: /ja/

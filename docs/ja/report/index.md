@@ -3,6 +3,7 @@ title: "レポート"
 parent: 日本語
 nav_order: 6
 has_children: true
+layout: default
 ---
 
 # レポートサービス
