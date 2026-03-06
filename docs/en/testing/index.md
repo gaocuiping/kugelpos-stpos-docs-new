@@ -31,3 +31,15 @@ This section covers all test-related documentation for the Kugelpos POS Backend 
 | Journal | ✅ | ❌ | ❌ |
 | Stock | ✅ | ⚠️ Partial | ❌ |
 | Commons | ✅ | N/A | N/A |
+
+## Service Test Cases
+
+| Document | Description |
+|----------|-------------|
+| [Account](testcases-account.html) | Account Service Test Cases |
+| [Terminal](testcases-terminal.html) | Terminal Service Test Cases |
+| [Master Data](testcases-master-data.html) | Master Data Service Test Cases |
+| [Cart](testcases-cart.html) | Cart Service Test Cases |
+| [Report](testcases-report.html) | Report Service Test Cases |
+| [Journal](testcases-journal.html) | Journal Service Test Cases |
+| [Stock](testcases-stock.html) | Stock Service Test Cases |
