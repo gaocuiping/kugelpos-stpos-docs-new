@@ -10,6 +10,7 @@ nav_order: 106
 本ドキュメントは、Stock サービスのソースコード（`app/`）を詳細に解析した結果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルなテストケース群です。
 
 ### 状態 (Status) の定義
+
 | アイコン | 状态 | 内容 |
 |:---:|:---:|:---|
 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | **Implemented** | 実際のテストコード（関数名またはコメント）から実装が確認されている。 |
@@ -21,6 +22,7 @@ nav_order: 106
 **目的**: 外部依存（DB/WebSocket）を Mock し、在庫計算、トランザクションマッピング、およびアラート判定ロジックを検証する。
 
 ### 1.1 在庫計算ロジック (`StockService`)
+
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **SK-U-001** | `StockService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_negative_stock_allowed` <br> *(# Test that negative stock is allowed)* | 在庫が 0 未満になる更新でもエラーにならず、負の値として正しく保存・履歴記録されること。 |
@@ -28,6 +30,7 @@ nav_order: 106
 | **SK-U-003** | `StockService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_process_transaction_with_cancelled_items` <br> *(待追加：キャンセル行のフィルタリング)* | 取引データ内に `is_cancelled: true` の行が含まれる場合、その行の在庫減算がスキップされること。 |
 
 ### 1.2 アラート判定 (`AlertService`)
+
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **SK-U-101** | `AlertService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_alert_threshold_boundary` <br> *(待追加：閾値境界値検証)* | 在庫が `minimum_quantity` と「ちょうど同値」になった際のアラート発火有無が仕様通りであること。 |

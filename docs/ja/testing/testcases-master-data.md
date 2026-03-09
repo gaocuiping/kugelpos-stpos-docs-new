@@ -10,6 +10,7 @@ nav_order: 104
 本ドキュメントは、Master Data サービスのソースコード（`app/`）を詳細に解析した結果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルなテストケース群です。
 
 ### 状態 (Status) の定義
+
 | アイコン | 状态 | 内容 |
 |:---:|:---:|:---|
 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | **Implemented** | 実際のテストコード（関数名またはコメント）から実装が確認されている。 |
@@ -21,12 +22,14 @@ nav_order: 104
 **目的**: 外部依存（DB）を Mock し、マスタデータの検索ロジック、有効期間バリデーション、および継承モデルを検証する。
 
 ### 1.1 商品・カテゴリロジック (`ItemBookMasterService` / `CategoryMasterService`)
+
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **MD-U-001** | `ItemBookMasterService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_item_fallback_to_common` <br> *(待追加：店舗個別情報なし時のCommon取得)* | 店舗個別の商品情報が存在しない場合、自動的に共通 (Common) マスタの情報が補完されて返却されること。 |
 | **MD-U-002** | `CategoryMasterService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_category_operations` <br> *(# Test category CRUD)* | カテゴリの親子階層構造（ParentID）が正確に維持・パースされること。 |
 
 ### 1.2 税率・決済設定 (`TaxMasterService` / `PaymentMasterService`)
+
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **MD-U-101** | `TaxMasterService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_tax_period_overlap_validation` <br> *(待追加：期間重複バリデーション)* | 同一の税区分に対し、重複する有効期間を持つ複数の税率を登録しようとした際にエラーが送出されること。 |

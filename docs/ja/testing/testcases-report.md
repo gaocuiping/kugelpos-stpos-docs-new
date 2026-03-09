@@ -10,6 +10,7 @@ nav_order: 105
 本ドキュメントは、Report サービスのソースコード（`app/`）を詳細に解析した結果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルなテストケース群です。
 
 ### 状態 (Status) の定義
+
 | アイコン | 状态 | 内容 |
 |:---:|:---:|:---|
 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | **Implemented** | 実際のテストコード（関数名またはコメント）から実装が確認されている。 |
@@ -21,6 +22,7 @@ nav_order: 105
 **目的**: 外部依存（DB/PubSub）を Mock し、集計計算、税額配分、およびプラグイン管理ロジックを検証する。
 
 ### 1.1 集計コアロジック (`ReportService`)
+
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **RP-U-001** | `ReportService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_partial_return_tax_accuracy` <br> *(待追加：部分返品時の税計算)* | 複数明細から一部のみを返品した際、残りの明細との合計税額が 1 円単位で整合すること。 |
@@ -28,6 +30,7 @@ nav_order: 105
 | **RP-U-003** | `ReportService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_discount_rounding_distribution` <br> *(待追加：値引端数処理)* | 合計金額に対する値引が複数商品に案分される際、端数（1円）の調整が特定のルールに基づき正確に行われること。 |
 
 ### 1.2 プラグイン管理 (`ReportPluginManager`)
+
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **RP-U-101** | `PluginManager` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_plugin_load_failure_handling` <br> *(待追加：プラグインエラー処理)* | 特定のレポートプラグインの読み込みに失敗した場合でも、システム全体が停止せず、他プラグインへ影響を与えないこと。 |

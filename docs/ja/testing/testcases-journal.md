@@ -10,6 +10,7 @@ nav_order: 103
 本ドキュメントは、Journal サービスのソースコード（`app/`）を詳細に解析した結果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルなテストケース群です。
 
 ### 状態 (Status) の定義
+
 | アイコン | 状态 | 内容 |
 |:---:|:---:|:---|
 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | **Implemented** | 実際のテストコード（関数名またはコメント）から実装が確認されている。 |
@@ -21,6 +22,7 @@ nav_order: 103
 **目的**: 外部依存（Dapr/DB）を Mock し、電文パース、取引種別変換、および検索パラメータ構築ロジックを検証する。
 
 ### 1.1 電文処理ロジック (`LogService`)
+
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **JN-U-001** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_process_tranlog_async` <br> *(# Normal transaction logs)* | 様々な取引種別（Normal, Void, Return）の Tranlog が、共通のジャーナル形式に正確に変換・パースされること。 |

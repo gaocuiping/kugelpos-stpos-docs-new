@@ -10,6 +10,7 @@ nav_order: 102
 本ドキュメントは、Cart サービスのソースコード（`app/`）を詳細に解析した结果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルなテストケース群です。
 
 ### 状態 (Status) の定義
+
 | アイコン | 状态 | 内容 |
 |:---:|:---:|:---|
 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | **Implemented** | 実際のテストコード（関数名またはコメント）から実装が確認されている。 |
@@ -21,6 +22,7 @@ nav_order: 102
 **目的**: 外部依存（DB/API）を Mock し、各モジュールの純粋なロジック、計算精度、および状態遷移を検証する。
 
 ### 1.1 状態管理 & サービスフロー (`CartService` / `TranService`)
+
 | ID | テスト対象 | 状態 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **CT-U-001** | `CartService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cart_operations` <br> *(# Check if the terminal is opened [异常系])* | `TerminalStatusException` が送出されること。 |
@@ -31,12 +33,14 @@ nav_order: 102
 | **CT-U-006** | `TranService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_get_transaction_list_with_status_merges_correctly` <br> *(# Test that transaction list correctly merges void/return status)* | 状態フラグ（isVoided等）が正しくマージされていること。 |
 
 ### 1.3 ユーティリティ & キャッシュ (`utils/`)
+
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **CT-U-201** | `TerminalInfoCache` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cache_expiration` / `test_cache_clear_by_tenant` | TTL 経過後の自動削除およびテナント間のデータ隔離。 |
 | **CT-U-202** | `TextHelper` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_truncate_text_mixed` / `test_line_split_simulation` | 日本語/ASCII 混在時の正確な表示幅計算と改行処理。 |
 
 ### 1.2 計算エンジン (`logics/`)
+
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **CT-U-101** | `calc_tax_logic` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_calc_subtotal_async` <br> *(# Test the main calc_subtotal_async function)* | 各税区分の `tax_amount` が正確に計算されること。 |
@@ -49,6 +53,7 @@ nav_order: 102
 **目的**: データベース（MongoDB）、Dapr サービス、およびリポジトリ間のデータ連携を検証する。
 
 ### 2.1 データ永続化 / 通信
+
 | ID | 連携先 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **CT-I-001** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_mark_as_voided_new_document` <br> *(# Test persistent status marking)* | 保存前后的对象属性一致。 |

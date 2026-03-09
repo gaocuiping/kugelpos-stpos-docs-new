@@ -10,6 +10,7 @@ nav_order: 101
 本ドキュメントは、Account サービスのソースコード（`app/`）を詳細に解析した結果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルなテストケース群です。
 
 ### 状態 (Status) の定義
+
 | アイコン | 状态 | 内容 |
 |:---:|:---:|:---|
 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | **Implemented** | 実際のテストコード（関数名またはコメント）から実装が確認されている。 |
@@ -21,6 +22,7 @@ nav_order: 101
 **目的**: 外部依存（DB/Slack）を Mock し、認証ロジック、パスワードハッシュ化、およびパスワード要件バリデーションを検証する。
 
 ### 1.1 認証 & 認可ロジック (`auth.py` / `account.py`)
+
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **AC-U-001** | `auth.py` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_password_hashing_consistency` <br> *(待追加：ハッシュ整合性)* | 生成されたハッシュが、同一パスワードに対して正しく `verify` され、異なるパスワードでは拒否されること。 |

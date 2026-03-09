@@ -10,6 +10,7 @@ nav_order: 107
 本ドキュメントは、Terminal サービスのソースコード（`app/`）を詳細に解析した結果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルな测试用例群です。
 
 ### 状態 (Status) の定義
+
 | アイコン | 状态 | 内容 |
 |:---:|:---:|:---|
 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | **Implemented** | 実際のテストコード（関数名またはコメント）から実装が確認されている。 |
@@ -21,6 +22,7 @@ nav_order: 107
 **目的**: 外部依存（DB/API）を Mock し、各モジュールの純粋なロジック、状態遷移、および例外処理を検証する。
 
 ### 1.1 状態管理 & サービスフロー (`TerminalService`)
+
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **TM-U-001** | `TerminalService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_check_terminal_status_matrix` <br> *(待追加：状態遷移マトリクスの網羅検証)* | 現在の状態（Closed/Opened等）に対し、許可されない FunctionMode 変更が全て拒否されること。 |
@@ -28,6 +30,7 @@ nav_order: 107
 | **TM-U-003** | `TerminalService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_sign_in_already_signed_in` | すでにサインイン済みの端末に対し、別の StaffID でサインインを試みた際に `TerminalAlreadySignedInException` が送出されること。 |
 
 ### 1.2 通信レジリエンス (`PubsubManager`)
+
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **TM-U-101** | `PubsubManager` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_pubsub_circuit_breaker` <br> *(待追加：サーキットブレーカー検証)* | Dapr 側がエラーを返却した際、非ブロッキングでエラーが処理され、後続の業務プロセスが中断されないこと。 |
