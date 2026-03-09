@@ -143,7 +143,7 @@ generate_api_overview() {
 title: "API Overview (Auto-generated)"
 parent: $en_parent
 grand_parent: English
-nav_order: 10
+nav_exclude: true
 ---
 
 # $en_parent Service - API Overview
@@ -215,7 +215,7 @@ EOF
 title: "API 概要 (自動生成)"
 parent: $ja_parent
 grand_parent: 日本語
-nav_order: 10
+nav_exclude: true
 ---
 
 # ${ja_parent}サービス - API 概要

@@ -10,12 +10,13 @@ Welcome to the Kugelpos POS Backend documentation site.
 
 ---
 
-## Choose Your Language / 言語を選択
+## Choose Your Language / 言語を選択 / 选择语言
 
 | Language | Link |
 |----------|------|
 | 🇬🇧 English | [English Documentation]({{ site.baseurl }}/en/) |
 | 🇯🇵 日本語 | [日本語ドキュメント]({{ site.baseurl }}/ja/) |
+| 🇨🇳 中文 | [中文文档]({{ site.baseurl }}/zh/) |
 
 ---
 

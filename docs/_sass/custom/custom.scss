@@ -1,104 +1,121 @@
-/* --- Premium Light Mode Design System --- */
+/* --- Refreshing Gradient Design System (Premium Light) --- */
 
 /* Root Level Reset & Base Colors */
+:root {
+    --primary-gradient: linear-gradient(135deg, #e0f2fe 0%, #f0fdf4 100%);
+    /* Sky Blue to Mint */
+    --sidebar-gradient: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+    --accent-blue: #0ea5e9;
+    --text-main: #334155;
+    /* Slate Gray */
+    --text-heading: #0f172a;
+    /* Navy Blue/Black */
+    --glass-bg: rgba(255, 255, 255, 0.7);
+}
+
 html,
 body {
     background-color: #f8fafc !important;
-    /* Soft Slate White */
-    color: #1e293b !important;
-    /* Slate Dark Gray (Better than pure black) */
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--text-main) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
 }
 
-/* 1. Layout & Alignment Optimization */
+/* 1. Layout & Glassmorphism Navigation */
 .page-wrap,
 #app,
 .main-content,
 .main-content-wrap {
     max-width: none !important;
-    background-color: #ffffff !important;
-    /* Pure White content area */
+    background: transparent !important;
 }
 
 .page-wrap {
     margin: 0 !important;
+    background-image: var(--primary-gradient) !important;
+    background-attachment: fixed;
 }
 
-/* Sidebar Customization */
+/* Sidebar Customization - Fresh Look */
 .side-bar {
-    background-color: #f1f5f9 !important;
-    /* Light Bluish Gray */
-    border-right: 1px solid #e2e8f0 !important;
+    background: var(--sidebar-gradient) !important;
+    border-right: 1px solid rgba(14, 165, 233, 0.1) !important;
+    backdrop-filter: blur(10px);
 }
 
-/* Main content spacing for left alignment */
+/* Main content area card-style */
+.main {
+    background-color: #ffffff !important;
+    border-radius: 20px 0 0 0;
+    /* Modern curved corner */
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.02);
+}
+
 @media (min-width: 66.5rem) {
     .side-bar {
-        width: 16.5rem !important;
+        width: 17rem !important;
     }
 
     .side-bar+.main {
-        margin-left: 16.5rem !important;
-        background-color: #ffffff !important;
+        margin-left: 17rem !important;
+        padding: 40px !important;
     }
 }
 
-/* 2. Professional Table Styling */
+/* 2. Professional Table Styling - Refreshing Grid */
 .table-wrapper {
     overflow-x: visible !important;
     display: block !important;
     width: 100% !important;
-    margin: 1.5rem 0;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    /* Very subtle shadow */
+    margin: 2rem 0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+    /* Modern soft shadow */
 }
 
 table {
     display: table !important;
     width: 100% !important;
-    border-collapse: collapse !important;
-    border: 1px solid #e2e8f0 !important;
+    border-collapse: separate !important;
+    /* For rounded corners */
+    border-spacing: 0;
     background-color: #ffffff !important;
     table-layout: auto;
+    border: 1px solid #e2e8f0 !important;
 }
 
 table th {
-    background-color: #f1f5f9 !important;
-    /* Match sidebar for hierarchy */
+    background: linear-gradient(90deg, #f8fafc 0%, #f1f5f9 100%) !important;
     color: #475569 !important;
-    /* Muted slate for headers */
     font-weight: 600 !important;
-    text-transform: uppercase;
-    font-size: 0.85rem;
-    letter-spacing: 0.025em;
-    border-bottom: 2px solid #e2e8f0 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    text-transform: none;
+    /* More natural look */
+    font-size: 0.9rem;
 }
 
 table td {
     border-bottom: 1px solid #f1f5f9 !important;
-    color: #334155 !important;
+    color: #475569 !important;
+    background-color: #ffffff !important;
 }
 
 table th,
 table td {
-    padding: 14px 20px !important;
-    line-height: 1.6;
+    padding: 16px 24px !important;
 }
 
-/* Row Hover Effect for Readability */
-table tr:hover {
-    background-color: #f8fafc !important;
+/* Row Hover Effect */
+table tr:hover td {
+    background-color: #f0f9ff !important;
+    /* Very light sky blue tint */
 }
 
-/* 3. Global Column Width Management */
-/* Preserving the specific requirements for wide text columns */
-
-/* Auto-wrap long text properly */
+/* 3. Global Column Width Management (UNTOUCHED LOGIC) */
 table th,
 table td {
     min-width: 120px;
-    word-break: normal;
-    overflow-wrap: break-word;
 }
 
 /* Target Scenario/Expected Outcome columns */
@@ -111,40 +128,61 @@ table td:nth-child(4) {
     min-width: 200px;
 }
 
-/* Column 5: "Business Steps" or "Matching Rules" - WIDEST */
+/* Column 5: "Business Steps" or "Matching Rules" */
 table th:nth-child(5),
 table td:nth-child(5) {
-    min-width: 420px !important;
-    /* Slightly increased for premium feel */
+    min-width: 450px !important;
+    /* Extra width for fresh feel */
 }
 
-/* Column 6: "Mapping Rules" or "Comments" */
+/* Column 6: "Mapping Rules" */
 table th:nth-child(6),
 table td:nth-child(6) {
-    min-width: 320px !important;
+    min-width: 350px !important;
 }
 
-/* Column 7: "Expected Verification Points" */
+/* Column 7: "Verification Points" */
 table th:nth-child(7),
 table td:nth-child(7) {
-    min-width: 280px !important;
+    min-width: 300px !important;
 }
 
-/* 4. Typography & Hierarchy */
+/* 4. Typography & Accents */
 h1,
 h2,
 h3,
 h4 {
-    color: #0f172a !important;
-    font-weight: 700 !important;
+    color: var(--text-heading) !important;
+    margin-top: 2em;
+    font-weight: 800 !important;
+}
+
+/* Badge styling for Status icons */
+img[src*="Status-Implemented"] {
+    filter: drop-shadow(0 2px 4px rgba(34, 197, 94, 0.2));
 }
 
 a {
-    color: #2563eb !important;
-    /* Indigo Blue */
-    text-decoration: none;
+    color: var(--accent-blue) !important;
+    font-weight: 500;
 }
 
-a:hover {
-    text-decoration: underline;
+/* Custom Scrollbar for the fresh look */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f8fafc;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+    border: 3px solid #f8fafc;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
