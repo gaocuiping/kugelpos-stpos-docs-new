@@ -1,8 +1,6 @@
 ---
-title: "テスト評審"
-parent: テスト
-grand_parent: 日本語
-nav_order: 1
+title: "自動化テスト総合評審レポート"
+nav_order: 6
 layout: default
 ---
 
