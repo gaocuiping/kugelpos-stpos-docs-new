@@ -56,26 +56,24 @@ table td:nth-child(4) {
 }
 
 /* Specific column targeting for Test Cases tables */
-/* For "Unit Tests" & "Integration Tests" tables (columns: ID, Title, Target/Link, Status, Rules, Result) */
-/* Rules column is usually 5th */
-table th:nth-child(5):contains("匹配规则"),
-table td:nth-child(5) {
-    min-width: 250px;
-}
+/* Standard CSS does not support :contains(), so we rely on nth-child.
+   All test-case tables in this documentation consistently use the 5th and 6th columns
+   for the most detailed textual content. */
 
-/* For "Scenario Tests" tables (columns: ID, Title, Scenario, Status, Business Steps, Rules, Verification) */
-/* Business Steps is 5th, Rules is 6th, Verification is 7th */
-table th:nth-child(5):contains("业务步骤"),
+/* Column 5: Usually "Business Steps" (Scenario) or "Matching Rules" (Unit) */
+table th:nth-child(5),
 table td:nth-child(5) {
     min-width: 400px !important;
 }
 
-table th:nth-child(6):contains("匹配规则"),
+/* Column 6: Usually "Mapping Rules" (Scenario) or "Expected Result" (Unit) */
+table th:nth-child(6),
 table td:nth-child(6) {
-    min-width: 250px !important;
+    min-width: 300px !important;
 }
 
-table th:nth-child(7):contains("期待される検証点"),
+/* Column 7: Usually "Expected Verification Points" (Scenario) */
+table th:nth-child(7),
 table td:nth-child(7) {
-    min-width: 200px !important;
+    min-width: 250px !important;
 }
