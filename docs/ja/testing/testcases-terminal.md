@@ -46,7 +46,7 @@ nav_order: 107
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **TM-U-101** | `PubsubManager` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_pubsub_circuit_breaker` <br> *(待追加：サーキットブレーカー検証)* | Dapr 側がエラーを返却した際、非ブロッキングでエラーが処理され、後続の業務プロセスが中断されないこと。 |
-| **TM-U-301** | `Health & System` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_health_endpoint`<br>`test_health_endpoint_background_jobs_details` | APIの生存確認やバックグラウンドジョブのステータス詳細など、本線以外の健全性確認が網羅されていること。 |
+| **TM-U-301** | `Health & System` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_health_endpoint` (ヘルスチェック経由)<br>`test_health_endpoint_background_jobs_details` (バックグラウンドジョブの詳細確認) | APIの生存確認やバックグラウンドジョブのステータス詳細など、本線以外の健全性確認が網羅されていること。 |
 
 ---
 

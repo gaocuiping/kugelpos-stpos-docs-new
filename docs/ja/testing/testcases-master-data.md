@@ -46,7 +46,7 @@ nav_order: 104
 |:---|:---|:---|:---|:---|
 | **MD-U-101** | `TaxMasterService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_tax_period_overlap_validation` <br> *(待追加：期間重複バリデーション)* | 同一の税区分に対し、重複する有効期間を持つ複数の税率を登録しようとした際にエラーが送出されること。 |
 | **MD-U-102** | `PaymentMasterService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_payment_method_operations` | 決済方法ごとに設定された種別（Cash, Credit, QR等）が正確にモデル化されていること。 |
-| **MD-U-301** | `Health & System` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_health_endpoint`<br>`test_health_endpoint_response_time` | APIの生存確認やレイテンシ保証など、本線以外の健全性確認が網羅されていること。 |
+| **MD-U-301** | `Health & System` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_health_endpoint` (ヘルスチェック経由)<br>`test_health_endpoint_response_time` (応答時間確認) | APIの生存確認やレイテンシ保証など、本線以外の健全性確認が網羅されていること。 |
 
 ---
 
