@@ -65,9 +65,9 @@ nav_order: 107
 
 | ID | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
 |:---|:---|:---|:---|:---|:---|
-| **TM-S-001** | 端末ライフサイクル | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 端末登録<br>2. 状態確認 (X-API-KEY)<br>3. `Sign-in`<br>4. プロパティ更新 | `test_terminal_operations` | 認可・認証（Bearer / API Key）の切り替えが正常に機能すること。 |
-| **TM-S-002** | 営業開始・終了 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. `OpenTerminal` モード変更<br>2. `Open` (準備金入力)<br>3. `Close` (精算入力) | `test_terminal_operations` | 営業日単位のカウンタ、および物理金額との整合性チェック。 |
-| **TM-S-003** | 入出金管理 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. `CashInOut` モード変更<br>2. `Cash In` 実行<br>3. `Cash Out` 実行 | `test_terminal_operations` | 取引種別に応じた正負金額の記録、ジャーナル出力の完整性。 |
+| **TM-S-001** | 端末マスター CRUD ライフサイクル | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. **Tenant**: 作成、取得、更新、削除<br>2. **Store**: 追加、重複チェック、取得、更新、削除<br>3. **Terminal**: 作成(Token利用)、重複チェック、取得、更新、削除 | `test_terminal_operations` | JWT Token を用いた管理 API を通じて、テナント・店舗・端末マスターの CRUD ライフサイクルが正常に機能すること。 |
+| **TM-S-002** | 端末ステータス・業務遷移フロー | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_terminal_operations` 後半の実行：<br>1. **Sign-In**: API Key でサインイン<br>2. **Open**: 準備金入力による営業開始<br>3. **Close**: 精算入力による営業終了<br>4. **Sign-Out**: 端末からのサインアウト | `test_terminal_operations` | 端末側の API Key を用いた認証と、業務モード(Function Mode)の切り替え・整合性チェックが機能すること。 |
+| **TM-S-003** | 入出金 (Cash In/Out) 管理 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. Terminal が `Opened` 状態で入出金モードへ遷移<br>2. `Cash In` (理由あり/なし) 実行<br>3. `Cash Out` (理由あり/なし) 実行 | `test_terminal_operations` | 端末内での入出金ログの生成と、正負金額の記録が正しく行われること。 |
 
 ---
 

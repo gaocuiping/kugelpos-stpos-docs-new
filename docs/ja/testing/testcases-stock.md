@@ -65,9 +65,9 @@ nav_order: 106
 
 | ID | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
 |:---|:---|:---|:---|:---|:---|
-| **SK-S-001** | 基本在庫運用 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 在庫取得<br>2. 購入(入庫)による在庫増<br>3. 履歴の確認 | `test_get_stock` / `test_update_stock` | 実行前後の数量差分が正確に計算・記録されていること。 |
-| **SK-S-002** | 棚卸スナップショット | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 在庫調整<br>2. 手動スナップショット作成<br>3. 日付範囲指定で取得 | `test_create_snapshot` / `test_snapshot_date_range` | 特定時点の全商品在庫が静止点として保存・検索できること。 |
-| **SK-S-003** | リアルタイム告警 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. WebSocket接続<br>2. 在庫を閾値以下に減らすご更新<br>3. アラート受信確認 | `test_websocket_alerts` | 下限割れを検知し、WebSocket 経由で即座にクライアントへ通知されること。 |
+| **SK-S-001** | 基本在庫運用と履歴管理 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. **初期取得**: `GET` 要求による現行在庫の確認<br>2. **アトミック更新**: 増減量(Quantity)を指定した `PUT` 更新<br>3. **履歴検証**: `History` コレクションに更新前後の差分と理由が正しく追記されること | `test_stock` | 単純な上書きではなく、アトミックな増減計算により並行処理時も在庫数が正確に保たれること。 |
+| **SK-S-002** | 棚卸スナップショット・スケジュール | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 定期実行 API または Scheduler 経由での Snapshot 生成起動<br>2. `Snapshot` 履歴の取得検証<br>3. 日付範囲パラメータ (`start_date`, `end_date`) を用いた検索 | `test_snapshot_date_range` / `test_snapshot_scheduler` | 月次・日次などの指定時点で、全商品の在庫数が静止点（スナップショット）として確実に保管され、後から期間指定で検索できること。 |
+| **SK-S-003** | リアルタイム発注警告 (WebSocket) | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. クライアントが WebSocket エンドポイントに接続<br>2. 別の API 経由で対象商品の在庫数を「発注点 (Reorder Level)」以下に減算<br>3. クライアント側でリアルタイムに JSON Alert を受信 | `test_websocket_alerts` / `test_reorder_alerts` | 下限割れ（発注点割れ）を検知した直後に、プッシュ型通信で接続中のPOSや管理画面へ即座に通知が届くこと。 |
 
 ---
 

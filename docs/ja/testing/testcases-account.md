@@ -58,7 +58,7 @@ nav_order: 101
 
 | ID | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
 |:---|:---|:---|:---|:---|:---|
-| **AC-S-001** | テナントオンボーディング | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. `POST /register` (Superuser) <br>2. `POST /token` (Login) <br>3. `GET /health` | `test_operations` | 新規テナントが正常にプロビジョニングされ、管理者としてログイン可能であること。 |
+| **AC-S-001** | テナントオンボーディングと分離 (Isolation) | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. **Superuser 登録**: `tenant_id` 有り/無し、および既存 `tenant_id` 被り時の新規動的生成確認<br>2. **DB 分離確認**: 新規生成されたテナント用の専用 DB が物理的に作成されることの確認<br>3. **Login**: Token エンドポイント経由での JWT (Bearer) 取得<br>4. **User 登録**: 取得した Token を用いて特定テナント傘下の一般ユーザーを登録 | `test_operations` | 新規テナントが正常にプロビジョニングされ、別テナントとの DB 物理隔離が担保された状態で管理者と一般ユーザーが作成・ログイン可能であること。 |
 | **AC-S-002** | マルチテナント隔離 | ![Missing](https://img.shields.io/badge/Status-Missing-red) | 1. テナントAでログイン<br>2. テナントBのクレデンシャルで試行 | `test_cross_tenant_login_isolation` | あるテナントの ID で、別のテナントのユーザーとしてログインすることが不可能であること。 |
 
 ---

@@ -64,9 +64,9 @@ nav_order: 105
 
 | ID | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
 |:---|:---|:---|:---|:---|:---|
-| **RP-S-001** | 日次売上分析 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 各種取引（販売/返品/取消）投入<br>2. 日次売上レポート取得<br>3. 部門別内訳の確認 | `test_report` / `test_category_report` | 赤黒処理（返品・取消）が正しく相殺され、純売上額が正確に表示されること。 |
-| **RP-S-002** | 決済照合フロー | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 複数決済手段での販売<br>2. 決済方法別レポート取得 | `test_payment_report_all` | 物理的な現金在高と、システム上の決済レポート額が完全に一致すること。 |
-| **RP-S-003** | 回帰テスト(Issue 90) | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 内税商品の販売<br>2. レポートでの税額・本体価格確認 | `test_issue_90_internal_tax_not_deducted` | 過去に発生した内税計算ミスが再発していないことの自動担保。 |
+| **RP-S-001** | 大規模・複雑ジャーナル集計検証 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 複数店舗・複数端末からのトランザクションを同時投入<br>2. 返品(Return)・取消(Void)を含むデータの集計計算<br>3. 複数税率(複数税区分)が混在するケースのデカルト積(Cartesian product)爆発回避検証 | `test_comprehensive_aggregation` | 複数条件が重なる複雑なジャーナル群に対しても、重複計上や計算エラーを起こさず、正確な全件合計(税込/税抜/税額)が算出されること。 |
+| **RP-S-002** | 決済照合・部門別売上フロー | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 複数決済手段での販売ジャーナル投入<br>2. 部門(Category)別・商品(Item)別の集計データ生成<br>3. 決済方法別レポート取得 | `test_payment_report_all` / `test_category_report` | 物理的な現金・キャッシュレス等の決済内訳と、システム上の売上合計額が完全に一致し、各集計軸でのレポートが正しく出力されること。 |
+| **RP-S-003** | 重要バグ・エッジケース回帰テスト | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. `test_extreme_split_payments` (Issue 78等: 極端な分割支払い)<br>2. `test_split_payment_count_bug` (件数集計バグ)<br>3. 日付境界値のバリデーション | `test_critical_issue_78` / `test_split_payment_bug` | 過去に発生した重大インシデント（内税計算、分割支払い時の集計ミスなど）に特化したシナリオが再発していないことの自動担保。 |
 
 ---
 
