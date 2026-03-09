@@ -33,11 +33,3 @@ Welcome to the Kugelpos POS Backend documentation site.
 | Journal | Electronic journal search | 8005 |
 | Stock | Inventory management | 8006 |
 
----
-
-## Quick Links
-
-- [Architecture Overview]({{ site.baseurl }}/en/general/architecture.html)
-- [Design Patterns]({{ site.baseurl }}/en/general/design_patterns.html)
-- [Error Code Specification]({{ site.baseurl }}/en/general/error_code_spec.html)
-- [アーキテクチャ概要]({{ site.baseurl }}/ja/general/architecture.html)
