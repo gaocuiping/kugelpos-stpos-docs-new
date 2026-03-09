@@ -1,4 +1,9 @@
 /* Custom CSS for Table Styling */
+html,
+body {
+    background-color: #ffffff !important;
+}
+
 /* Expand the main content width, and align it to the left (next to sidebar) */
 .page-wrap,
 #app,
@@ -10,6 +15,7 @@
 /* Ensure the wrapper doesn't center itself on ultra-wide screens, making it left-aligned */
 .page-wrap {
     margin: 0 !important;
+    background-color: #ffffff !important;
 }
 
 /* Force left-alignment for ultra-wide screens by overriding the centering calc() formula */
