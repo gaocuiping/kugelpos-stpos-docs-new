@@ -35,7 +35,7 @@ nav_order: 105
 
 ### 1.1 集計コアロジック (`ReportService`)
 
-| ID | テストタイトル | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+| ID | テストタイトル | テスト対象 | 状态 (Status) | <div style="width: 250px">匹配规则 (Function & Comments)</div> | <div style="width: 200px">期待される結果</div> |
 |:---|:---|:---|:---|:---|:---|
 | **RP-U-001** | **レポートサービスの汎用検証** | `ReportService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_partial_return_tax_accuracy` <br> *(待追加：部分返品時の税計算)* | 複数明細から一部のみを返品した際、残りの明細との合計税額が 1 円単位で整合すること。 |
 | **RP-U-002** | **レポートサービスの汎用検証** | `ReportService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_payment_equals_sales_plus_tax_always` / `test_three_way_payment_split` / `test_five_way_payment_split` | 決済金額の合計が「純売上＋税額」と完全に一致し、複雑な分割払いの際も 1 円の誤差も生じないこと。 |
@@ -45,13 +45,13 @@ nav_order: 105
 
 ### 1.2 プラグイン管理 (`ReportPluginManager`)
 
-| ID | テストタイトル | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+| ID | テストタイトル | テスト対象 | 状态 (Status) | <div style="width: 250px">匹配规则 (Function & Comments)</div> | <div style="width: 200px">期待される結果</div> |
 |:---|:---|:---|:---|:---|:---|
 | **RP-U-101** | **プラグイン統合の検証** | `PluginManager` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_plugin_load_failure_handling` <br> *(待追加：プラグインエラー処理)* | 特定のレポートプラグインの読み込みに失敗した場合でも、システム全体が停止せず、他プラグインへ影響を与えないこと。 |
 
 ### 1.3 集計バリエーション・境界値検証
 
-| ID | テストタイトル | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+| ID | テストタイトル | テスト対象 | 状态 (Status) | <div style="width: 250px">匹配规则 (Function & Comments)</div> | <div style="width: 200px">期待される結果</div> |
 |:---|:---|:---|:---|:---|:---|
 | **RP-U-301** | **各種税区分の境界検証** | `Tax Variations` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_empty_taxes_array` (空の税配列)<br>`test_external_tax_only` (外税のみ)<br>`test_internal_tax_only` (内税のみ)<br>`test_zero_taxes` (税額ゼロ)<br>`test_tax_breakdown_label` (税内訳ラベル検証) | 内外税の片方のみ、税額ゼロ、空配列といった各種税区分境界での集計安全性を検証。 |
 | **RP-U-302** | **決済金額ロジックの検証** | `Payment Logic` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_payment_amount_calculation` (支払金額計算)<br>`test_payment_sum_equals_sales_with_tax` (支払合計＝売上＋税)<br>`test_sales_report_amount_bug` (売上報告バグ修正)<br>`test_zero_amount_transaction` (ゼロ円取引) | 基本的な決済金額計算、ゼロ円取引、および既知の売上集計バグの回帰検証を含む金額整合性チェック。 |
@@ -71,7 +71,7 @@ nav_order: 105
 ## 2. 結合テスト (Integration Tests)
 **目的**: データベース（MongoDB）による大規模データ集計、および Journal サービスからの Pub/Sub 連携を検証する。
 
-| ID | テストタイトル | 連携先 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+| ID | テストタイトル | 連携先 | 状态 (Status) | <div style="width: 250px">匹配规则 (Function & Comments)</div> | <div style="width: 200px">期待される結果</div> |
 |:---|:---|:---|:---|:---|:---|
 | **RP-I-001** | **MongoDBデータ永続化検証** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_data_integrity` / `test_store_wide_daily_integrity` | 数万件規模・複数端末横断のジャーナルデータに対し、集計結果がタイムアウトせずに正確な総額（Integrity）が証明されること。 |
 | **RP-I-002** | **Journal APIの検証** | `Journal API` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_api_key_journal_integration` / `test_jwt_request_does_not_create_journal` | API Key による通信のみジャーナル履歴として追記され、JWT による単なる参照要求は副作用を起こさないこと。 |
@@ -82,7 +82,7 @@ nav_order: 105
 ## 3. シナリオテスト (Scenario Tests)
 **目的**: 実際の API エンドポイントを介して、販売から最終レポート出力までの整合性を検証する。
 
-| ID | テストタイトル | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
+| ID | テストタイトル | シナリオ名 | 状态 (Status) | <div style="width: 200px">业务步骤 (Business Steps)</div> | <div style="width: 200px">匹配规则 (Function & Comments)</div> | <div style="width: 200px">期待される検証点</div> |
 |:---|:---|:---|:---|:---|:---|:---|
 | **RP-S-001** | **大規模・複雑ジャーナル集計検証の検証** | 大規模・複雑ジャーナル集計検証 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 複数店舗・複数端末からのトランザクションを同時投入<br>2. 返品(Return)・取消(Void)を含むデータの集計計算<br>3. 複数税率(複数税区分)が混在するケースのデカルト積(Cartesian product)爆発回避検証 | `test_comprehensive_aggregation` | 複数条件が重なる複雑なジャーナル群に対しても、重複計上や計算エラーを起こさず、正確な全件合計(税込/税抜/税額)が算出されること。 |
 | **RP-S-002** | **決済照合・部門別売上フローの検証** | 決済照合・部門別売上フロー | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 複数決済手段での販売ジャーナル投入<br>2. 部門(Category)別・商品(Item)別の集計データ生成<br>3. 決済方法別レポート取得 | `test_payment_report_all` / `test_category_report` | 物理的な現金・キャッシュレス等の決済内訳と、システム上の売上合計額が完全に一致し、各集計軸でのレポートが正しく出力されること。 |

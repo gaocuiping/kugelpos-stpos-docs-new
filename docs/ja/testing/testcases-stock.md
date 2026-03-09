@@ -35,7 +35,7 @@ nav_order: 106
 
 ### 1.1 在庫計算ロジック (`StockService`)
 
-| ID | テストタイトル | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+| ID | テストタイトル | テスト対象 | 状态 (Status) | <div style="width: 250px">匹配规则 (Function & Comments)</div> | <div style="width: 200px">期待される結果</div> |
 |:---|:---|:---|:---|:---|:---|
 | **SK-U-001** | **StockServiceの検証** | `StockService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_negative_stock_allowed` <br> *(# Test that negative stock is allowed)* | 在庫が 0 未満になる更新でもエラーにならず、負の値として正しく保存・履歴記録されること。 |
 | **SK-U-002** | **StockServiceの検証** | `StockService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_update_stock_zero_change` <br> *(待追加：変化量ゼロの更新処理)* | 変化量が 0 の場合、在庫数は更新されず、履歴のみが記録される（またはスキップされる）仕様通りの動作。 |
@@ -44,7 +44,7 @@ nav_order: 106
 
 ### 1.2 アラート判定 (`AlertService`)
 
-| ID | テストタイトル | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+| ID | テストタイトル | テスト対象 | 状态 (Status) | <div style="width: 250px">匹配规则 (Function & Comments)</div> | <div style="width: 200px">期待される結果</div> |
 |:---|:---|:---|:---|:---|:---|
 | **SK-U-101** | **アラート境界値の検証** | `AlertService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_alert_threshold_boundary` <br> *(待追加：閾値境界値検証)* | 在庫が `minimum_quantity` と「ちょうど同値」になった際のアラート発火有無が仕様通りであること。 |
 | **SK-U-102** | **WebSocketマルチセッション検証** | `WebSocket` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_websocket_multiple_clients` / `test_websocket_unauthorized_connection` | セッション並行処理によるブロードキャストと、不正なアクセスに対するハンドシェイク遮断処理の堅牢性。 |
@@ -64,7 +64,7 @@ nav_order: 106
 ## 2. 結合テスト (Integration Tests)
 **目的**: データベース（MongoDB）、Dapr Pub/Sub 連携、およびスケジューラーの動作を検証する。
 
-| ID | テストタイトル | 連携先 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+| ID | テストタイトル | 連携先 | 状态 (Status) | <div style="width: 250px">匹配规则 (Function & Comments)</div> | <div style="width: 200px">期待される結果</div> |
 |:---|:---|:---|:---|:---|:---|
 | **SK-I-001** | **MongoDBデータ永続化検証** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_update_stock` / `test_get_snapshots_pagination` | `update_quantity_atomic_async` による DB レベルのアトミック減算、および大量 Snapshot 履歴のページネーション取得。 |
 | **SK-I-002** | **Dapr Pub/Subイベント検証** | `Dapr PubSub` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_dapr_subscribe` <br> *(# Test Dapr subscription endpoint)* | `topic-tranlog` に対するサブスクリプション設定が正しく公開されていること。 |
@@ -75,7 +75,7 @@ nav_order: 106
 ## 3. シナリオテスト (Scenario Tests)
 **目的**: 実際の API エンドポイントを介して、在庫のライフサイクルをエンドツーエンドで検証する。
 
-| ID | テストタイトル | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
+| ID | テストタイトル | シナリオ名 | 状态 (Status) | <div style="width: 200px">业务步骤 (Business Steps)</div> | <div style="width: 200px">匹配规则 (Function & Comments)</div> | <div style="width: 200px">期待される検証点</div> |
 |:---|:---|:---|:---|:---|:---|:---|
 | **SK-S-001** | **基本在庫運用と履歴管理の検証** | 基本在庫運用と履歴管理 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. **初期取得**: `GET` 要求による現行在庫の確認<br>2. **アトミック更新**: 増減量(Quantity)を指定した `PUT` 更新<br>3. **履歴検証**: `History` コレクションに更新前後の差分と理由が正しく追記されること | `test_stock` | 単純な上書きではなく、アトミックな増減計算により並行処理時も在庫数が正確に保たれること。 |
 | **SK-S-002** | **棚卸スナップショット・スケジュールの検証** | 棚卸スナップショット・スケジュール | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 定期実行 API または Scheduler 経由での Snapshot 生成起動<br>2. `Snapshot` 履歴の取得検証<br>3. 日付範囲パラメータ (`start_date`, `end_date`) を用いた検索 | `test_snapshot_date_range` / `test_snapshot_scheduler` | 月次・日次などの指定時点で、全商品の在庫数が静止点（スナップショット）として確実に保管され、後から期間指定で検索できること。 |
