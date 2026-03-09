@@ -1,8 +1,7 @@
 ---
 title: "ドキュメント管理と自動化"
 layout: default
-parent: 日本語
-nav_order: 5
+nav_order: 6
 ---
 
 # ドキュメント管理 — Jekyll + GitHub Pages 自動化体系

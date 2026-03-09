@@ -1,8 +1,7 @@
 ---
 title: "文档管理与自动化"
 layout: default
-parent: 中文
-nav_order: 1
+nav_order: 5
 ---
 
 # 文档管理 — Jekyll + GitHub Pages 自动化体系
