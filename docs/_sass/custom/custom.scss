@@ -24,10 +24,14 @@ body {
 /* 1. Layout & Glassmorphism Navigation */
 .page-wrap,
 #app,
+.main,
+.main-header,
 .main-content,
 .main-content-wrap {
     max-width: none !important;
+    width: 100% !important;
     background: transparent !important;
+    margin: 0 !important;
 }
 
 .page-wrap {
@@ -54,11 +58,15 @@ body {
 @media (min-width: 66.5rem) {
     .side-bar {
         width: 17rem !important;
+        position: fixed !important;
+        height: 100% !important;
     }
 
     .side-bar+.main {
         margin-left: 17rem !important;
+        width: calc(100% - 17rem) !important;
         padding: 40px !important;
+        min-height: 100vh;
     }
 }
 
