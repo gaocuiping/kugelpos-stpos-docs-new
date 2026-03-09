@@ -1,16 +1,26 @@
 /* Custom CSS for Table Styling */
-/* Expand the main content width to full screen on the right */
-.main-content,
-.main-content-wrap,
-.main,
+/* Expand the main content width, and align it to the left (next to sidebar) instead of centering */
+/* Force the entire page wrapper and container to stick to the left, and expand full width */
+.container,
 .page-wrap,
-.container {
-    max-width: 100% !important;
+.page-wrap .main {
+    max-width: none !important;
     margin-left: 0 !important;
+    padding-left: 0 !important;
 }
 
+.main-content,
+.main-content-wrap {
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+/* Ensure the sidebar starts from the absolute left margin */
 .side-bar {
     margin-left: 0 !important;
+    padding-left: 1rem !important;
+    /* give it just a tiny bit of breathing room inside */
 }
 
 table {
