@@ -54,3 +54,28 @@ table th:nth-child(4),
 table td:nth-child(4) {
     min-width: 200px;
 }
+
+/* Specific column targeting for Test Cases tables */
+/* For "Unit Tests" & "Integration Tests" tables (columns: ID, Title, Target/Link, Status, Rules, Result) */
+/* Rules column is usually 5th */
+table th:nth-child(5):contains("匹配规则"),
+table td:nth-child(5) {
+    min-width: 250px;
+}
+
+/* For "Scenario Tests" tables (columns: ID, Title, Scenario, Status, Business Steps, Rules, Verification) */
+/* Business Steps is 5th, Rules is 6th, Verification is 7th */
+table th:nth-child(5):contains("业务步骤"),
+table td:nth-child(5) {
+    min-width: 400px !important;
+}
+
+table th:nth-child(6):contains("匹配规则"),
+table td:nth-child(6) {
+    min-width: 250px !important;
+}
+
+table th:nth-child(7):contains("期待される検証点"),
+table td:nth-child(7) {
+    min-width: 200px !important;
+}

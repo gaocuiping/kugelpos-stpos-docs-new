@@ -34,7 +34,7 @@ nav_order: 102
 
 ### 1.1 状態管理 & サービスフロー (`CartService` / `TranService`)
 
-| ID | テストタイトル | テスト対象 | 状态 (Status) | <div style="width: 250px">匹配规则 (Mapping Rules / Function Name & Comments)</div> | <div style="width: 200px">期待される結果</div> |
+| ID | テストタイトル | テスト対象 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|:---|
 | **CT-U-001** | **CartServiceの検証** | `CartService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cart_operations` <br> *(# Check if the terminal is opened [异常系])* | `TerminalStatusException` が送出されること。 |
 | **CT-U-002** | **CartStateManagerの検証** | `CartStateManager` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_resume_item_entry_from_invalid_states` <br> *(# Test that resume item entry fails from invalid states)* | `EventBadSequenceException` が送出されること。 |
@@ -48,7 +48,7 @@ nav_order: 102
 
 ### 1.2 計算エンジン (`logics/`)
 
-| ID | テストタイトル | テスト対象 | 状态 (Status) | <div style="width: 250px">匹配规则 (Mapping Rules / Function Name & Comments)</div> | <div style="width: 200px">期待される結果</div> |
+| ID | テストタイトル | テスト対象 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|:---|
 | **CT-U-101** | **calc_tax_logicの検証** | `calc_tax_logic` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_calc_subtotal_async` / `test_calc_subtotal_skips_cancelled_items` | 取消されたアイテムを除外して、各税区分の `tax_amount` が正確に計算されること。 |
 | **CT-U-102** | **calc_tax_logicの検証** | `calc_tax_logic` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_calc_tax_rounding_ceil` <br> *(待追加：端数処理モードの網羅検証)* | `RoundMethod.Ceil/Floor` に従い正しく丸められること。 |
@@ -57,7 +57,7 @@ nav_order: 102
 
 ### 1.3 ユーティリティ & キャッシュ (`utils/`)
 
-| ID | テストタイトル | テスト対象 | 状态 (Status) | <div style="width: 250px">匹配规则 (Mapping Rules / Function Name & Comments)</div> | <div style="width: 200px">期待される結果</div> |
+| ID | テストタイトル | テスト対象 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|:---|
 | **CT-U-201** | **TerminalInfoCacheの検証** | `TerminalInfoCache` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cache_initialization` / `test_cache_clear_all` / `test_cache_expiration` / `test_cache_clear_by_tenant` | TTL 経過後の自動削除およびテナント間のデータ隔離が徹底され、メモリリークを防ぐ。 |
 | **CT-U-202** | **TextHelperの検証** | `TextHelper` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_truncate_text_japanese` / `test_truncate_text_edge_cases` / `test_fixed_left_with_truncate` | 日本語/ASCII 混在時の正確な表示幅計算（全角半角）と強制改行処理が崩れないこと。 |
@@ -76,7 +76,7 @@ nav_order: 102
 
 ### 2.1 データ永続化 / 通信
 
-| ID | テストタイトル | 連携先 | 状态 (Status) | <div style="width: 250px">匹配规则 (Mapping Rules / Function Name & Comments)</div> | <div style="width: 200px">期待される結果</div> |
+| ID | テストタイトル | 連携先 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|:---|
 | **CT-I-001** | **MongoDBデータ永続化検証** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_mark_as_voided_new_document` <br> *(# Test persistent status marking)* | 保存前后的对象属性一致。 |
 | **CT-I-002** | **gRPCネットワーク通信検証** | `gRPC` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_get_item_by_code_adds_to_cache` <br> *(# Verify item master gRPC cache logic)* | 通信成功且二次请求使用缓存。 |
@@ -89,7 +89,7 @@ nav_order: 102
 ## 3. シナリオテスト (Scenario Tests)
 **目的**: 実際の API エンドポイントを介して、複雑な業務フローをエンドツーエンドで検証する。
 
-| ID | テストタイトル | シナリオ名 | 状态 (Status) | <div style="width: 200px">业务步骤 (Business Steps)</div> | <div style="width: 200px">匹配规则 (Function & Comments)</div> | <div style="width: 200px">期待される検証点</div> |
+| ID | テストタイトル | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
 |:---|:---|:---|:---|:---|:---|:---|
 | **CT-S-001** | **標準販売フローの検証** | 標準販売フロー | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. `POST /carts` (作成)<br>2. `POST /.../lineItems` (追加)<br>3. `POST /.../subtotal` (小計)<br>4. `POST /.../payments` (支払)<br>5. `POST /.../bill` (完了) | `test_cart_operations` <br> *(# カートの基本的な操作テスト)* | 合計金額、税額、取引ログ、および状態遷移の完全性。 |
 | **CT-S-002** | **レジュームの検証** | レジューム | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. カート作成・商品追加<br>2. `Paying` 状態へ遷移<br>3. 現金 100円を入力 (一部支払)<br>4. `POST /.../resume-item-entry` 実行 | `test_resume_item_entry_from_paying_state` <br> *(# Test resuming item entry from paying state)* | 支払い情報のクリア、および `EnteringItem` への状態回退。 |

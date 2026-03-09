@@ -35,7 +35,7 @@ nav_order: 103
 
 ### 1.1 電文処理ロジック (`LogService`)
 
-| ID | テストタイトル | テスト対象 | 状态 (Status) | <div style="width: 250px">匹配规则 (Function & Comments)</div> | <div style="width: 200px">期待される結果</div> |
+| ID | テストタイトル | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|:---|
 | **JN-U-001** | **ログ連携サービスの検証** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_process_tranlog_async` / `test_receive_tranlog_with_edge_cases` | 様々な取引種別（Normal, Void, Return）の Tranlog が、共通のジャーナル形式に正確かつ堅牢に（エッジケース含め）変換されること。 |
 | **JN-U-002** | **ログ連携サービスの検証** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_transaction_type_conversion_parametrized` / `test_normal_sales_cancelled_converts_to_cancel_type` | `kugel_common.enums.TransactionType` と内部保存形式の全マッピングが正しく行われ、特に「取消された通常販売」が負数種別へ反転すること。 |
@@ -51,7 +51,7 @@ nav_order: 103
 ## 2. 結合テスト (Integration Tests)
 **目的**: データベース（MongoDB）への永続化、および Dapr Pub/Sub のサブスクリプション連携を検証する。
 
-| ID | テストタイトル | 連携先 | 状态 (Status) | <div style="width: 250px">匹配规则 (Function & Comments)</div> | <div style="width: 200px">期待される結果</div> |
+| ID | テストタイトル | 連携先 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|:---|
 | **JN-I-001** | **MongoDBデータ永続化検証** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_journal_search` <br> *(# Test journal search with filters)* | 保存されたジャーナルデータが、複合インデックス（日付/店舗/端末）を用いて正確に抽出できること。 |
 | **JN-I-002** | **Dapr Pub/Subイベント検証** | `Dapr PubSub` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_health_check` / `dapr/subscribe` | 各種トピック（tranlog, cashlog, opencloselog）の購読設定が正常に構成されていること。 |
@@ -61,7 +61,7 @@ nav_order: 103
 ## 3. シナリオテスト (Scenario Tests)
 **目的**: 実際の API エンドポイントを介して、ジャーナルの収集から照会までのフローをエンドツーエンドで検証する。
 
-| ID | テストタイトル | シナリオ名 | 状态 (Status) | <div style="width: 200px">业务步骤 (Business Steps)</div> | <div style="width: 200px">匹配规则 (Function & Comments)</div> | <div style="width: 200px">期待される検証点</div> |
+| ID | テストタイトル | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
 |:---|:---|:---|:---|:---|:---|:---|
 | **JN-S-001** | **ジャーナル収集・照会の検証** | ジャーナル収集・照会 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. `POST /api/v1/tranlog` (疑似) <br>2. `GET /api/v1/journals` | `test_journal.py` | 送信した取引データが遅滞なくジャーナル一覧に反映され、詳細が一致すること。 |
 | **JN-S-002** | **ページネーション検証の検証** | ページネーション検証 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 大量ログ投入 <br>2. `limit/page` 指定での取得 | `test_journal_pagination` | ページ境界（Offset）のデータ欠落がなく、メタデータの `total` が正確であること。 |
