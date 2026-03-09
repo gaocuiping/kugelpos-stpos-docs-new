@@ -1,4 +1,9 @@
 /* Custom CSS for Table Styling */
+/* Expand the main content width */
+.main-content {
+    max-width: 1400px !important;
+}
+
 table {
     display: block;
     width: 100%;
