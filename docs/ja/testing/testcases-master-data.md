@@ -64,7 +64,7 @@ nav_order: 104
 
 | ID | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
 |:---|:---|:---|:---|:---|:---|
-| **MD-S-001** | マスター統合 CRUD ライフサイクル | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_operations` 関数による一連の統合シナリオ：<br>1. **Tenant**: 新規作成と異常系(無効ID)<br>2. **Staff**: 登録、全件取得(ページネーション検証)、更新、論理/物理削除<br>3. **Category**: 作成、取得、コード更新によるエラー検証、削除<br>4. **ItemCommon (共通商品)**: 作成、更新、論理削除状態の取得、物理削除<br>5. **ItemStore (店舗別商品)**: 構成適用、複数POSターミナルとの連携更新、異常系チェック | `def test_operations` | 全ての主要マスタエンティティに対する Create/Read/Update/Delete ライフサイクルが、異常系（バリデーション、404 等）も含めて完全に機能すること。 |
+| **MD-S-001** | マスター統合 CRUD ライフサイクル | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_operations` 関数による一連の統合シナリオ：<br>1. **Tenant**: 新規作成と異常系(無効ID)<br>2. **Staff**: 登録、全件取得、更新、論理/物理削除<br>3. **Category**: 作成、取得、コード更新エラー、削除<br>4. **ItemCommon**: 作成、更新、論理削除、物理削除<br>5. **ItemStore**: 構成適用、複数端末更新、異常系<br>6. **Payment**: 決済マスターのCRUD<br>7. **Settings**: 端末別設定のCRUDと重複チェック<br>8. **ItemBook**: メニューブック・カテゴリ・タブ・ボタンの階層的作成<br>9. **Tax**: 税・ページネーション検証 | `def test_operations` | 全ての主要マスタエンティティ（Tenant, Staff, Category, Item, Payment, Settings, ItemBook, Tax）に対する包括的な CRUD ライフサイクルとページネーションが完全に機能すること。 |
 | **MD-S-002** | スタッフ・権限管理 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. スタッフ登録<br>2. ロール(Role)付与<br>3. ログイン試行 | `test_staff_operations` | 登録されたスタッフ情報が認証認可サービスで正しく参照できること。 |
 
 ---
