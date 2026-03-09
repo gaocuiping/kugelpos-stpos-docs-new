@@ -1,40 +1,15 @@
 /* Custom CSS for Table Styling */
-/* Expand the main content width, and align it to the left (next to sidebar)/* Force the entire page wrapper and container to stick to the left, and expand full width */
-.container,
+/* Expand the main content width, and align it to the left (next to sidebar) */
 .page-wrap,
-body {
-    max-width: 100% !important;
-    display: flex !important;
-    justify-content: flex-start !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-.page-wrap .main {
-    max-width: none !important;
-    flex-grow: 1 !important;
-}
-
+#app,
 .main-content,
 .main-content-wrap {
     max-width: none !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    width: 100% !important;
 }
 
-/* Ensure the sidebar starts from the absolute left margin */
-.side-bar {
-    margin-left: 0 !important;
-    padding-left: 0 !important;
-    left: 0 !important;
-}
-
-.main {
-    margin-left: 0 !important;
-    max-width: none !important;
-    width: 100% !important;
-    flex-grow: 1 !important;
+/* Ensure the wrapper doesn't center itself on ultra-wide screens, making it left-aligned */
+.page-wrap {
+    margin: 0 !important;
 }
 
 table {
