@@ -1,84 +1,89 @@
----
-title: "Cart サービス テストケース"
-parent: テスト
-grand_parent: 日本語
-nav_order: 14
-layout: default
----
+# Cart サービス プロフェッショナルテストケース設計書
 
-# Cart サービス テスト設計書
+本ドキュメントは、Cart サービスのソースコード（`app/`）を詳細に解析した结果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルなテストケース群です。
 
-本ドキュメントは、「テスト評審レポート」に基づき構成を最適化したテストケースの設計書です。
-既存の実装テストと、今後の開発において追加すべき「推奨テスト（異常系・エッジケース等）」を「単体(Unit)」「結合(Integration)」「総合(Scenario)」の3つのレベルに明確に分離して定義しています。
+### 状態 (Status) の定義
+| アイコン | 状态 | 内容 |
+|:---:|:---:|:---|
+| ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | **Implemented** | 実際のテストコード（関数名またはコメント）から実装が確認されている。 |
+| ![Missing](https://img.shields.io/badge/Status-Missing-red) | **Missing** | 現状のテストコードには存在しないが、カバレッジ向上（85%以上）のために必要な項目。 |
 
 ---
 
-## 1. サービスの概要とテスト戦略 (Overview & Strategy)
-各サービスに特有のビジネスロジック、依存関係、およびテストにおける最大のフォーカスポイントに対する全体方針です。
+## 1. 単体テスト (Unit Tests)
+**目的**: 外部依存（DB/API）を Mock し、各モジュールの純粋なロジック、計算精度、および状態遷移を検証する。
+
+### 1.1 状態管理 & サービスフロー (`CartService` / `TranService`)
+| ID | テスト対象 | 状態 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **CT-U-001** | `CartService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cart_operations` <br> *(# Check if the terminal is opened [异常系])* | `TerminalStatusException` が送出されること。 |
+| **CT-U-002** | `CartStateManager` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_resume_item_entry_from_invalid_states` <br> *(# Test that resume item entry fails from invalid states)* | `EventBadSequenceException` が送出されること。 |
+| **CT-U-003** | `CartService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_add_payment_to_cart_async_balance_zero` <br> *(# The balance is equal to 0 [単体テスト边界])* | `BalanceZeroException` が送出されること。 |
+| **CT-U-004** | `TranService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_void_already_voided_transaction_raises_exception` <br> *(# Test that void operation on already voided transaction raises exception)* | `AlreadyVoidedException` が送出されること。 |
+| **CT-U-005** | `TranService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_return_already_refunded_transaction_raises_exception` <br> *(# Test that return operation on already refunded transaction raises exception)* | `AlreadyRefundedException` が送出されること。 |
+| **CT-U-006** | `TranService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_get_transaction_list_with_status_merges_correctly` <br> *(# Test that transaction list correctly merges void/return status)* | 状態フラグ（isVoided等）が正しくマージされていること。 |
+
+### 1.3 ユーティリティ & キャッシュ (`utils/`)
+| ID | テスト対象 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **CT-U-201** | `TerminalInfoCache` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cache_expiration` / `test_cache_clear_by_tenant` | TTL 経過後の自動削除およびテナント間のデータ隔離。 |
+| **CT-U-202** | `TextHelper` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_truncate_text_mixed` / `test_line_split_simulation` | 日本語/ASCII 混在時の正確な表示幅計算と改行処理。 |
+
+### 1.2 計算エンジン (`logics/`)
+| ID | テスト対象 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **CT-U-101** | `calc_tax_logic` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_calc_subtotal_async` <br> *(# Test the main calc_subtotal_async function)* | 各税区分の `tax_amount` が正確に計算されること。 |
+| **CT-U-102** | `calc_tax_logic` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_calc_tax_rounding_ceil` <br> *(待追加：端数処理モードの網羅検証)* | `RoundMethod.Ceil/Floor` に従い正しく丸められること。 |
+| **CT-U-103** | `calc_line_item` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_update_sales_info_async_with_discounts` <br> *(# Test update_sales_info_async with various discounts)* | %割引 -> 定額割引 の順序で算出されること。 |
 
 ---
 
-## 2. 単体テスト (Unit / ロジック単位)
-ビジネスロジックが集中する Service 層や Model 層のクラス・関数群を、外部通信（DBやgRPC）から隔離(Mock)して検証します。
+## 2. 結合テスト (Integration Tests)
+**目的**: データベース（MongoDB）、Dapr サービス、およびリポジトリ間のデータ連携を検証する。
 
-### 2.1 既存のテストケース (test-review.md より抽出実装済)
-
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| test_calc_subtotal_logic.py | 小計計算ロジック（内税・外税） | ✅ 高 |
-| test_tran_service_unit_simple.py | Void/返品の事前バリデーション | ✅ 中 |
-| test_tran_service_status.py | トランザクションステータス管理 | ✅ 中 |
-| test_terminal_cache.py | 端末キャッシュ管理ロジック | ✅ 中 |
-| test_text_helper.py | テキストユーティリティ | ✅ 中 |
-| repositories/test_item_master_grpc_repository.py | gRPCリポジトリ | ✅ 中 |
-| utils/test_grpc_channel_helper.py | gRPCチャンネル管理 | ✅ 中 |
-| utils/test_dapr_statestore_session_helper.py | Dapr状態ストア | ✅ 中 |
-
-### 2.2 推奨・補充テストケース (不足分の強化対象)
-
-| ID | ターゲット | テストシナリオ | 事前条件 / テスト手順 | 期待される結果 | 状態 |
-|---|---|---|---|---|---|
-| **CT-U-003** | `DELETE /entry/{id}` | 登録した商品の一部を取消（行キャンセル）する | 1. 2点以上の商品が登録済の状態で、`DELETE /entry/{id}` を実行 | 指定された行が削除され、小計が再計算されること | ✅ 実装済 |
-| **CT-U-011** | `tax_engine` | 単一商品に複数の税率（例：消費税10% + 軽減税率8%） | 1. 税率マスタに複数税率を設定 2. `POST /entry` を実行 | 各税金が正しく按分・計算されること | ❌ 補充(単体) |
-| **CT-U-012** | `discount_engine` | 単品「100円引き」と全体「10%引き」の複合 | 1. 商品を登録 2. 商品割引(100円)を適用 3. 合計割引(10%)を適用 | 割引適用順序に従い、正確な金額を算出 | ✅ 実装済 |
-| **CT-U-013** | `calc_subtotal` | 割引適用によって金額がマイナスになる場合 | 1. 商品登録 2. 販売額以上の金額割引を適用 | エラーまたは0円下限として処理されること | ✅ 実装済 |
-| **CT-E-003** | `Security` | 割引率に `1.5`（150%引）などの不正な値を送信 | 1. 割引率パラメータに1.0を超える数値を指定してAPI実行 | バリデーションエラー(422) | ❌ 補充(境界) |
+### 2.1 データ永続化 / 通信
+| ID | 連携先 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **CT-I-001** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_mark_as_voided_new_document` <br> *(# Test persistent status marking)* | 保存前后的对象属性一致。 |
+| **CT-I-002** | `gRPC` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_get_item_by_code_adds_to_cache` <br> *(# Verify item master gRPC cache logic)* | 通信成功且二次请求使用缓存。 |
+| **CT-I-003** | `Dapr PubSub` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_void_transaction_success` <br> *(# Test successful void and event publishing)* | `transaction_completed` 消息正确发送。 |
+| **CT-I-004** | `TranService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_get_tranlog_by_query_merges_status` <br> *(# Test status merging in paginated queries)* | ページネーション取得時、過去の取消・返品状態が正しく統合される。 |
+| **CT-I-005** | `Mongo Transaction` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_atomic_update_with_transaction` (待追加) | エラー発生時、両方のドキュメントがロールバックされること。 |
 
 ---
 
-## 3. 結合テスト (Integration / サービス間連携)
-Redis(Dapr StateStore) や 複数サービス間の Pub/Sub メッセージチェーンなど、コンポーネントを実際につなげた状態でのシステム連携を検証します。
+## 3. シナリオテスト (Scenario Tests)
+**目的**: 実際の API エンドポイントを介して、複雑な業務フローをエンドツーエンドで検証する。
 
-### 3.1 既存のテストケース (実装済)
+| ID | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
+|:---|:---|:---|:---|:---|:---|
+| **CT-S-001** | 標準販売フロー | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. `POST /carts` (作成)<br>2. `POST /.../lineItems` (追加)<br>3. `POST /.../subtotal` (小計)<br>4. `POST /.../payments` (支払)<br>5. `POST /.../bill` (完了) | `test_cart_operations` <br> *(# カートの基本的な操作テスト)* | 合計金額、税額、取引ログ、および状態遷移の完全性。 |
+| **CT-S-002** | レジューム | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. カート作成・商品追加<br>2. `Paying` 状態へ遷移<br>3. 現金 100円を入力 (一部支払)<br>4. `POST /.../resume-item-entry` 実行 | `test_resume_item_entry_from_paying_state` <br> *(# Test resuming item entry from paying state)* | 支払い情報のクリア、および `EnteringItem` への状態回退。 |
+| **CT-S-003** | 印紙税適用 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. カート作成<br>2. 50,001円以上の商品を追加<br>3. 現金決済を実行 | `test_duplicate_void_prevention` <br> *(# Test stamp duty calculation boundary)* | `is_stamp_duty_applied` が true であること。 |
+| **CT-S-004** | キャッシュレス | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. カート作成<br>2. 支払リクエスト (camelCase 形式で送信) | `test_cashless_payment_with_wrong_case` <br> *(# Test camelCase vs snake_case validation)* | バリデーションエラー (422) の返却。 |
+| **CT-S-005** | 異常解析 | ![Missing](https://img.shields.io/badge/Status-Missing-red) | 1. カート作成<br>2. 非常に複雑なレシート情報を含む支払リクエスト | `test_payment_cashless_error` 等 | 解析不能時の適切なエラーレスポンス (406等)。 |
+| **CT-S-006** | ヘルスチェック | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. `GET /health` 実行<br>2. バックグラウンドジョブのステータスを確認 | `test_health_endpoint_background_jobs_details` | システム各コンポーネントの生存確認。 |
 
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| - | ※現在、結合テストは実装されていません | ❌ |
+### 3.2 異常系・リカバリシナリオ
+**【Scenario-02】: 支払い中断とレジューム**
+- **ステップ**:
+  1. 商品登録完了、支払い待ち状態 (`Paying`) に遷移
+  2. 現金 100円 を入力 (一部支払い)
+  3. `POST /carts/{id}/resume-item-entry` を実行
+- **検証ポイント**:
+  - 既存の `payments` リストが空になっていること。
+  - カートステータスが `EnteringItem` に戻り、追加の商品登録が可能であること。
 
-### 3.2 推奨・補充テストケース (不足分の連携強化)
+## 4. テストインフラストラクチャ & ヘルパー関数 (Test Infrastructure & Helpers)
+**目的**: テストケースの実行に必要な環境構築（テナント作成、端末オープン等）を共通化する。これらは各テストの「前提条件」として機能する。
 
-| ID | ターゲット | テストシナリオ | 期待される結果 | 状態 |
-|---|---|---|---|---|
-| **CT-I-002** | `Cart → Dapr (Stock)` | 購入完了時の Pub/Sub 経由の在庫引当通知 | メッセージが送信される | ❌ 補充(結合) |
-| **CT-I-003** | `Cart → Dapr (Journal)` | 決済完了後のジャーナル生成通知 | 取引データが送信される | ❌ 補充(結合) |
+| 関数名 (Helper Function) | 役割 (Responsibility) | 备注 (Notes) |
+|:---|:---|:---|
+| `get_authentication_token` | Admin 認証トークンの取得 | 全ての管理 API 操作の基盤 |
+| `create_tenant` | テスト用テナントの動的作成 | 環境汚染を防ぐための独立したテナント構築 |
+| `open_terminal` | ターミナルの営業開始 (Opened) | 決済・カート操作を可能にするための状態制御 |
+| `get_terminal_info` | ターミナル詳細情報の取得 | API Key や TerminalID の動的取得 |
+| `create_cart_with_items` | 標準的な商品入りカートの即時作成 | シナリオテストの前座として多用 |
 
----
-
-## 4. 総合テスト (Scenario & E2E / API横断フロー)
-一連の業務フロー（例：商品追加→値引→キャンセル→決済完了）を、実際の HTTP クライアント経由でエンドツーエンドで検証します。
-
-### 4.1 既存のテストケース (実装済)
-
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| test_cart.py | 通常売上・値引・数量変更等 | ✅ 86% |
-| test_void_return.py | Void・返品フロー | ✅ 高 |
-| test_payment_cashless_error.py | キャッシュレスエラー | ⚠️ 部分 |
-| test_resume_item_entry.py | 商品入力再開フロー | ✅ 中 |
-
-### 4.2 推奨・補充テストケース (巨大過付加・長期セッション等)
-
-| ID | ターゲット | テストシナリオ (非機能含む) | 期待される結果 | 状態 |
-|---|---|---|---|---|
-| **CT-E-001** | `Boundary` | 特定商品の数量を 9,999 個（システム上限）に設定 | オーバーフローせずエラーか計算される | ❌ 補充(総合) |
-| **CT-E-002** | `State Ttl` | 未決済カートが 72時間放置される | TTLでGCされメモリ圧迫しない | ❌ 補充(総合) |
+> [!NOTE]
+> 自动化同步脚本在扫描代码时，会优先识别这些 Helper 函数的存在，以确保测试环境初始化逻辑的鲁棒性。

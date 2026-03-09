@@ -1,87 +1,61 @@
----
-title: "Report サービス テストケース"
-parent: テスト
-grand_parent: 日本語
-nav_order: 15
-layout: default
----
+# Report サービス プロフェッショナルテストケース設計書
 
-# Report サービス テスト設計書
+本ドキュメントは、Report サービスのソースコード（`app/`）を詳細に解析した結果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルなテストケース群です。
 
-本ドキュメントは、「テスト評議レポート」に基づき構成を最適化したテストケースの設計書です。
-既存の実装テストと、今後の開発において追加すべき「推奨テスト（異常系・エッジケース等）」を「単体(Unit)」「結合(Integration)」「総合(Scenario)」の3つのレベルに明確に分離して定義しています。
+### 状態 (Status) の定義
+| アイコン | 状态 | 内容 |
+|:---:|:---:|:---|
+| ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | **Implemented** | 実際のテストコード（関数名またはコメント）から実装が確認されている。 |
+| ![Missing](https://img.shields.io/badge/Status-Missing-red) | **Missing** | 現状のテストコードには存在しないが、カバレッジ向上（85%以上）のために必要な項目。 |
 
 ---
 
-## 1. サービスの概要とテスト戦略 (Overview & Strategy)
+## 1. 単体テスト (Unit Tests)
+**目的**: 外部依存（DB/PubSub）を Mock し、集計計算、税額配分、およびプラグイン管理ロジックを検証する。
 
-Report サービスは、ジャーナル（取引データ）を集計し、店舗別・商品別・決済方法別の売上レポートを生成します。
-テスト戦略の重点は以下の通りです：
-*   **集計ロジックの正確性**: 返品、取消（Void）、分割支払などの複雑な取引が二重計上されたり欠落したりしないことの検証。
-*   **時間境界の正確性**: 月次集計、日次集計におけるタイムゾーン（UTC+9等）や閏年などのカレンダーロジックの検証。
-*   **リアルタイム性と一括処理**: Dapr Pub/Sub 経由の準リアルタイム更新と、大量データに対するバッチ集計の安定性検証。
+### 1.1 集計コアロジック (`ReportService`)
+| ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **RP-U-001** | `ReportService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_partial_return_tax_accuracy` <br> *(待追加：部分返品時の税計算)* | 複数明細から一部のみを返品した際、残りの明細との合計税額が 1 円単位で整合すること。 |
+| **RP-U-002** | `ReportService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_split_payment_bug` | 複数決済手段（現金＋クレジット等）が併用された際、それぞれの売上が重複なく正確に配分されること。 |
+| **RP-U-003** | `ReportService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_discount_rounding_distribution` <br> *(待追加：値引端数処理)* | 合計金額に対する値引が複数商品に案分される際、端数（1円）の調整が特定のルールに基づき正確に行われること。 |
 
----
-
-## 2. 単体テスト (Unit / ロジック単位)
-
-ビジネスロジックが集中する Service 層や Model 層のクラス・関数群を、外部通信（DBやgRPC）から隔離(Mock)して検証します。
-
-### 2.1 既存のテストケース (実装済)
-
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| test_journal_integration.py | レポート集計ロジック（mock使用） | ✅ 中 |
-| test_terminal_id_parsing.py | 端末IDパースロジック | ✅ 中 |
-
-### 2.2 推奨・補充テストケース (不足分の強化対象)
-
-| ID | ターゲット | テストシナリオ | 事前条件 / テスト手順 | 期待される結果 | 状態 |
-|---|---|---|---|---|---|
-| **RP-E-001** | `Boundary` | 閏年の2月28日〜3月1日にまたがる月次集計 | 1. 2月29日が存在する年の該当期間データを投入 2. 月次レポートを出力 | 29日が含まれる | ❌ 補充(単体) |
-| **RP-E-002** | `Timezone` | タイムゾーンが UTC+9 の環境で 23:59:59 に発生したトランザクション | 1. UTC 14:59:59 にデータを記録 2. JST環境で集計を実行 | 当日分として集計 | ❌ 補充(単体) |
+### 1.2 プラグイン管理 (`ReportPluginManager`)
+| ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **RP-U-101** | `PluginManager` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_plugin_load_failure_handling` <br> *(待追加：プラグインエラー処理)* | 特定のレポートプラグインの読み込みに失敗した場合でも、システム全体が停止せず、他プラグインへ影響を与えないこと。 |
 
 ---
 
-## 3. 結合テスト (Integration / サービス間連携)
+## 2. 結合テスト (Integration Tests)
+**目的**: データベース（MongoDB）による大規模データ集計、および Journal サービスからの Pub/Sub 連携を検証する。
 
-Redis(Dapr StateStore) や 複数サービス間の Pub/Sub メッセージチェーンなど、コンポーネントを実際につなげた状態でのシステム連携を検証します。
-
-### 3.1 既存のテストケース (実装済)
-
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| - | ※現在、結合テストは実装されていません | ❌ |
-
-### 3.2 推奨・補充テストケース (不足分の連携強化)
-
-| ID | ターゲット | テストシナリオ | 期待される結果 | 状態 |
-|---|---|---|---|---|
-| **RP-I-001** | `Report → Journal` | Z精算（日次締め）実行時のレポート送信(Dapr) | Pub/Sub メッセージ構築確認 | ❌ 補充(結合) |
+| ID | 連携先 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **RP-I-001** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_data_integrity` <br> *(# Stress test for data integrity)* | 数万件規模のジャーナルデータに対し、集計結果がタイムアウトせずに正確に算出されること。 |
+| **RP-I-002** | `Journal API` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_journal_integration` | Journal サービスからの疑似的な Pub/Sub 通知を受け、Report 側のキャッシュが更新されること。 |
 
 ---
 
-## 4. 総合テスト (Scenario & E2E / API横断フロー)
+## 3. シナリオテスト (Scenario Tests)
+**目的**: 実際の API エンドポイントを介して、販売から最終レポート出力までの整合性を検証する。
 
-一連 of 業務フロー（例：商品追加→値引→キャンセル→決済完了）を、実際の HTTP クライアント経由でエンドツーエンドで検証します。
+| ID | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
+|:---|:---|:---|:---|:---|:---|
+| **RP-S-001** | 日次売上分析 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 各種取引（販売/返品/取消）投入<br>2. 日次売上レポート取得<br>3. 部門別内訳の確認 | `test_report` / `test_category_report` | 赤黒処理（返品・取消）が正しく相殺され、純売上額が正確に表示されること。 |
+| **RP-S-002** | 決済照合フロー | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 複数決済手段での販売<br>2. 決済方法別レポート取得 | `test_payment_report_all` | 物理的な現金在高と、システム上の決済レポート額が完全に一致すること。 |
+| **RP-S-003** | 回帰テスト(Issue 90) | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 内税商品の販売<br>2. レポートでの税額・本体価格確認 | `test_issue_90_internal_tax_not_deducted` | 過去に発生した内税計算ミスが再発していないことの自動担保。 |
 
-### 4.1 既存のテストケース (実装済)
+---
 
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| test_report.py | 店舗・端末別売上レポート | ✅ 高 |
-| test_category_report.py | カテゴリ別レポート | ✅ 高 |
-| test_item_report.py | 商品別レポート | ✅ 高 |
-| test_payment_report_all.py | 決済方法別レポート | ✅ 高 |
-| test_cancelled_transactions.py | 取消取引含む集計 | ✅ 高 |
-| test_void_transactions.py | Void取引含む集計 | ✅ 高 |
-| test_return_transactions.py | 返品取引含む集計 | ✅ 高 |
-| test_split_payment_bug.py | 分割支払の集計 | ✅ 高 |
-| test_critical_issue_78.py | バグ修正回帰テスト | ✅ 高 |
-| test_issue_90_internal_tax_not_deducted.py | 内税回帰テスト | ✅ 高 |
+## 4. テストインフラストラクチャ & ヘルパー関数 (Test Infrastructure & Helpers)
+**目的**: 大規模なテスト用ジャーナルデータを動的に生成・クレンジングする。
 
-### 4.2 推奨・補充テストケース (巨大過付加・長期セッション等)
+| 関数名 (Helper Function) | 役割 (Responsibility) | 备注 (Notes) |
+|:---|:---|:---|
+| `log_maker.create_tran_log` | 柔軟な属性を持つ取引ログの自動生成 | テストデータのバリエーション確保 |
+| `test_setup_data` | 大規模な履歴データの事前投入 | 集計パフォーマンス検証用 |
+| `check_report_data.assert_summary` | 集計結果の共通アサーション | テストコードの簡素化・共通化 |
 
-| ID | ターゲット | テストシナリオ (非機能含む) | 期待される結果 | 状態 |
-|---|---|---|---|---|
-| - | - | ※追加要請のシナリオエッジケースは現在ありません | - | - |
+> [!IMPORTANT]
+> Report サービスは 23 のテストファイルを持ち、全サービス中で最もテスト密度が高い主力コンポーネントです。

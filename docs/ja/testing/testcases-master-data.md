@@ -1,78 +1,60 @@
----
-title: "Master Data サービス テストケース"
-parent: テスト
-grand_parent: 日本語
-nav_order: 13
-layout: default
----
+# Master Data サービス プロフェッショナルテストケース設計書
 
-# Master Data サービス テスト設計書
+本ドキュメントは、Master Data サービスのソースコード（`app/`）を詳細に解析した結果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルなテストケース群です。
 
-本ドキュメントは、「テスト評議レポート」に基づき構成を最適化したテストケースの設計書です。
-既存の実装テストと、今後の開発において追加すべき「推奨テスト（異常系・エッジケース等）」を「単体(Unit)」「結合(Integration)」「総合(Scenario)」の3つのレベルに明確に分離して定義しています。
+### 状態 (Status) の定義
+| アイコン | 状态 | 内容 |
+|:---:|:---:|:---|
+| ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | **Implemented** | 実際のテストコード（関数名またはコメント）から実装が確認されている。 |
+| ![Missing](https://img.shields.io/badge/Status-Missing-red) | **Missing** | 現状のテストコードには存在しないが、カバレッジ向上（85%以上）のために必要な項目。 |
 
 ---
 
-## 1. サービスの概要とテスト戦略 (Overview & Strategy)
+## 1. 単体テスト (Unit Tests)
+**目的**: 外部依存（DB）を Mock し、マスタデータの検索ロジック、有効期間バリデーション、および継承モデルを検証する。
 
-Master Data サービスは、店舗、スタッフ、商品（Item）、税率、決済方法などのマスタ情報の管理・配信を担当します。
-テスト戦略の重点は以下の通りです：
-*   **データの正確性と整合性**: 商品検索やJANコードによる紐付けが正確に行われることの検証。
-*   **キャッシュ制御**: パフォーマンス向上のためのキャッシュ（Dapr Redis）パージとレプリケーションの整合性検証。
-*   **大規模データ対応**: 10万件規模の商品データに対する一括処理やバッチ更新の性能・安定性検証。
+### 1.1 商品・カテゴリロジック (`ItemBookMasterService` / `CategoryMasterService`)
+| ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **MD-U-001** | `ItemBookMasterService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_item_fallback_to_common` <br> *(待追加：店舗個別情報なし時のCommon取得)* | 店舗個別の商品情報が存在しない場合、自動的に共通 (Common) マスタの情報が補完されて返却されること。 |
+| **MD-U-002** | `CategoryMasterService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_category_operations` <br> *(# Test category CRUD)* | カテゴリの親子階層構造（ParentID）が正確に維持・パースされること。 |
 
----
-
-## 2. 単体テスト (Unit / ロジック単位)
-
-ビジネスロジックが集中する Service 層や Model 層のクラス・関数群を、外部通信（DBやgRPC）から隔離(Mock)して検証します。
-
-### 2.1 既存のテストケース (実装済)
-
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| - | ※現在、単体テストは実装されていません | ❌ |
-
-### 2.2 推奨・補充テストケース (不足分の強化対象)
-
-| ID | ターゲット | テストシナリオ | 事前条件 / テスト手順 | 期待される結果 | 状態 |
-|---|---|---|---|---|---|
-| **MD-U-010** | `GET /items` | 存在するJANコードでの商品検索ロジック | 1. 登録済みJANコードをクエリパラメータに指定 | 各種情報パース確認 | ❌ 補充(単体) |
-| **MD-U-012** | `PUT /items` | 商品の価格改定時の状態破棄処理 | 1. 商品価格を更新 2. キャッシュクリアイベントの発生を確認 | キャッシュパージロジックが呼ばれる | ❌ 補充(単体) |
-| **MD-U-020** | `GET /taxes` | 有効期間内外の税率フィルタリングロジック | 1. 未来日、過去日を設定した税率を登録 | 有効期間内のみ抽出 | ❌ 補充(単体) |
+### 1.2 税率・決済設定 (`TaxMasterService` / `PaymentMasterService`)
+| ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **MD-U-101** | `TaxMasterService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_tax_period_overlap_validation` <br> *(待追加：期間重複バリデーション)* | 同一の税区分に対し、重複する有効期間を持つ複数の税率を登録しようとした際にエラーが送出されること。 |
+| **MD-U-102** | `PaymentMasterService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_payment_method_operations` | 決済方法ごとに設定された種別（Cash, Credit, QR等）が正確にモデル化されていること。 |
 
 ---
 
-## 3. 結合テスト (Integration / サービス間連携)
+## 2. 結合テスト (Integration Tests)
+**目的**: データベース（MongoDB）への永続化、および Dapr Redis によるマスタキャッシュの整合性を検証する。
 
-Redis(Dapr StateStore) や 複数サービス間の Pub/Sub メッセージチェーンなど、コンポーネントを実際につなげた状態でのシステム連携を検証します。
-
-### 3.1 既存のテストケース (実装済)
-
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| - | ※現在、結合テストは実装されていません | ❌ |
-
-### 3.2 推奨・補充テストケース (不足分の連携強化)
-
-| ID | ターゲット | テストシナリオ | 期待される結果 | 状態 |
-|---|---|---|---|---|
-| **MD-E-002** | `Integrity` | キャッシュ（Dapr Redis）への保存中にネットワーク障害 | スプリットブレイン防止(自己復旧) | ❌ 補充(結合) |
+| ID | 連携先 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **MD-I-001** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_staff_operations` <br> *(# Test staff CRUD)* | 作成・更新されたマスタレコードが DB に正確に反映され、検索可能であること。 |
+| **MD-I-002** | `Dapr Cache` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_settings_operations` | 店舗設定（Settings）の変更が、キャッシュレイヤーを介して即座に反映されること。 |
 
 ---
 
-## 4. 総合テスト (Scenario & E2E / API横断フロー)
+## 3. シナリオテスト (Scenario Tests)
+**目的**: 実際の API エンドポイントを介して、マスターデータのメンテナンスフローをエンドツーエンドで検証する。
 
-一連 of 業務フロー（例：商品追加→値引→キャンセル→決済完了）を、実際の HTTP クライアント経由でエンドツーエンドで検証します。
+| ID | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
+|:---|:---|:---|:---|:---|:---|
+| **MD-S-001** | 商品構成セットアップ | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. カテゴリ作成<br>2. 共通商品登録<br>3. 店舗個別価格設定 | `test_operations.py` (Item tests) | 最小構成の商品マスタが API 経由で完結し、POS で利用可能な状態になること。 |
+| **MD-S-002** | スタッフ・権限管理 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. スタッフ登録<br>2. ロール(Role)付与<br>3. ログイン試行 | `test_staff_operations` | 登録されたスタッフ情報が認証認可サービスで正しく参照できること。 |
 
-### 4.1 既存のテストケース (実装済)
+---
 
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| 複数ファイル | Staff/Category/Item/Payment/Settings CRUD | ⚠️ 63% |
+## 4. テストインフラストラクチャ & ヘルパー関数 (Test Infrastructure & Helpers)
+**目的**: テスト環境のセットアップおよび共通クレンジングを共通化する。
 
-### 4.2 推奨・補充テストケース (巨大過付加・長期セッション等)
+| 関数名 (Helper Function) | 役割 (Responsibility) | 备注 (Notes) |
+|:---|:---|:---|
+| `test_setup_data` | テスト用マスターシートの流し込み | 全マスタの初期状態構築 |
+| `test_clean_data` | 全マスターコレクションの物理削除 | 冪等性確保のための後処理 |
+| `conftest.http_client` | FastAPI AsyncClient 提供 | 認可・通信基盤 |
 
-| ID | ターゲット | テストシナリオ (非機能含む) | 期待される結果 | 状態 |
-|---|---|---|---|---|
-| **MD-E-001** | `Performance` | 100,000件の商品データに対する一括キャッシュリフレッシュバッチ | OOM起こさず完了 | ❌ 補充(総合) |
+> [!TIP]
+> Master Data サービスは「影響範囲」が広いため、税率計算などの境界値テストを優先的に補充することが推奨されます。

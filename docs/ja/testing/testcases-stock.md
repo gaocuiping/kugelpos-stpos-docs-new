@@ -1,80 +1,62 @@
----
-title: "Stock サービス テストケース"
-parent: テスト
-grand_parent: 日本語
-nav_order: 17
-layout: default
----
+# Stock サービス プロフェッショナルテストケース設計書
 
-# Stock サービス テスト設計書
+本ドキュメントは、Stock サービスのソースコード（`app/`）を詳細に解析した結果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルなテストケース群です。
 
-本ドキュメントは、「テスト評議レポート」に基づき構成を最適化したテストケースの設計書です。
-既存の実装テストと、今後の開発において追加すべき「推奨テスト（異常系・エッジケース等）」を「単体(Unit)項目」「結合(Integration)項目」「総合(Scenario)項目」の3つのレベルに明確に分離して定義しています。
+### 状態 (Status) の定義
+| アイコン | 状态 | 内容 |
+|:---:|:---:|:---|
+| ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | **Implemented** | 実際のテストコード（関数名またはコメント）から実装が確認されている。 |
+| ![Missing](https://img.shields.io/badge/Status-Missing-red) | **Missing** | 現状のテストコードには存在しないが、カバレッジ向上（85%以上）のために必要な項目。 |
 
 ---
 
-## 1. サービスの概要とテスト戦略 (Overview & Strategy)
+## 1. 単体テスト (Unit Tests)
+**目的**: 外部依存（DB/WebSocket）を Mock し、在庫計算、トランザクションマッピング、およびアラート判定ロジックを検証する。
 
-Stock サービスは、リアルタイムの在庫数管理、引当（Reservation）、および在庫履歴の管理を担当します。
-テスト戦略の重点は以下の通りです：
-*   **アトミックな在庫操作**: 同一商品に対する並行する引当リクエストが正確に（オーバーシュートせず）処理されることの検証。
-*   **データ同期とレジリエンス**: Dapr Pub/Sub 経由の取引データ受信に基づく在庫減算の確実性。
-*   **通知機能**: 在庫閾値を下回った際のアラート（WebSocket）および再注文通知の即時性と正確性。
+### 1.1 在庫計算ロジック (`StockService`)
+| ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **SK-U-001** | `StockService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_negative_stock_allowed` <br> *(# Test that negative stock is allowed)* | 在庫が 0 未満になる更新でもエラーにならず、負の値として正しく保存・履歴記録されること。 |
+| **SK-U-002** | `StockService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_update_stock_zero_change` <br> *(待追加：変化量ゼロの更新処理)* | 変化量が 0 の場合、在庫数は更新されず、履歴のみが記録される（またはスキップされる）仕様通りの動作。 |
+| **SK-U-003** | `StockService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_process_transaction_with_cancelled_items` <br> *(待追加：キャンセル行のフィルタリング)* | 取引データ内に `is_cancelled: true` の行が含まれる場合、その行の在庫減算がスキップされること。 |
 
----
-
-## 2. 単体テスト (Unit / ロジック単位)
-
-ビジネスロジックが集中する Service 層や Model 層のクラス・関数群を、外部通信（DBやgRPC）から隔離(Mock)して検証します。
-
-### 2.1 既存のテストケース (test-review.md より抽出実装済)
-
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| test_snapshot_scheduler.py | スナップショット自動スケジューラー | ✅ 中 |
-
-### 2.2 推奨・補充テストケース (不足分の強化対象)
-
-| ID | ターゲット | テストシナリオ | 事前条件 / テスト手順 | 期待される結果 | 状態 |
-|---|---|---|---|---|---|
-| **SK-U-013** | `Concurrency` | 同一商品に対する並行する2件の引当リクエスト | 1. 在庫1の瞬間に2つの引当APIをほぼ同時に呼び出し | アトミック減算 | ❌ 補充(単体) |
+### 1.2 アラート判定 (`AlertService`)
+| ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **SK-U-101** | `AlertService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_alert_threshold_boundary` <br> *(待追加：閾値境界値検証)* | 在庫が `minimum_quantity` と「ちょうど同値」になった際のアラート発火有無が仕様通りであること。 |
 
 ---
 
-## 3. 結合テスト (Integration / サービス間連携)
-Redis(Dapr StateStore) や 複数サービス間の Pub/Sub メッセージチェーンなど、コンポーネントを実際につなげた状態でのシステム連携を検証します。
+## 2. 結合テスト (Integration Tests)
+**目的**: データベース（MongoDB）、Dapr Pub/Sub 連携、およびスケジューラーの動作を検証する。
 
-### 3.1 既存のテストケース (実装済)
-
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| - | ※現在、結合テストは実装されていません | ❌ |
-
-### 3.2 推奨・補充テストケース (不足分の連携強化)
-
-| ID | ターゲット | テストシナリオ | 期待される結果 | 状態 |
-|---|---|---|---|---|
-| - | - | ※追加要請の結合テストは現在ありません | - | - |
+| ID | 連携先 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **SK-I-001** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_update_stock` <br> *(# Test updating stock quantity)* | `update_quantity_atomic_async` により、アトミックな増減が DB レベルで保証されること。 |
+| **SK-I-002** | `Dapr PubSub` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_dapr_subscribe` <br> *(# Test Dapr subscription endpoint)* | `topic-tranlog` に対するサブスクリプション設定が正しく公開されていること。 |
+| **SK-I-003** | `Scheduler` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_snapshot_scheduler` <br> *(# Test snapshot scheduler)* | 設定されたスケジュールに基づき、在庫スナップショットが自動生成されること。 |
 
 ---
 
-## 4. 総合テスト (Scenario & E2E / API横断フロー)
-一連の業務フロー（例：商品追加→値引→キャンセル→決済完了）を、実際の HTTP クライアント経由でエンドツーエンドで検証します。
+## 3. シナリオテスト (Scenario Tests)
+**目的**: 実際の API エンドポイントを介して、在庫のライフサイクルをエンドツーエンドで検証する。
 
-### 4.1 既存のテストケース (実装済)
+| ID | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
+|:---|:---|:---|:---|:---|:---|
+| **SK-S-001** | 基本在庫運用 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 在庫取得<br>2. 購入(入庫)による在庫増<br>3. 履歴の確認 | `test_get_stock` / `test_update_stock` | 実行前後の数量差分が正確に計算・記録されていること。 |
+| **SK-S-002** | 棚卸スナップショット | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 在庫調整<br>2. 手動スナップショット作成<br>3. 日付範囲指定で取得 | `test_create_snapshot` / `test_snapshot_date_range` | 特定時点の全商品在庫が静止点として保存・検索できること。 |
+| **SK-S-003** | リアルタイム告警 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. WebSocket接続<br>2. 在庫を閾値以下に減らすご更新<br>3. アラート受信確認 | `test_websocket_alerts` | 下限割れを検知し、WebSocket 経由で即座にクライアントへ通知されること。 |
 
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| test_stock.py | 在庫CRUD・tranlog受信・スナップショット | ✅ 高 |
-| test_reorder_alerts.py | 発注アラート | ✅ 高 |
-| test_snapshot_date_range.py | スナップショット日付範囲（境界値） | ✅ 高 |
-| test_snapshot_schedule_api.py | スケジュール管理 | ✅ 中 |
-| test_websocket_alerts.py | WebSocket通知 | ✅ 中 |
-| test_websocket_reorder_new.py | WebSocket新設計 | ✅ 中 |
+---
 
-### 4.2 推奨・補充テストケース (巨大過付加・長期セッション等)
+## 4. テストインフラストラクチャ & ヘルパー関数 (Test Infrastructure & Helpers)
+**目的**: テスト環境のセットアップおよび共通クレンジングを共通化する。
 
-| ID | ターゲット | テストシナリオ (非機能含む) | 期待される結果 | 状態 |
-|---|---|---|---|---|
-| **SK-E-001** | `Resilience` | WebSocketクラ切断中に発注アラート | 再接続時に送信 | ❌ 補充(総合) |
-| **SK-E-002** | `Concurrency` | 残り「1」に 10箇所のレジから完全に同時に引当 | 1成功、9失敗 | ❌ 補充(総合) |
+| 関数名 (Helper Function) | 役割 (Responsibility) | 备注 (Notes) |
+|:---|:---|:---|
+| `test_setup_data` | 初期在庫マスター（ITEM001等）の投入 | テスト実行前の環境構築 |
+| `test_clean_data` | 全在庫・履歴データの物理削除 | 冪等性確保のための後処理 |
+| `conftest.test_auth_headers` | Bearer Token 基盤の提供 | 認可が必要な API 用のヘッダー生成 |
+
+> [!TIP]
+> 文档现已覆盖 Stock 服务相关的 11 个测试文件，单体测试层级的 GAP 已作为后续优先补全项。

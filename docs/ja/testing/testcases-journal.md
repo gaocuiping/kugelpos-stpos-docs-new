@@ -1,78 +1,56 @@
----
-title: "Journal サービス テストケース"
-parent: テスト
-grand_parent: 日本語
-nav_order: 16
-layout: default
----
+# Journal サービス プロフェッショナルテストケース設計書
 
-# Journal サービス テスト設計書
+本ドキュメントは、Journal サービスのソースコード（`app/`）を詳細に解析した結果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルなテストケース群です。
 
-本ドキュメントは、「テスト評議レポート」に基づき構成を最適化したテストケースの設計書です。
-既存の実装テストと、今後の開発において追加すべき「推奨テスト（異常系・エッジケース等）」を「単体(Unit)」「結合(Integration)」「総合(Scenario)」の3つのレベルに明確に分離して定義しています。
+### 状態 (Status) の定義
+| アイコン | 状态 | 内容 |
+|:---:|:---:|:---|
+| ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | **Implemented** | 実際のテストコード（関数名またはコメント）から実装が確認されている。 |
+| ![Missing](https://img.shields.io/badge/Status-Missing-red) | **Missing** | 現状のテストコードには存在しないが、カバレッジ向上（85%以上）のために必要な項目。 |
 
 ---
 
-## 1. サービスの概要とテスト戦略 (Overview & Strategy)
+## 1. 単体テスト (Unit Tests)
+**目的**: 外部依存（Dapr/DB）を Mock し、電文パース、取引種別変換、および検索パラメータ構築ロジックを検証する。
 
-Journal サービスは、全モジュールのトランザクションログ（Tranlog）の収集、変換、および永続化を担当します。
-テスト戦略の重点は以下の通りです：
-*   **データ整合性と変換**: 様々なサービスから送信される異なるフォーマットの Tranlog が正確に統一スキーマへ変換されることの検証。
-*   **検索性能と正確性**: 大量のジャーナルデータに対する日付・店舗・端末等の複合検索の正確性。
-*   **非機能要件**: 巨大なレシートデータや、不正なページネーションリクエストに対するシステムの堅牢性。
-
----
-
-## 2. 単体テスト (Unit / ロジック単位)
-
-ビジネスロジックが集中する Service 層や Model 層のクラス・関数群を、外部通信（DBやgRPC）から隔離(Mock)して検証します。
-
-### 2.1 既存のテストケース (実装済)
-
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| test_log_service.py | tranlog受信・取引種別変換ロジック（6ケース） | ✅ 高 |
-| test_transaction_type_conversion.py | 取引種別変換（パラメータ化） | ✅ 高 |
-
-### 2.2 推奨・補充テストケース (不足分の強化対象)
-
-| ID | ターゲット | テストシナリオ | 事前条件 / テスト手順 | 期待される結果 | 状態 |
-|---|---|---|---|---|---|
-| **JN-U-012** | `Search Logic` | 日付（Date Range）とターミナルIDでの検索パラメータ構築 | 1. 指定期間の検索リクエストを送信 | 正しいクエリ | ❌ 補充(単体) |
+### 1.1 電文処理ロジック (`LogService`)
+| ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **JN-U-001** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_process_tranlog_async` <br> *(# Normal transaction logs)* | 様々な取引種別（Normal, Void, Return）の Tranlog が、共通のジャーナル形式に正確に変換・パースされること。 |
+| **JN-U-002** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_transaction_type_conversion` | `kugel_common.enums.TransactionType` と内部保存形式の全マッピングが正しく行われること。 |
+| **JN-U-003** | `LogService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_process_malformed_payload` <br> *(待追加：不正なJSON形式)* | Dapr から不正な形式やフィールド欠落した電文を受信した際、システムがクラッシュせず適切にエラーログを出力すること。 |
+| **JN-U-004** | `LogService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_event_id_idempotency` <br> *(待追加：イベントの冪等性)* | 同一の `event_id` を持つ電文を複数回受信した場合、DB への重複登録が防止されること。 |
 
 ---
 
-## 3. 結合テスト (Integration / サービス間連携)
+## 2. 結合テスト (Integration Tests)
+**目的**: データベース（MongoDB）への永続化、および Dapr Pub/Sub のサブスクリプション連携を検証する。
 
-Redis(Dapr StateStore) や 複数サービス間の Pub/Sub メッセージチェーンなど、コンポーネントを実際につなげた状態でのシステム連携を検証します。
-
-### 3.1 既存のテストケース (実装済)
-
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| - | ※現在、結合テストは実装されていません | ❌ |
-
-### 3.2 推奨・補充テストケース (不足分の連携強化)
-
-| ID | ターゲット | テストシナリオ | 期待される結果 | 状態 |
-|---|---|---|---|---|
-| **JN-I-002** | `Elasticsearch` | ジャーナルのRDBMS保存後、全文検索エンジンへの同期 | 検索でヒットする | ❌ 補充(結合) |
+| ID | 連携先 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **JN-I-001** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_journal_search` <br> *(# Test journal search with filters)* | 保存されたジャーナルデータが、複合インデックス（日付/店舗/端末）を用いて正確に抽出できること。 |
+| **JN-I-002** | `Dapr PubSub` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_health_check` / `dapr/subscribe` | 各種トピック（tranlog, cashlog, opencloselog）の購読設定が正常に構成されていること。 |
 
 ---
 
-## 4. 総合テスト (Scenario & E2E / API横断フロー)
+## 3. シナリオテスト (Scenario Tests)
+**目的**: 実際の API エンドポイントを介して、ジャーナルの収集から照会までのフローをエンドツーエンドで検証する。
 
-一連の業務フロー（例：商品追加→値引→キャンセル→決済完了）を、実際の HTTP クライアント経由でエンドツーエンドで検証します。
+| ID | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
+|:---|:---|:---|:---|:---|:---|
+| **JN-S-001** | ジャーナル収集・照会 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. `POST /api/v1/tranlog` (疑似) <br>2. `GET /api/v1/journals` | `test_journal.py` | 送信した取引データが遅滞なくジャーナル一覧に反映され、詳細が一致すること。 |
+| **JN-S-002** | ページネーション検証 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 大量ログ投入 <br>2. `limit/page` 指定での取得 | `test_journal_pagination` | ページ境界（Offset）のデータ欠落がなく、メタデータの `total` が正確であること。 |
 
-### 4.1 既存のテストケース (実装済)
+---
 
-| テストファイル | カバー内容 | 状態 |
-|---|---|---|
-| test_journal.py | Journal照会（BearerToken・APIキー・ページング） | ⚠️ 29% |
+## 4. テストインフラストラクチャ & ヘルパー関数 (Test Infrastructure & Helpers)
+**目的**: テスト環境のセットアップおよび共通クレンジングを共通化する。
 
-### 4.2 推奨・補充テストケース (巨大過付加・長期セッション等)
+| 関数名 (Helper Function) | 役割 (Responsibility) | 备注 (Notes) |
+|:---|:---|:---|
+| `test_setup_data` | テスト用ジャーナル（過去分含む）の投入 | 検索・集計テスト用のデータ準備 |
+| `test_clean_data` | 全ジャーナルログの物理削除 | 冪等性確保のための後処理 |
+| `conftest.http_client` | FastAPI AsyncClient 提供 | 非同期通信テストの基底 |
 
-| ID | ターゲット | テストシナリオ (非機能含む) | 期待される結果 | 状態 |
-|---|---|---|---|---|
-| **JN-E-001** | `Security` | `GET /search?limit=10000000` のような巨大ページネーション | `400` ハードリミット | ❌ 補充(総合) |
-| **JN-E-002** | `Edge Case` | 5MB を超える超長尺レシートデータ受信 | OOMせずストリーミング保存 | ❌ 補充(総合) |
+> [!NOTE]
+> Journal サービスは「データの正確性」が生命線であるため、Unit テストでの電文パース網羅率が 85% 達成の鍵となります。
