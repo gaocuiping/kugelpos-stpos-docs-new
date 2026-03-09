@@ -6,11 +6,10 @@
 }
 
 table {
-    display: block;
-    width: 100%;
-    overflow-x: auto;
-    white-space: normal;
-    -webkit-overflow-scrolling: touch;
+    display: table !important;
+    width: 100% !important;
+    word-break: break-word;
+    table-layout: auto;
 }
 
 table th,
