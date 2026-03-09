@@ -40,6 +40,7 @@ nav_order: 101
 | **AC-U-001** | `auth.py` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_password_hashing_consistency` <br> *(待追加：ハッシュ整合性)* | 生成されたハッシュが、同一パスワードに対して正しく `verify` され、異なるパスワードでは拒否されること。 |
 | **AC-U-002** | `auth.py` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_jwt_payload_contents` <br> *(待追加：Token内容検証)* | 発行された JWT の `sub`, `tenant_id`, `is_superuser` クレームが期待通り設定されていること。 |
 | **AC-U-003** | `account.py` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_register_user_order_integrity` <br> *(待追加：登録順序の整合性)* | `register_super_user` において、DB セットアップが完了した後にユーザー挿入が行われるフローであること。 |
+| **AC-U-301** | `Health & System` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_health_endpoint`<br>`test_health_endpoint_response_time` | APIの生存確認やレイテンシ保証など、本線以外の健全性確認が含まれていること。 |
 
 ---
 
