@@ -1,8 +1,16 @@
 /* Custom CSS for Table Styling */
 /* Expand the main content width to full screen on the right */
 .main-content,
-.main-content-wrap {
+.main-content-wrap,
+.main,
+.page-wrap,
+.container {
     max-width: 100% !important;
+    margin-left: 0 !important;
+}
+
+.side-bar {
+    margin-left: 0 !important;
 }
 
 table {
