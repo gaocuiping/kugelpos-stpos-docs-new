@@ -31,7 +31,7 @@ nav_order: 5
 開発者が `services/` 配下の **Python (FastAPI) コード**や Pydantic モデルを変更して Push すると、スクリプトがコードをスキャンし、各サービスの API エンドポイントやデータモデルの Markdown ドキュメントを全自動で生成します。
 
 ### 柱2：テスト仕様書の自動同期 (Test Code → Markdown)
-開発者が `tests/` 配下に **Python テストコード**を作成して Push すると、スクリプトが Docstring の特定タグを解析し、事前に定義されたテスト要件一覧表（Markdown）のステータスを自動で「実装済」に更新します。
+開発者が `tests/` 配下に **Python テストコード**を作成して Push すると、スクリプトがプロフェッショナルテストケース設計書（Markdown）の「Mapping Rules」列を読み取り、実際のコード内に該当する関数名や主要コメントが存在するかをスキャンして検証し、ステータスを自動で `![Implemented]`（緑の徽章）に更新します。
 
 ---
 
@@ -63,8 +63,8 @@ graph TD;
 graph TD;
     A[開発者が Python テストコードを修正・Push] --> B[GitHub Action: sync-test-docs.yml 起動]
     B --> C[sync_testcases.py 実行]
-    C --> D[テスト関数の @TestCaseID: 〇〇 タグを ast 解析]
-    D --> E[テスト表 md の該当行 ❌ を ✅ にマーク]
+    C --> D[Markdown内の Mapping Rules と Pythonの関数名/コメントを照合]
+    D --> E[表内の Missing 徽章を Implemented に自動マーク]
     E --> F[自動 Commit & Push]
     F --> G[Flow C: サイト公開フローへ連携]
 ```
@@ -89,20 +89,33 @@ Ruby / Jekyll 環境セットアップ ＆ `bundle exec jekyll build`
 
 ## ⚠️ 【重要】テストコード実装時の必須ルール（Flow B 関連）
 
-テストドキュメントの自動同期（Flow B）を正常に稼働させるため、機能テスト（単体・結合・総合）を作成・修正する際は、**必ず関数（またはクラス）の Docstring に `@TestCaseID: [ID]` を記述してください。**
+テストドキュメントの自動同期（Flow B）を正常に稼働させるため、テストを作成・修正する際は、**必ず関数の名称、または関数内の主要なコメントが、Markdown 仕様書の `Mapping Rules` 列に定義された文字列と完全に一致（または部分一致）する**ように実装してください。
+
+### 例：Cart サービスの `CT-U-001` の場合
+仕様書（Markdown）の Matching Rules が `test_cart_operations` または `*(# Check if the terminal is opened [异常系])*` と定義されている場合、実際のテストコードは以下のように同名の関数にするか、同じコメントを含める必要があります：
 
 ```python
-def test_calc_subtotal_discount():
-    """
-    カートの小計金額割引計算ロジックをテスト
-    
-    @TestCaseID: CT-U-011  <-- 🎯 必須：この1行がないと仕様書が自動更新されません
-    """
-    assert result == 900
+def test_cart_operations():
+    """ カート操作の異常系テスト """
+    # Check if the terminal is opened [异常系]
+    assert True
 ```
 
-* **このタグがある場合**：Push 後に自動で Markdown 仕様書の「❌ 補充」が「✅ 実装済」に置き換わります（要件との完全なトレースバック）。
-* **このタグがない場合**：スクリプトは無視してスキップし、テスト自体は成功しても仕様書には反映されません（補助的・一時的なデバッグ用テスト等として扱われます）。
+* **一致する場合**：スクリプト実行時、Markdown 表内のステータスが自動で `![Missing]` から `![Implemented]`（緑アイコン）に更新されます。
+* **一致しない場合**：スクリプトは実装を検出できず、仕様書上は `![Missing]`（赤アイコン：未実装によるカバレッジのギャップ）として残ります。
+
+---
+
+## ✅ プロフェッショナルテストケースドキュメント一覧
+
+当基盤では、以下の7つのコアマイクロサービスに対して、「単体 (Unit)」「結合 (Integration)」「シナリオ (Scenario)」の3階層からなるプロフェッショナルな設計書が用意されています：
+- [Account サービス テストケース](ja/testing/testcases-account.html)
+- [Cart サービス テストケース](ja/testing/testcases-cart.html)
+- [Journal サービス テストケース](ja/testing/testcases-journal.html)
+- [Master Data サービス テストケース](ja/testing/testcases-master-data.html)
+- [Report サービス テストケース](ja/testing/testcases-report.html)
+- [Stock サービス テストケース](ja/testing/testcases-stock.html)
+- [Terminal サービス テストケース](ja/testing/testcases-terminal.html)
 
 ---
 
