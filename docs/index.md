@@ -16,7 +16,6 @@ Welcome to the Kugelpos POS Backend documentation site.
 |----------|------|
 | 🇬🇧 English | [English Documentation]({{ site.baseurl }}/en/) |
 | 🇯🇵 日本語 | [日本語ドキュメント]({{ site.baseurl }}/ja/) |
-| 🇨🇳 中文 | [文档管理与自动化]({{ site.baseurl }}/document-management-zh.html) |
 
 ---
 
