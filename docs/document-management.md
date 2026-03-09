@@ -1,150 +1,79 @@
 ---
-title: "ドキュメント管理"
+title: "文档管理与自动化"
 layout: default
 nav_order: 5
 ---
 
-# ドキュメント管理 — Jekyll + GitHub Pages
+# 文档管理 — Jekyll + GitHub Pages 自动化体系
 
-本プロジェクトの公式ドキュメント（当サイト）は、**「Jekyll による静的サイト自動構築」** と **「Docs-as-Code（文書即コード）による自動同期」** という2つの強力な自動化基盤によって運用されています。
-
-このページでは、サイトの基本構成と、開発チームが日常的に活用する「自動化フロー」の仕組み、および新たなプロジェクトへの設定移植手順を解説します。
+本项目的文档中心（本站）采用了 **"Docs-as-Code"（文档即代码）** 的深度集成方案。通过 Jekyll 静态站点生成器与 GitHub Actions 自动化脚本，实现了技术文档与业务代码的实时同步。
 
 ---
 
-## 🏗️ サイトの基本構成
+## 🏗️ 技术架构综述
 
-| 項目 | 設定・利用技術 | 説明 |
-|------|-------------|------|
-| **ビルダー** | [Jekyll](https://jekyllrb.com/) | Markdown ファイル群を高速に HTML サイトへ変換する静的サイトジェネレーター |
-| **ホスティング** | [GitHub Pages](https://pages.github.com/) | サーバー構築不要で GitHub リポジトリから直接 Web サイトを公開 |
-| **テーマ** | `just-the-docs` | 検索機能つき・多階層サイドバー付きのモダンなドキュメントUI（ダークモード対応） |
-| **多言語対応** | Collections 活用 | `docs/ja/` (日本語) と `docs/en/` (英語) の言語切り替え構造を実装 |
-
----
-
-## ⚡ 2つのコア自動化機能（Docs-as-Code）
-
-本サイトは手動でのドキュメント保守作業を極限まで減らすため、以下の **2大自動化システム** を組み込んでいます。
-
-### 柱1：API 仕様書の自動生成 (FastAPI → Markdown)
-開発者が `services/` 配下の **Python (FastAPI) コード**や Pydantic モデルを変更して Push すると、スクリプトがコードをスキャンし、各サービスの API エンドポイントやデータモデルの Markdown ドキュメントを全自動で生成します。
-
-### 柱2：テスト仕様書の自動同期 (Test Code → Markdown)
-開発者が `tests/` 配下に **Python テストコード**を作成して Push すると、スクリプトがプロフェッショナルテストケース設計書（Markdown）の「Mapping Rules」列を読み取り、実際のコード内に該当する関数名や主要コメントが存在するかをスキャンして検証し、ステータスを自動で `![Implemented]`（緑の徽章）に更新します。
-
----
-
-## 🔄 詳細な実装フローと仕組み
-
-これら2つの自動化は、いずれも `main` ブランチへの **Push** をトリガーとして、GitHub Actions が背後で全てのスクリプト実行・Commit・デプロイを代行します。
-
-### Flow A : API ドキュメントの自動生成フロー
-
-* **設定ファイル**: `.github/workflows/generate-docs.yml`
-* **実行スクリプト**: `scripts/generate_docs.sh`
-
-```mermaid
-graph TD;
-    A[開発者が API の Python コードを修正・Push] --> B[GitHub Action: generate-docs.yml 起動]
-    B --> C[generate_docs.sh 実行]
-    C --> D[各サービスの @router などを解析]
-    D --> E[api-overview-generated.md 14ファイル出力]
-    E --> F[自動 Commit & Push]
-    F --> G[Flow C: サイト公開フローへ連携]
-```
-
-### Flow B : テスト仕様書の自動同期フロー
-
-* **設定ファイル**: `.github/workflows/sync-test-docs.yml`
-* **実行スクリプト**: `scripts/sync_testcases.py`
-
-```mermaid
-graph TD;
-    A[開発者が Python テストコードを修正・Push] --> B[GitHub Action: sync-test-docs.yml 起動]
-    B --> C[sync_testcases.py 実行]
-    C --> D[Markdown内の Mapping Rules と Pythonの関数名/コメントを照合]
-    D --> E[表内の Missing 徽章を Implemented に自動マーク]
-    E --> F[自動 Commit & Push]
-    F --> G[Flow C: サイト公開フローへ連携]
-```
-
-### Flow C : サイトビルド＆公開フロー
-
-* **設定ファイル**: `.github/workflows/jekyll-gh-pages.yml`
-
-```text
-Flow A / Flow B によるドキュメントの自動更新
-⬇
-GitHub Action `jekyll-gh-pages.yml` 起動
-⬇
-Ruby / Jekyll 環境セットアップ ＆ `bundle exec jekyll build`
-⬇
-生成された HTML の Artifacts を GitHub Pages 環境へデプロイ
-⬇
-🌐 https://<org>.github.io/<repo>/ で公開完了（数分で反映）
-```
-
----
-
-## ⚠️ 【重要】テストコード実装時の必須ルール（Flow B 関連）
-
-テストドキュメントの自動同期（Flow B）を正常に稼働させるため、テストを作成・修正する際は、**必ず関数の名称、または関数内の主要なコメントが、Markdown 仕様書の `Mapping Rules` 列に定義された文字列と完全に一致（または部分一致）する**ように実装してください。
-
-### 例：Cart サービスの `CT-U-001` の場合
-仕様書（Markdown）の Matching Rules が `test_cart_operations` または `*(# Check if the terminal is opened [异常系])*` と定義されている場合、実際のテストコードは以下のように同名の関数にするか、同じコメントを含める必要があります：
-
-```python
-def test_cart_operations():
-    """ カート操作の異常系テスト """
-    # Check if the terminal is opened [异常系]
-    assert True
-```
-
-* **一致する場合**：スクリプト実行時、Markdown 表内のステータスが自動で `![Missing]` から `![Implemented]`（緑アイコン）に更新されます。
-* **一致しない場合**：スクリプトは実装を検出できず、仕様書上は `![Missing]`（赤アイコン：未実装によるカバレッジのギャップ）として残ります。
-
----
-
-## ✅ プロフェッショナルテストケースドキュメント一覧
-
-当基盤では、以下の7つのコアマイクロサービスに対して、「単体 (Unit)」「結合 (Integration)」「シナリオ (Scenario)」の3階層からなるプロフェッショナルな設計書が用意されています：
-- [Account サービス テストケース](ja/testing/testcases-account.html)
-- [Cart サービス テストケース](ja/testing/testcases-cart.html)
-- [Journal サービス テストケース](ja/testing/testcases-journal.html)
-- [Master Data サービス テストケース](ja/testing/testcases-master-data.html)
-- [Report サービス テストケース](ja/testing/testcases-report.html)
-- [Stock サービス テストケース](ja/testing/testcases-stock.html)
-- [Terminal サービス テストケース](ja/testing/testcases-terminal.html)
-
----
-
-## 📦 新規プロジェクトへの全サイト基盤（Docs + Automation）の移植手順
-
-この Jekyll ドキュメントサイト、API自動生成、およびテスト仕様書自動更新の強力な基盤を別プロジェクト全体に適用するには、以下の 5 ステップを実行します。
-
-| 移植レイヤー | 対象ファイル/ディレクトリ | 説明 |
+| 维度 | 技术栈 / 配置 | 说明 |
 | :--- | :--- | :--- |
-| **1. Jekyll 基盤** | `docs/` (コンテンツ除く), `Gemfile`, `_config.yml` | サイトのデザイン、検索機能、多言語構造を移植します。 |
-| **2. 自動化スクリプト** | `scripts/generate_docs.sh`, `scripts/sync_testcases.py` | API 抽出エンジンとテスト ID 解析エンジンを移植します。 |
-| **3. CI/CD (GitHub)** | `.github/workflows/` 配下の全 `.yml` | 自動デプロイ、自動生成、自動同期のワークフローを移植します。 |
-| **4. テンプレート** | `docs/ja/index.md`, `testcases-*.md` 等 | プロジェクト構成合わせたナビゲーションとテスト表の雛形を移植します。 |
-| **5. 基本設定** | `_config.yml` | 移植先プロジェクトの `baseurl` やリポジトリ名を設定に合わせて微調整します。 |
-
-### 移行後の運用イメージ
-1. **通常ドキュメント**: `docs/` 配下にマークダウンを追加するだけで、1分後にサイトに反映されます。
-2. **API 仕様**: ソースコードに新しいエンドポイントを書く（`@router.xxx`）だけで、仕様書が自動生成されます。
-3. **テスト進捗**: テストコードに仕様書の `Mapping Rules` と一致する関数名またはコメントを記述するだけで、表が「![Implemented]」に自動更新されます。
-
+| **内核** | [Jekyll](https://jekyllrb.com/) | 将 Markdown 原生转换为高性能 HTML 站点。 |
+| **托管** | [GitHub Pages](https://pages.github.com/) | 无需服务器，直接通过 GitHub Actions 构建并发布。 |
+| **主题** | `just-the-docs` | 现代化的文档 UI，内置搜索、多层级侧边栏及多语言支持。 |
+| **视觉定制** | [custom.scss](_sass/custom/custom.scss) | 采用 **Sky-Breeze 渐变系统**（天蓝至薄荷绿），结合毛玻璃效果。 |
 
 ---
 
-## � 初回セットアップ・手動デプロイ手順
+## ⚡ 核心自动化机制
 
-サイトの初回立ち上げ時のみ、以下の GitHub リポジトリ設定が必要です。
+为了极大地减轻维护负担，系统内置了两大自动化同步引擎：
 
-1. `git push origin main` で全てのリポジトリ内容を Push
-2. GitHub Web 画面の **Settings** → **Pages** → **Source** を「**GitHub Actions**」に変更
-3. **Settings** → **Actions** → Workflow permissions を「**Read and write**」に設定（これにより Actions ボットが自動 Commit できるようになります）
+### 1. API 接口文档自动生成 (`generate_docs.sh`)
+系统会自动扫描 `services/` 目录下各微服务的 FastAPI 路由代码（`app/api/`）和数据模型（`schemas.py`）。
+- **触发逻辑**：每当检测到路由装饰器（如 `@router.get`）或 Pydantic 类定义时，脚本会自动提取路径、方法、函数名及源码位置。
+- **输出结果**：自动在 `docs/ja/<service>/` 目录下生成 `api-overview-generated.md`，确保接口文档永远与代码保持一致。
 
-以降、すべてのサイト更新は自動化されます。
+### 2. 测试用例双向同步与自动发现 (`sync_testcase_definitions.py`)
+这是系统最智能的部分，它不仅能同步状态，还能**感知代码结构的变化**：
+- **自动追加 (Auto-Discovery)**：当您在 `services/cart/app/api/` 中新增一个 API 接口（如 `@router.post`）时，运行脚本会自动将该接口作为新的测试用例追加到文档中。
+- **改动感知 (Modification Detection)**：如果您修改了代码里的 Docstring（接口说明）或变更了 HTTP 方法，脚本会自动识别冲突并更新 Markdown 表格中的“测试标题”和“测试对象”。
+- **规则导向**：脚本以代码中的**函数名**作为唯一标识符与文档中的“匹配规则”进行绑定。
+
+---
+
+## 🔄 自动化流水线 (CI/CD)
+
+项目配置了三个关键的 GitHub Workflows 来驱动整个体系：
+
+1. **`generate-docs.yml`**：负责运行 API 扫描脚本，并将更新后的 Markdown 自动 commit 回仓库。
+2. **`sync-test-docs.yml`**：在代码提交后扫描测试实现情况，自动更新测试用例表格的图标状态。
+3. **`jekyll-gh-pages.yml`**：最终的构建流水线，负责将所有 Markdown 文件（包括自动生成的）编译为 HTML 并发布到在线环境。
+
+---
+
+## ⚠️ 开发者操作指南
+
+### 如何同步您的测试进度？
+要让文档中的某项测试显示为 ✅ `Implemented`，您**不需要**修改 Markdown。只需确保您的 Python 测试代码中包含 Mapping Rules 中定义的特征。
+
+**示例**：
+- 如果 Markdown 里的 Mapping Rule 是 `test_cart_operations`。
+- **做法 A**：将测试函数命名为 `def test_cart_operations(): ...`。
+- **做法 B**：在函数内添加一行注释 `# test_cart_operations`。
+
+### 样式定制说明
+文档样式由 [custom.scss](_sass/custom/custom.scss) 统一控制。
+- **变宽控制**：系统已通过 CSS 强制将“业务步骤”等长文本列设为 **450px**，您在编写表格时无需再手动添加任何 HTML `<div>` 标签。
+- **背景优化**：采用了高亮的渐变设计，禁止使用暗色背景以保持清爽。
+
+---
+
+## 📦 开启新项目的步骤
+如果您需要将这套文档基盘移植到新项目，请确保带上以下核心文件：
+1. `docs/` 目录及其结构。
+2. `scripts/` 下的所有自动同步脚本。
+3. `.github/workflows/` 下的 yml 定义。
+4. 根目录的 `Gemfile` 和 `_config.yml`。
+
+> [!IMPORTANT]
+> 移植后请务必在 GitHub 仓库设置中，将 **Pages** 的 Source 设置为 **GitHub Actions**。
+
+---
+*上次更新于：{{ "now" | date: "%Y-%m-%d" }}*

@@ -45,6 +45,13 @@ nav_order: 103
 | **JN-U-301** | **取引種別の正負マッピング検証** | `Transaction Type Mapping` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cancelled_normal_sales_creates_negative_type` (キャンセル通常取引の負数変換)<br>`test_conversion_logic_with_mock_transaction` (モック取引での変換ロジック)<br>`test_non_normal_sales_types_remain_unchanged` (通常外取引の種別保持)<br>`test_normal_sales_not_cancelled_keeps_original_type` (通常取引未取消の種別維持)<br>`test_transaction_type_values` (取引種別の値検査) | 通常売上やキャンセルなど、生データからジャーナル内部種別へのマッピング（正負変換）プロセスの厳密な検証。 |
 | **JN-U-302** | **Daprエッジケースペイロード検証** | `Dapr Payload Receive` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_receive_tranlog_normal_sales_cancelled` (取消された通常取引の受信)<br>`test_receive_tranlog_normal_sales_not_cancelled` (未取消の通常取引の受信)<br>`test_receive_tranlog_other_transaction_types_unchanged` (その他取引種別での受信) | パイプライン経由で受信した様々な状態の Transaction ログがシステムに適切に分類されること。 |
 | **JN-U-303** | **健全性とスコープの検証** | `Health & Scopes` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_health_endpoint` (ヘルスチェック経由)<br>`test_health_endpoint_without_dapr` (Dapr無しのヘルスチェック)<br>`test_report_operations` (報告生成挙動) | マイクロサービスのエンドポイント健全性と、Dapr 切断時のグレースフルな振る舞い検証。 |
+| **JN-A-REC** | **Create a new journal entry.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `receive_journals` | 系统自动追加的代码接口测试 |
+| **JN-A-GET** | **Retrieve journal entries with various filtering options.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_journals` | 系统自动追加的代码接口测试 |
+| **JN-A-HAN** | **Handle transaction logs received via Dapr pub/sub.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `handle_tranlog` | 系统自动追加的代码接口测试 |
+| **JN-A-HAN** | **Handle cash in/out logs received via Dapr pub/sub.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `handle_cashlog` | 系统自动追加的代码接口测试 |
+| **JN-A-HAN** | **Handle terminal open/close logs received via Dapr pub/sub.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `handle_opencloselog` | 系统自动追加的代码接口测试 |
+| **JN-A-REC** | **Direct API endpoint for receiving transaction data.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `receive_transactions` | 系统自动追加的代码接口测试 |
+| **JN-A-CRE** | **Setup the database for the tenant. This will create the required collections and indexes.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_tenant` | 系统自动追加的代码接口测试 |
 
 ---
 

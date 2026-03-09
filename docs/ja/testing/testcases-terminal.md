@@ -40,6 +40,28 @@ nav_order: 107
 | **TM-U-001** | **TerminalServiceの検証** | `TerminalService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_check_terminal_status_matrix` <br> *(待追加：状態遷移マトリクスの網羅検証)* | 現在の状態（Closed/Opened等）に対し、許可されない FunctionMode 変更が全て拒否されること。 |
 | **TM-U-002** | **TerminalServiceの検証** | `TerminalService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_open_terminal_date_rollover` <br> *(待追加：営業日付更新ロジック)* | 前回の営業日と現在日付が異なる場合、`open_counter` が 1 にリセットされ日付が更新されること。 |
 | **TM-U-003** | **TerminalServiceの検証** | `TerminalService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_sign_in_already_signed_in` | すでにサインイン済みの端末に対し、別の StaffID でサインインを試みた際に `TerminalAlreadySignedInException` が送出されること。 |
+| **TM-A-CRE** | **Create a new terminal** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_terminal` | 系统自动追加的代码接口测试 |
+| **TM-A-GET** | **Get a list of terminals** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_terminals` | 系统自动追加的代码接口测试 |
+| **TM-A-GET** | **Get terminal information** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_terminal` | 系统自动追加的代码接口测试 |
+| **TM-A-DEL** | **Delete a terminal** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_terminal` | 系统自动追加的代码接口测试 |
+| **TM-A-UPD** | **Update terminal description** | `API / PATCH` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_terminal_description` | 系统自动追加的代码接口测试 |
+| **TM-A-UPD** | **Update terminal function mode** | `API / PATCH` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_terminal_function_mode` | 系统自动追加的代码接口测试 |
+| **TM-A-TER** | **Sign in to a terminal** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_signin` | 系统自动追加的代码接口测试 |
+| **TM-A-TER** | **Sign out from a terminal** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_signout` | 系统自动追加的代码接口测试 |
+| **TM-A-TER** | **Open a terminal for business operations** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_open` | 系统自动追加的代码接口测试 |
+| **TM-A-TER** | **Close a terminal after business operations** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_close` | 系统自动追加的代码接口测试 |
+| **TM-A-TER** | **Add cash to a terminal drawer** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_cash_in` | 系统自动追加的代码接口测试 |
+| **TM-A-TER** | **Remove cash from a terminal drawer** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_cash_out` | 系统自动追加的代码接口测试 |
+| **TM-A-UPD** | **Update the delivery status of a transaction** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_delivery_status` | 系统自动追加的代码接口测试 |
+| **TM-A-CRE** | **Create a new tenant** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_tenant` | 系统自动追加的代码接口测试 |
+| **TM-A-GET** | **Get tenant information** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_tenant` | 系统自动追加的代码接口测试 |
+| **TM-A-UPD** | **Update tenant information** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_tenant` | 系统自动追加的代码接口测试 |
+| **TM-A-DEL** | **Delete a tenant** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_tenant` | 系统自动追加的代码接口测试 |
+| **TM-A-ADD** | **Add a store to a tenant** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `add_store` | 系统自动追加的代码接口测试 |
+| **TM-A-GET** | **Get a list of stores for a tenant** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_stores` | 系统自动追加的代码接口测试 |
+| **TM-A-GET** | **Get store information** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_store` | 系统自动追加的代码接口测试 |
+| **TM-A-UPD** | **Update store information** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_store` | 系统自动追加的代码接口测试 |
+| **TM-A-DEL** | **Delete a store** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_store` | 系统自动追加的代码接口测试 |
 
 ### 1.2 通信レジリエンス (`PubsubManager`)
 

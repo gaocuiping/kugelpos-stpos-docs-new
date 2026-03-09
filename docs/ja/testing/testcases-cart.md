@@ -45,6 +45,26 @@ nav_order: 102
 | **CT-U-007** | **CartServiceの検証** | `CartService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cashless_payment_simple` / `test_cashless_payment_with_detailed_receipt_info` | 異常な明細情報に対するキャッシュレス決済処理の安全性確保。 |
 | **CT-U-008** | **CartServiceの検証** | `CartService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_payment_by_others` / `test_multiple_payment_methods` | 複数・他者支払いの異常系・正常系遷移の確保。 |
 | **CT-U-009** | **取引サービス統合の検証** | `TranService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_void_return_resets_original_refund_status` / `test_return_voided_transaction_prevention` | 排他的な（相容れない）キャンセル操作の衝突と二重精算を防ぐ。 |
+| **CT-A-CRE** | **Retrieve a cart by its ID.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_cart` | 系统自动追加的代码接口测试 |
+| **CT-A-CAN** | **Cancel a transaction/cart.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `cancel_transaction` | 系统自动追加的代码接口测试 |
+|**CT-A-ADD**|**Add items to a cart.**|`API / POST`| ![Modified](https://img.shields.io/badge/Status-Modified-orange) |`add_items`|⚠️ 代码接口已变更：系统自动追加的代码接口测试|| |
+| **CT-A-CAN** | **Cancel a specific line item in a cart.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `cancel_line_item` | 系统自动追加的代码接口测试 |
+| **CT-A-UPD** | **Update the unit price of a cart line item.** | `API / PATCH` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_item_unit_price` | 系统自动追加的代码接口测试 |
+| **CT-A-UPD** | **Update the quantity of a cart line item.** | `API / PATCH` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_item_quantity` | 系统自动追加的代码接口测试 |
+| **CT-A-ADD** | **Add discount to a specific line item in a cart.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `add_discount_to_line_item` | 系统自动追加的代码接口测试 |
+| **CT-A-SUB** | **Calculate the subtotal for a cart.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `subtotal` | 系统自动追加的代码接口测试 |
+| **CT-A-DIS** | **Add discount to the entire cart.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `discount_to_cart` | 系统自动追加的代码接口测试 |
+| **CT-A-PAY** | **Add payments to a cart.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `payments` | 系统自动追加的代码接口测试 |
+| **CT-A-BIL** | **Finalize a cart into a billable transaction.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `bill` | 系统自动追加的代码接口测试 |
+| **CT-A-RES** | **Resume item entry from paying state.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `resume_item_entry` | 系统自动追加的代码接口测试 |
+| **CT-A-GET** | **Get transactions based on query parameters.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_transactions_by_query` | 系统自动追加的代码接口测试 |
+| **CT-A-GET** | **Get a single transaction by its transaction number.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_transaction_by_tranasction_no` | 系统自动追加的代码接口测试 |
+| **CT-A-VOI** | **Void (cancel) a transaction.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `void_transaction_by_transaction_no` | 系统自动追加的代码接口测试 |
+| **CT-A-RET** | **Process a transaction return.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `return_transaction_by_transaction_no` | 系统自动追加的代码接口测试 |
+| **CT-A-NOT** | **Notify the delivery status of a transaction.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `notify_delivery_status` | 系统自动追加的代码接口测试 |
+| **CT-A-CRE** | **Create a new tenant with the specified tenant ID.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | 系统自动追加的代码接口测试 |
+| **CT-A-GET** | **Get the current status of the terminal cache for the authenticated user's tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_cache_status` | 系统自动追加的代码接口测试 |
+| **CT-A-CLE** | **Clear terminal cache entries for the authenticated user's tenant.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `clear_cache` | 系统自动追加的代码接口测试 |
 
 ### 1.2 計算エンジン (`logics/`)
 
