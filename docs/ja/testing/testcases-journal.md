@@ -35,36 +35,36 @@ nav_order: 103
 
 ### 1.1 電文処理ロジック (`LogService`)
 
-| ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
-|:---|:---|:---|:---|:---|
-| **JN-U-001** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_process_tranlog_async` / `test_receive_tranlog_with_edge_cases` | 様々な取引種別（Normal, Void, Return）の Tranlog が、共通のジャーナル形式に正確かつ堅牢に（エッジケース含め）変換されること。 |
-| **JN-U-002** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_transaction_type_conversion_parametrized` / `test_normal_sales_cancelled_converts_to_cancel_type` | `kugel_common.enums.TransactionType` と内部保存形式の全マッピングが正しく行われ、特に「取消された通常販売」が負数種別へ反転すること。 |
-| **JN-U-003** | `LogService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_process_malformed_payload` <br> *(待追加：不正なJSON形式)* | Dapr から不正な形式やフィールド欠落した電文を受信した際、システムがクラッシュせず適切にエラーログを出力すること。 |
-| **JN-U-004** | `LogService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_event_id_idempotency` <br> *(待追加：イベントの冪等性)* | 同一の `event_id` を持つ電文を複数回受信した場合、DB への重複登録が防止されること。 |
-| **JN-U-005** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_receive_tranlog_transaction_rollback_on_error` | 一部のジャーナル保存プロセスで致命的エラーが発生した場合、中途半端に記録されず全体がロールバックされること。 |
-| **JN-U-301** | `Transaction Type Mapping` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cancelled_normal_sales_creates_negative_type` (キャンセル通常取引の負数変換)<br>`test_conversion_logic_with_mock_transaction` (モック取引での変換ロジック)<br>`test_non_normal_sales_types_remain_unchanged` (通常外取引の種別保持)<br>`test_normal_sales_not_cancelled_keeps_original_type` (通常取引未取消の種別維持)<br>`test_transaction_type_values` (取引種別の値検査) | 通常売上やキャンセルなど、生データからジャーナル内部種別へのマッピング（正負変換）プロセスの厳密な検証。 |
-| **JN-U-302** | `Dapr Payload Receive` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_receive_tranlog_normal_sales_cancelled` (取消された通常取引の受信)<br>`test_receive_tranlog_normal_sales_not_cancelled` (未取消の通常取引の受信)<br>`test_receive_tranlog_other_transaction_types_unchanged` (その他取引種別での受信) | パイプライン経由で受信した様々な状態の Transaction ログがシステムに適切に分類されること。 |
-| **JN-U-303** | `Health & Scopes` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_health_endpoint` (ヘルスチェック経由)<br>`test_health_endpoint_without_dapr` (Dapr無しのヘルスチェック)<br>`test_report_operations` (報告生成挙動) | マイクロサービスのエンドポイント健全性と、Dapr 切断時のグレースフルな振る舞い検証。 |
+| ID | テストタイトル | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|:---|
+| **JN-U-001** | **ログ連携サービスの検証** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_process_tranlog_async` / `test_receive_tranlog_with_edge_cases` | 様々な取引種別（Normal, Void, Return）の Tranlog が、共通のジャーナル形式に正確かつ堅牢に（エッジケース含め）変換されること。 |
+| **JN-U-002** | **ログ連携サービスの検証** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_transaction_type_conversion_parametrized` / `test_normal_sales_cancelled_converts_to_cancel_type` | `kugel_common.enums.TransactionType` と内部保存形式の全マッピングが正しく行われ、特に「取消された通常販売」が負数種別へ反転すること。 |
+| **JN-U-003** | **ログ連携サービスの検証** | `LogService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_process_malformed_payload` <br> *(待追加：不正なJSON形式)* | Dapr から不正な形式やフィールド欠落した電文を受信した際、システムがクラッシュせず適切にエラーログを出力すること。 |
+| **JN-U-004** | **ログ連携サービスの検証** | `LogService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_event_id_idempotency` <br> *(待追加：イベントの冪等性)* | 同一の `event_id` を持つ電文を複数回受信した場合、DB への重複登録が防止されること。 |
+| **JN-U-005** | **ログ連携サービスの検証** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_receive_tranlog_transaction_rollback_on_error` | 一部のジャーナル保存プロセスで致命的エラーが発生した場合、中途半端に記録されず全体がロールバックされること。 |
+| **JN-U-301** | **取引種別の正負マッピング検証** | `Transaction Type Mapping` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cancelled_normal_sales_creates_negative_type` (キャンセル通常取引の負数変換)<br>`test_conversion_logic_with_mock_transaction` (モック取引での変換ロジック)<br>`test_non_normal_sales_types_remain_unchanged` (通常外取引の種別保持)<br>`test_normal_sales_not_cancelled_keeps_original_type` (通常取引未取消の種別維持)<br>`test_transaction_type_values` (取引種別の値検査) | 通常売上やキャンセルなど、生データからジャーナル内部種別へのマッピング（正負変換）プロセスの厳密な検証。 |
+| **JN-U-302** | **Daprエッジケースペイロード検証** | `Dapr Payload Receive` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_receive_tranlog_normal_sales_cancelled` (取消された通常取引の受信)<br>`test_receive_tranlog_normal_sales_not_cancelled` (未取消の通常取引の受信)<br>`test_receive_tranlog_other_transaction_types_unchanged` (その他取引種別での受信) | パイプライン経由で受信した様々な状態の Transaction ログがシステムに適切に分類されること。 |
+| **JN-U-303** | **健全性とスコープの検証** | `Health & Scopes` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_health_endpoint` (ヘルスチェック経由)<br>`test_health_endpoint_without_dapr` (Dapr無しのヘルスチェック)<br>`test_report_operations` (報告生成挙動) | マイクロサービスのエンドポイント健全性と、Dapr 切断時のグレースフルな振る舞い検証。 |
 
 ---
 
 ## 2. 結合テスト (Integration Tests)
 **目的**: データベース（MongoDB）への永続化、および Dapr Pub/Sub のサブスクリプション連携を検証する。
 
-| ID | 連携先 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
-|:---|:---|:---|:---|:---|
-| **JN-I-001** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_journal_search` <br> *(# Test journal search with filters)* | 保存されたジャーナルデータが、複合インデックス（日付/店舗/端末）を用いて正確に抽出できること。 |
-| **JN-I-002** | `Dapr PubSub` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_health_check` / `dapr/subscribe` | 各種トピック（tranlog, cashlog, opencloselog）の購読設定が正常に構成されていること。 |
+| ID | テストタイトル | 連携先 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|:---|
+| **JN-I-001** | **MongoDBデータ永続化検証** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_journal_search` <br> *(# Test journal search with filters)* | 保存されたジャーナルデータが、複合インデックス（日付/店舗/端末）を用いて正確に抽出できること。 |
+| **JN-I-002** | **Dapr Pub/Subイベント検証** | `Dapr PubSub` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_health_check` / `dapr/subscribe` | 各種トピック（tranlog, cashlog, opencloselog）の購読設定が正常に構成されていること。 |
 
 ---
 
 ## 3. シナリオテスト (Scenario Tests)
 **目的**: 実際の API エンドポイントを介して、ジャーナルの収集から照会までのフローをエンドツーエンドで検証する。
 
-| ID | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
-|:---|:---|:---|:---|:---|:---|
-| **JN-S-001** | ジャーナル収集・照会 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. `POST /api/v1/tranlog` (疑似) <br>2. `GET /api/v1/journals` | `test_journal.py` | 送信した取引データが遅滞なくジャーナル一覧に反映され、詳細が一致すること。 |
-| **JN-S-002** | ページネーション検証 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 大量ログ投入 <br>2. `limit/page` 指定での取得 | `test_journal_pagination` | ページ境界（Offset）のデータ欠落がなく、メタデータの `total` が正確であること。 |
+| ID | テストタイトル | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
+|:---|:---|:---|:---|:---|:---|:---|
+| **JN-S-001** | **ジャーナル収集・照会の検証** | ジャーナル収集・照会 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. `POST /api/v1/tranlog` (疑似) <br>2. `GET /api/v1/journals` | `test_journal.py` | 送信した取引データが遅滞なくジャーナル一覧に反映され、詳細が一致すること。 |
+| **JN-S-002** | **ページネーション検証の検証** | ページネーション検証 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. 大量ログ投入 <br>2. `limit/page` 指定での取得 | `test_journal_pagination` | ページ境界（Offset）のデータ欠落がなく、メタデータの `total` が正確であること。 |
 
 ---
 
