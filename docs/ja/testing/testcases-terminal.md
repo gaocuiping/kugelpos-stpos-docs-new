@@ -1,3 +1,10 @@
+---
+layout: default
+title: Terminal サービス テストケース
+parent: テスト
+nav_order: 107
+---
+
 # Terminal サービス プロフェッショナルテストケース設計書
 
 本ドキュメントは、Terminal サービスのソースコード（`app/`）を詳細に解析した結果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルな测试用例群です。

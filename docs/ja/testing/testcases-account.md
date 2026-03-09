@@ -1,3 +1,10 @@
+---
+layout: default
+title: Account サービス テストケース
+parent: テスト
+nav_order: 101
+---
+
 # Account サービス プロフェッショナルテストケース設計書
 
 本ドキュメントは、Account サービスのソースコード（`app/`）を詳細に解析した結果に基づき、**単体 (Unit)**、**結合 (Integration)**、**シナリオ (Scenario)** の 3 階層に定義されたプロフェッショナルなテストケース群です。
