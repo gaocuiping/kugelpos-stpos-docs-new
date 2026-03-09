@@ -1,7 +1,8 @@
 /* Custom CSS for Table Styling */
-/* Expand the main content width */
-.main-content {
-    max-width: 1400px !important;
+/* Expand the main content width to full screen on the right */
+.main-content,
+.main-content-wrap {
+    max-width: 100% !important;
 }
 
 table {
