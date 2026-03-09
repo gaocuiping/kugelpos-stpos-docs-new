@@ -64,7 +64,7 @@ nav_order: 104
 
 | ID | シナリオ名 | 状态 (Status) | 业务步骤 (Business Steps) | 匹配规则 (Function & Comments) | 期待される検証点 |
 |:---|:---|:---|:---|:---|:---|
-| **MD-S-001** | 商品構成セットアップ | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. カテゴリ作成<br>2. 共通商品登録<br>3. 店舗個別価格設定 | `test_operations.py` (Item tests) | 最小構成の商品マスタが API 経由で完結し、POS で利用可能な状態になること。 |
+| **MD-S-001** | マスター統合 CRUD ライフサイクル | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_operations` 関数による一連の統合シナリオ：<br>1. **Tenant**: 新規作成と異常系(無効ID)<br>2. **Staff**: 登録、全件取得(ページネーション検証)、更新、論理/物理削除<br>3. **Category**: 作成、取得、コード更新によるエラー検証、削除<br>4. **ItemCommon (共通商品)**: 作成、更新、論理削除状態の取得、物理削除<br>5. **ItemStore (店舗別商品)**: 構成適用、複数POSターミナルとの連携更新、異常系チェック | `def test_operations` | 全ての主要マスタエンティティに対する Create/Read/Update/Delete ライフサイクルが、異常系（バリデーション、404 等）も含めて完全に機能すること。 |
 | **MD-S-002** | スタッフ・権限管理 | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | 1. スタッフ登録<br>2. ロール(Role)付与<br>3. ログイン試行 | `test_staff_operations` | 登録されたスタッフ情報が認証認可サービスで正しく参照できること。 |
 
 ---
