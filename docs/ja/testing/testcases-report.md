@@ -38,8 +38,10 @@ nav_order: 105
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **RP-U-001** | `ReportService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_partial_return_tax_accuracy` <br> *(待追加：部分返品時の税計算)* | 複数明細から一部のみを返品した際、残りの明細との合計税額が 1 円単位で整合すること。 |
-| **RP-U-002** | `ReportService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_split_payment_bug` | 複数決済手段（現金＋クレジット等）が併用された際、それぞれの売上が重複なく正確に配分されること。 |
-| **RP-U-003** | `ReportService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_discount_rounding_distribution` <br> *(待追加：値引端数処理)* | 合計金額に対する値引が複数商品に案分される際、端数（1円）の調整が特定のルールに基づき正確に行われること。 |
+| **RP-U-002** | `ReportService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_payment_equals_sales_plus_tax_always` / `test_three_way_payment_split` / `test_five_way_payment_split` | 決済金額の合計が「純売上＋税額」と完全に一致し、複雑な分割払いの際も 1 円の誤差も生じないこと。 |
+| **RP-U-003** | `ReportService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_multiple_tax_rates_no_cartesian_product` / `test_mixed_tax_types` / `test_store_wide_multi_terminal_with_cartesian_product_risk` | 複数税率(8%, 10%)や非課税アイテムが混在する巨大ジャーナル集計時に、デカルト積（直積）爆発を起こさず正確な全件レポートが生成される。 |
+| **RP-U-004** | `ReportService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_complex_void_scenario` / `test_multiple_returns_same_day` / `test_void_vs_cancelled_difference` | 返品(Return)、取消(Void)、またはフラグ上での Cancelled の違いを正確に解釈し、純売上から正しく控除（または無視）されること。 |
+| **RP-U-005** | `ReportService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_flash_report_rejects_date_range_store` / `test_flash_report_accepts_single_date` | リアルタイムフラッシュレポート取得時、仕様外となる複数日（Range）指定が API レベルで安全に遮断されること。 |
 
 ### 1.2 プラグイン管理 (`ReportPluginManager`)
 
@@ -54,8 +56,9 @@ nav_order: 105
 
 | ID | 連携先 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
-| **RP-I-001** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_data_integrity` <br> *(# Stress test for data integrity)* | 数万件規模のジャーナルデータに対し、集計結果がタイムアウトせずに正確に算出されること。 |
-| **RP-I-002** | `Journal API` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_journal_integration` | Journal サービスからの疑似的な Pub/Sub 通知を受け、Report 側のキャッシュが更新されること。 |
+| **RP-I-001** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_data_integrity` / `test_store_wide_daily_integrity` | 数万件規模・複数端末横断のジャーナルデータに対し、集計結果がタイムアウトせずに正確な総額（Integrity）が証明されること。 |
+| **RP-I-002** | `Journal API` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_api_key_journal_integration` / `test_jwt_request_does_not_create_journal` | API Key による通信のみジャーナル履歴として追記され、JWT による単なる参照要求は副作用を起こさないこと。 |
+| **RP-I-003** | `Error Handlers` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_journal_error_does_not_fail_report` / `test_payment_report_empty_data` | 一部のジャーナルデータが破損・欠落していてもレポート出力全体がクラッシュせず、取得可能分を正常にフォールバック返却すること。 |
 
 ---
 

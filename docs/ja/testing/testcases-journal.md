@@ -37,10 +37,11 @@ nav_order: 103
 
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
-| **JN-U-001** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_process_tranlog_async` <br> *(# Normal transaction logs)* | 様々な取引種別（Normal, Void, Return）の Tranlog が、共通のジャーナル形式に正確に変換・パースされること。 |
-| **JN-U-002** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_transaction_type_conversion` | `kugel_common.enums.TransactionType` と内部保存形式の全マッピングが正しく行われること。 |
+| **JN-U-001** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_process_tranlog_async` / `test_receive_tranlog_with_edge_cases` | 様々な取引種別（Normal, Void, Return）の Tranlog が、共通のジャーナル形式に正確かつ堅牢に（エッジケース含め）変換されること。 |
+| **JN-U-002** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_transaction_type_conversion_parametrized` / `test_normal_sales_cancelled_converts_to_cancel_type` | `kugel_common.enums.TransactionType` と内部保存形式の全マッピングが正しく行われ、特に「取消された通常販売」が負数種別へ反転すること。 |
 | **JN-U-003** | `LogService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_process_malformed_payload` <br> *(待追加：不正なJSON形式)* | Dapr から不正な形式やフィールド欠落した電文を受信した際、システムがクラッシュせず適切にエラーログを出力すること。 |
 | **JN-U-004** | `LogService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_event_id_idempotency` <br> *(待追加：イベントの冪等性)* | 同一の `event_id` を持つ電文を複数回受信した場合、DB への重複登録が防止されること。 |
+| **JN-U-005** | `LogService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_receive_tranlog_transaction_rollback_on_error` | 一部のジャーナル保存プロセスで致命的エラーが発生した場合、中途半端に記録されず全体がロールバックされること。 |
 
 ---
 

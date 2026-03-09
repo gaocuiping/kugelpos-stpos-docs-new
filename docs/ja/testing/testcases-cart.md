@@ -34,7 +34,7 @@ nav_order: 102
 
 ### 1.1 状態管理 & サービスフロー (`CartService` / `TranService`)
 
-| ID | テスト対象 | 状態 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
+| ID | テスト対象 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **CT-U-001** | `CartService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cart_operations` <br> *(# Check if the terminal is opened [异常系])* | `TerminalStatusException` が送出されること。 |
 | **CT-U-002** | `CartStateManager` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_resume_item_entry_from_invalid_states` <br> *(# Test that resume item entry fails from invalid states)* | `EventBadSequenceException` が送出されること。 |
@@ -42,21 +42,27 @@ nav_order: 102
 | **CT-U-004** | `TranService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_void_already_voided_transaction_raises_exception` <br> *(# Test that void operation on already voided transaction raises exception)* | `AlreadyVoidedException` が送出されること。 |
 | **CT-U-005** | `TranService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_return_already_refunded_transaction_raises_exception` <br> *(# Test that return operation on already refunded transaction raises exception)* | `AlreadyRefundedException` が送出されること。 |
 | **CT-U-006** | `TranService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_get_transaction_list_with_status_merges_correctly` <br> *(# Test that transaction list correctly merges void/return status)* | 状態フラグ（isVoided等）が正しくマージされていること。 |
-
-### 1.3 ユーティリティ & キャッシュ (`utils/`)
-
-| ID | テスト対象 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
-|:---|:---|:---|:---|:---|
-| **CT-U-201** | `TerminalInfoCache` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cache_expiration` / `test_cache_clear_by_tenant` | TTL 経過後の自動削除およびテナント間のデータ隔離。 |
-| **CT-U-202** | `TextHelper` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_truncate_text_mixed` / `test_line_split_simulation` | 日本語/ASCII 混在時の正確な表示幅計算と改行処理。 |
+| **CT-U-007** | `CartService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cashless_payment_simple` / `test_cashless_payment_with_detailed_receipt_info` | 異常な明細情報に対するキャッシュレス決済処理の安全性確保。 |
+| **CT-U-008** | `CartService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_payment_by_others` / `test_multiple_payment_methods` | 複数・他者支払いの異常系・正常系遷移の確保。 |
+| **CT-U-009** | `TranService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_void_return_resets_original_refund_status` / `test_return_voided_transaction_prevention` | 排他的な（相容れない）キャンセル操作の衝突と二重精算を防ぐ。 |
 
 ### 1.2 計算エンジン (`logics/`)
 
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
-| **CT-U-101** | `calc_tax_logic` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_calc_subtotal_async` <br> *(# Test the main calc_subtotal_async function)* | 各税区分の `tax_amount` が正確に計算されること。 |
+| **CT-U-101** | `calc_tax_logic` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_calc_subtotal_async` / `test_calc_subtotal_skips_cancelled_items` | 取消されたアイテムを除外して、各税区分の `tax_amount` が正確に計算されること。 |
 | **CT-U-102** | `calc_tax_logic` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_calc_tax_rounding_ceil` <br> *(待追加：端数処理モードの網羅検証)* | `RoundMethod.Ceil/Floor` に従い正しく丸められること。 |
-| **CT-U-103** | `calc_line_item` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_update_sales_info_async_with_discounts` <br> *(# Test update_sales_info_async with various discounts)* | %割引 -> 定額割引 の順序で算出されること。 |
+| **CT-U-103** | `calc_line_item` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_update_sales_info_async_with_discounts` / `test_update_sales_info_async_with_cancelled_items` | %割引 -> 定額割引 の順序での算出と、赤黒処理が独立して行われること。 |
+| **CT-U-104** | `calc_discount` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_discount_engine` | 各種割引計算エンジンの内部状態推移の正確性。 |
+
+### 1.3 ユーティリティ & キャッシュ (`utils/`)
+
+| ID | テスト対象 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
+|:---|:---|:---|:---|:---|
+| **CT-U-201** | `TerminalInfoCache` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cache_initialization` / `test_cache_clear_all` / `test_cache_expiration` / `test_cache_clear_by_tenant` | TTL 経過後の自動削除およびテナント間のデータ隔離が徹底され、メモリリークを防ぐ。 |
+| **CT-U-202** | `TextHelper` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_truncate_text_japanese` / `test_truncate_text_edge_cases` / `test_fixed_left_with_truncate` | 日本語/ASCII 混在時の正確な表示幅計算（全角半角）と強制改行処理が崩れないこと。 |
+| **CT-U-203** | `DaprSession` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_get_session_reuses_existing_session` / `test_session_timeout_configuration` | Dapr セッションタイムアウトの正確な引継ぎと、再利用による負荷軽減。 |
+| **CT-U-204** | `gRPCHelper` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_get_stub_creates_separate_channels_for_different_tenants` / `test_close_handles_errors_gracefully` | 通信断絶時のコネクションセーフティと、マルチテナント間のRPCチャネル共有汚染の防止。 |
 
 ---
 

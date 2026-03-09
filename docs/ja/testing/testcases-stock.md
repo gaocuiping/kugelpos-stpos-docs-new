@@ -40,12 +40,14 @@ nav_order: 106
 | **SK-U-001** | `StockService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_negative_stock_allowed` <br> *(# Test that negative stock is allowed)* | 在庫が 0 未満になる更新でもエラーにならず、負の値として正しく保存・履歴記録されること。 |
 | **SK-U-002** | `StockService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_update_stock_zero_change` <br> *(待追加：変化量ゼロの更新処理)* | 変化量が 0 の場合、在庫数は更新されず、履歴のみが記録される（またはスキップされる）仕様通りの動作。 |
 | **SK-U-003** | `StockService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_process_transaction_with_cancelled_items` <br> *(待追加：キャンセル行のフィルタリング)* | 取引データ内に `is_cancelled: true` の行が含まれる場合、その行の在庫減算がスキップされること。 |
+| **SK-U-004** | `StockService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_get_store_stocks` / `test_get_target_stores_all` | 特定エンドポイントまたは全店舗跨ぎでの在庫照会結果が、ロールとテナント権限の範囲内で抽出可能であること。 |
 
 ### 1.2 アラート判定 (`AlertService`)
 
 | ID | テスト対象 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
 | **SK-U-101** | `AlertService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_alert_threshold_boundary` <br> *(待追加：閾値境界値検証)* | 在庫が `minimum_quantity` と「ちょうど同値」になった際のアラート発火有無が仕様通りであること。 |
+| **SK-U-102** | `WebSocket` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_websocket_multiple_clients` / `test_websocket_unauthorized_connection` | セッション並行処理によるブロードキャストと、不正なアクセスに対するハンドシェイク遮断処理の堅牢性。 |
 
 ---
 
@@ -54,9 +56,9 @@ nav_order: 106
 
 | ID | 連携先 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|
-| **SK-I-001** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_update_stock` <br> *(# Test updating stock quantity)* | `update_quantity_atomic_async` により、アトミックな増減が DB レベルで保証されること。 |
+| **SK-I-001** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_update_stock` / `test_get_snapshots_pagination` | `update_quantity_atomic_async` による DB レベルのアトミック減算、および大量 Snapshot 履歴のページネーション取得。 |
 | **SK-I-002** | `Dapr PubSub` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_dapr_subscribe` <br> *(# Test Dapr subscription endpoint)* | `topic-tranlog` に対するサブスクリプション設定が正しく公開されていること。 |
-| **SK-I-003** | `Scheduler` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_snapshot_scheduler` <br> *(# Test snapshot scheduler)* | 設定されたスケジュールに基づき、在庫スナップショットが自動生成されること。 |
+| **SK-I-003** | `Scheduler` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_snapshot_scheduler` / `test_create_cron_trigger...` / `test_update_snapshot_schedule...` | 手動起動に加え、Daily/Weekly/Monthly 等の Cron 式の登録、削除、無効化などのスケジューリング全容が機能すること。 |
 
 ---
 
