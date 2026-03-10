@@ -5,7 +5,7 @@ import re
 print("Starting Professional Docs-as-Code synchronization...")
 
 # Configuration for the new environment
-BASE_DIR = "/home/gaocuiping/myself/kugelpos-stpos-docs-new"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 docs_dir = os.path.join(BASE_DIR, "docs")
 services_dir = os.path.join(BASE_DIR, "services")
 
