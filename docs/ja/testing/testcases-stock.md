@@ -41,22 +41,22 @@ nav_order: 106
 | **SK-U-002** | **StockServiceの検証** | `StockService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_update_stock_zero_change` <br> *(待追加：変化量ゼロの更新処理)* | 変化量が 0 の場合、在庫数は更新されず、履歴のみが記録される（またはスキップされる）仕様通りの動作。 |
 | **SK-U-003** | **StockServiceの検証** | `StockService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_process_transaction_with_cancelled_items` <br> *(待追加：キャンセル行のフィルタリング)* | 取引データ内に `is_cancelled: true` の行が含まれる場合、その行の在庫減算がスキップされること。 |
 | **SK-U-004** | **StockServiceの検証** | `StockService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_get_store_stocks` / `test_get_target_stores_all` | 特定エンドポイントまたは全店舗跨ぎでの在庫照会結果が、ロールとテナント権限の範囲内で抽出可能であること。 |
-| **SK-A-CRE** | **Create and set up a new tenant in the stock service.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | 系统自动追加的代码接口测试 |
-| **SK-A-GET** | **Get all stocks for a store** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_store_stocks` | 系统自动追加的代码接口测试 |
-| **SK-A-GET** | **Get items with low stock** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_low_stocks` | 系统自动追加的代码接口测试 |
-| **SK-A-CRE** | **Create a stock snapshot** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_snapshot` | 系统自动追加的代码接口测试 |
-| **SK-A-GET** | **Get stock snapshots filtered by generate_date_time range** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_snapshots_by_date_range` | 系统自动追加的代码接口测试 |
-| **SK-A-GET** | **Get a specific snapshot** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_snapshot_by_id` | 系统自动追加的代码接口测试 |
-| **SK-A-GET** | **Get items that need reordering** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_reorder_alerts` | 系统自动追加的代码接口测试 |
-| **SK-A-GET** | **Get current stock for an item** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_stock` | 系统自动追加的代码接口测试 |
-| **SK-A-UPD** | **Update stock quantity** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_stock` | 系统自动追加的代码接口测试 |
-| **SK-A-GET** | **Get stock update history for an item** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_stock_history` | 系统自动追加的代码接口测试 |
-| **SK-A-SET** | **Set minimum quantity for an item** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `set_minimum_quantity` | 系统自动追加的代码接口测试 |
-| **SK-A-SET** | **Set reorder point and quantity for an item** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `set_reorder_parameters` | 系统自动追加的代码接口测试 |
-| **SK-A-HAN** | **Handle transaction log from pubsub** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `handle_transaction_log` | 系统自动追加的代码接口测试 |
-| **SK-A-GET** | **Get snapshot schedule configuration for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_snapshot_schedule` | 系统自动追加的代码接口测试 |
-| **SK-A-UPD** | **Update snapshot schedule configuration for a tenant.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_snapshot_schedule` | 系统自动追加的代码接口测试 |
-| **SK-A-DEL** | **Delete snapshot schedule configuration for a tenant.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_snapshot_schedule` | 系统自动追加的代码接口测试 |
+| **SK-A-CRE** | **Create and set up a new tenant in the stock service.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-GET** | **Get all stocks for a store** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_store_stocks` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-GET** | **Get items with low stock** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_low_stocks` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-CRE** | **Create a stock snapshot** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_snapshot` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-GET** | **Get stock snapshots filtered by generate_date_time range** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_snapshots_by_date_range` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-GET** | **Get a specific snapshot** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_snapshot_by_id` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-GET** | **Get items that need reordering** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_reorder_alerts` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-GET** | **Get current stock for an item** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_stock` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-UPD** | **Update stock quantity** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_stock` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-GET** | **Get stock update history for an item** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_stock_history` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-SET** | **Set minimum quantity for an item** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `set_minimum_quantity` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-SET** | **Set reorder point and quantity for an item** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `set_reorder_parameters` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-HAN** | **Handle transaction log from pubsub** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `handle_transaction_log` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-GET** | **Get snapshot schedule configuration for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_snapshot_schedule` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-UPD** | **Update snapshot schedule configuration for a tenant.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_snapshot_schedule` | システムが自動追加したAPIインターフェーステスト |
+| **SK-A-DEL** | **Delete snapshot schedule configuration for a tenant.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_snapshot_schedule` | システムが自動追加したAPIインターフェーステスト |
 
 ### 1.2 アラート判定 (`AlertService`)
 
@@ -102,11 +102,11 @@ nav_order: 106
 ## 4. テストインフラストラクチャ & ヘルパー関数 (Test Infrastructure & Helpers)
 **目的**: テスト環境のセットアップおよび共通クレンジングを共通化する。
 
-| 関数名 (Helper Function) | 役割 (Responsibility) | 备注 (Notes) |
+| 関数名 (Helper Function) | 役割 (Responsibility) | 備考 (Notes) |
 |:---|:---|:---|
 | `test_setup_data` | 初期在庫マスター（ITEM001等）の投入 | テスト実行前の環境構築 |
 | `test_clean_data` | 全在庫・履歴データの物理削除 | 冪等性確保のための後処理 |
 | `conftest.test_auth_headers` | Bearer Token 基盤の提供 | 認可が必要な API 用のヘッダー生成 |
 
 > [!TIP]
-> 文档现已覆盖 Stock 服务相关的 11 个测试文件，单体测试层级的 GAP 已作为后续优先补全项。
+> このドキュメントは Stock サービス関連の 11 個のテストファイルをカバーしています。単体テスト層のギャップは今後の優先補完項目として記録されています。

@@ -133,9 +133,9 @@ def sync_service_doc(service_name, config):
                             
                             # Add alert to notes (Column 6+)
                             if len(parts) > 6:
-                                parts[6] = f"⚠️ 代码接口已变更：{parts[6]}"
+                                parts[6] = f"⚠️ コードインターフェースが変更されました：{parts[6]}"
                             else:
-                                parts.append("⚠️ 代码接口已变更")
+                                parts.append("⚠️ コードインターフェースが変更されました")
                                 
                             line = "|".join(parts).strip() + " |\n"
                             table_updated = True
@@ -149,7 +149,7 @@ def sync_service_doc(service_name, config):
                 if func not in existing_funcs:
                     print(f"  [NEW] Found missing API: {func}")
                     short_id = func[:3].upper()
-                    new_row = f"| **{config['id']}-A-{short_id}** | **{info['title']}** | `API / {info['method']}` | {ICON_MISSING} | `{func}` | 系统自动追加的代码接口测试 |\n"
+                    new_row = f"| **{config['id']}-A-{short_id}** | **{info['title']}** | `API / {info['method']}` | {ICON_MISSING} | `{func}` | システムが自動追加したAPIインターフェーステスト |\n"
                     new_lines.append(new_row)
                     existing_funcs.add(func)
                     table_updated = True

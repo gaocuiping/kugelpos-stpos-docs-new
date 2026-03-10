@@ -39,55 +39,55 @@ nav_order: 104
 |:---|:---|:---|:---|:---|:---|
 | **MD-U-001** | **ItemBookMasterServiceの検証** | `ItemBookMasterService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_item_fallback_to_common` <br> *(待追加：店舗個別情報なし時のCommon取得)* | 店舗個別の商品情報が存在しない場合、自動的に共通 (Common) マスタの情報が補完されて返却されること。 |
 | **MD-U-002** | **CategoryMasterServiceの検証** | `CategoryMasterService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_category_operations` <br> *(# Test category CRUD)* | カテゴリの親子階層構造（ParentID）が正確に維持・パースされること。 |
-| **MD-A-CRE** | **Create a new product category record.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_category` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve all product categories for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_categories` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve a specific product category by its code.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_category` | 系统自动追加的代码接口测试 |
-| **MD-A-UPD** | **Update an existing product category.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_category` | 系统自动追加的代码接口测试 |
-| **MD-A-DEL** | **Delete a product category.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_category` | 系统自动追加的代码接口测试 |
-| **MD-A-CRE** | **Create a new item master record.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_item_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve a specific store-specific item record by its code.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_store_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve all store-specific item records for a specific store.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_store_master_all_async` | 系统自动追加的代码接口测试 |
-| **MD-A-UPD** | **Update an existing store-specific item record.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_item_store_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-DEL** | **Delete a store-specific item record.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_item_store_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve detailed item information combining common and store-specific data.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_store_master_detail_async` | 系统自动追加的代码接口测试 |
-| **MD-A-CRE** | **Create a new payment method record.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_payment` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve all payment methods for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_all_payments` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve a specific payment method by its code.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_payment` | 系统自动追加的代码接口测试 |
-| **MD-A-UPD** | **Update an existing payment method.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_payment` | 系统自动追加的代码接口测试 |
-| **MD-A-DEL** | **Delete a payment method.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_payment` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve all tax records for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_taxes` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve a specific tax record by its code.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_tax` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve a specific item master record by its code.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve all item master records for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_master_all_async` | 系统自动追加的代码接口测试 |
-| **MD-A-UPD** | **Update an existing item master record.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_item_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-DEL** | **Delete an item master record.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_item_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-CRE** | **Setup the database for the tenant. This will create the required collections and indexes.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | 系统自动追加的代码接口测试 |
-| **MD-A-CRE** | **Create a new item book record.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_item_book` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve an item book record by its ID.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_book_by_id` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve detailed information of an item book by its ID.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_book_detail_by_id` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve all item book records for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_all_item_books` | 系统自动追加的代码接口测试 |
-| **MD-A-UPD** | **Update an existing item book record.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_item_book` | 系统自动追加的代码接口测试 |
-| **MD-A-DEL** | **Delete an item book record.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_item_book` | 系统自动追加的代码接口测试 |
-| **MD-A-ADD** | **Add a category to an item book.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `add_category_to_item_book` | 系统自动追加的代码接口测试 |
-| **MD-A-UPD** | **Update a category in an item book.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_category_in_item_book` | 系统自动追加的代码接口测试 |
-| **MD-A-DEL** | **Delete a category from an item book.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_category_from_item_book` | 系统自动追加的代码接口测试 |
-| **MD-A-ADD** | **Add a tab to a category in an item book.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `add_tab_to_category_in_item_book` | 系统自动追加的代码接口测试 |
-| **MD-A-UPD** | **Update a tab in a category in an item book.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_tab_in_category_in_item_book` | 系统自动追加的代码接口测试 |
-| **MD-A-DEL** | **Delete a tab from a category in an item book.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_tab_from_category_in_item_book` | 系统自动追加的代码接口测试 |
-| **MD-A-ADD** | **Add a button to a tab in a category in an item book.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `add_button_to_tab_in_category_in_item_book` | 系统自动追加的代码接口测试 |
-| **MD-A-UPD** | **Update a button in a tab in a category in an item book.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_button_in_tab_in_category_in_item_book` | 系统自动追加的代码接口测试 |
-| **MD-A-DEL** | **Delete a button from a tab in a category in an item book.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_button_from_tab_in_category_in_item_book` | 系统自动追加的代码接口测试 |
-| **MD-A-CRE** | **Create a new system settings record.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_settings_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve all system settings for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_settings_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve a specific system setting by its name.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_settings_master_by_name_async` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve the effective value of a setting for a specific store and terminal.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_settings_value_by_name_async` | 系统自动追加的代码接口测试 |
-| **MD-A-UPD** | **Update an existing system setting.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_settings_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-DEL** | **Delete a system setting.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_settings_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-CRE** | **Create a new staff record in the master data.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_staff_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve a specific staff record by their ID.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_staff_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-GET** | **Retrieve all staff records for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_staff_master_all_async` | 系统自动追加的代码接口测试 |
-| **MD-A-UPD** | **Update an existing staff record.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_staff_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-DEL** | **Delete a staff record.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_staff_master_async` | 系统自动追加的代码接口测试 |
+| **MD-A-CRE** | **Create a new product category record.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_category` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve all product categories for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_categories` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve a specific product category by its code.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_category` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-UPD** | **Update an existing product category.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_category` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-DEL** | **Delete a product category.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_category` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-CRE** | **Create a new item master record.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_item_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve a specific store-specific item record by its code.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_store_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve all store-specific item records for a specific store.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_store_master_all_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-UPD** | **Update an existing store-specific item record.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_item_store_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-DEL** | **Delete a store-specific item record.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_item_store_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve detailed item information combining common and store-specific data.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_store_master_detail_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-CRE** | **Create a new payment method record.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_payment` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve all payment methods for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_all_payments` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve a specific payment method by its code.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_payment` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-UPD** | **Update an existing payment method.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_payment` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-DEL** | **Delete a payment method.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_payment` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve all tax records for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_taxes` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve a specific tax record by its code.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_tax` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve a specific item master record by its code.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve all item master records for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_master_all_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-UPD** | **Update an existing item master record.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_item_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-DEL** | **Delete an item master record.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_item_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-CRE** | **Setup the database for the tenant. This will create the required collections and indexes.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-CRE** | **Create a new item book record.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_item_book` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve an item book record by its ID.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_book_by_id` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve detailed information of an item book by its ID.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_book_detail_by_id` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve all item book records for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_all_item_books` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-UPD** | **Update an existing item book record.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_item_book` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-DEL** | **Delete an item book record.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_item_book` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-ADD** | **Add a category to an item book.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `add_category_to_item_book` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-UPD** | **Update a category in an item book.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_category_in_item_book` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-DEL** | **Delete a category from an item book.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_category_from_item_book` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-ADD** | **Add a tab to a category in an item book.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `add_tab_to_category_in_item_book` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-UPD** | **Update a tab in a category in an item book.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_tab_in_category_in_item_book` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-DEL** | **Delete a tab from a category in an item book.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_tab_from_category_in_item_book` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-ADD** | **Add a button to a tab in a category in an item book.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `add_button_to_tab_in_category_in_item_book` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-UPD** | **Update a button in a tab in a category in an item book.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_button_in_tab_in_category_in_item_book` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-DEL** | **Delete a button from a tab in a category in an item book.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_button_from_tab_in_category_in_item_book` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-CRE** | **Create a new system settings record.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_settings_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve all system settings for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_settings_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve a specific system setting by its name.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_settings_master_by_name_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve the effective value of a setting for a specific store and terminal.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_settings_value_by_name_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-UPD** | **Update an existing system setting.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_settings_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-DEL** | **Delete a system setting.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_settings_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-CRE** | **Create a new staff record in the master data.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_staff_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve a specific staff record by their ID.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_staff_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-GET** | **Retrieve all staff records for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_staff_master_all_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-UPD** | **Update an existing staff record.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_staff_master_async` | システムが自動追加したAPIインターフェーステスト |
+| **MD-A-DEL** | **Delete a staff record.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_staff_master_async` | システムが自動追加したAPIインターフェーステスト |
 
 ### 1.2 税率・決済設定 (`TaxMasterService` / `PaymentMasterService`)
 
@@ -122,7 +122,7 @@ nav_order: 104
 ## 4. テストインフラストラクチャ & ヘルパー関数 (Test Infrastructure & Helpers)
 **目的**: テスト環境のセットアップおよび共通クレンジングを共通化する。
 
-| 関数名 (Helper Function) | 役割 (Responsibility) | 备注 (Notes) |
+| 関数名 (Helper Function) | 役割 (Responsibility) | 備考 (Notes) |
 |:---|:---|:---|
 | `test_setup_data` | テスト用マスターシートの流し込み | 全マスタの初期状態構築 |
 | `test_clean_data` | 全マスターコレクションの物理削除 | 冪等性確保のための後処理 |

@@ -41,9 +41,9 @@ nav_order: 101
 | **AC-U-002** | **JWT認証・認可の検証** | `auth.py` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_jwt_payload_contents` <br> *(待追加：Token内容検証)* | 発行された JWT の `sub`, `tenant_id`, `is_superuser` クレームが期待通り設定されていること。 |
 | **AC-U-003** | **アカウントライフサイクルの検証** | `account.py` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_register_user_order_integrity` <br> *(待追加：登録順序の整合性)* | `register_super_user` において、DB セットアップが完了した後にユーザー挿入が行われるフローであること。 |
 | **AC-U-301** | **ヘルスチェックと基盤検証** | `Health & System` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_health_endpoint` (ヘルスチェック経由)<br>`test_health_endpoint_response_time` (応答時間確認) | APIの生存確認やレイテンシ保証など、本線以外の健全性確認が含まれていること。 |
-| **AC-A-LOG** | **Authenticate user and provide a JWT access token** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `login_for_access_token` | 系统自动追加的代码接口测试 |
-| **AC-A-REG** | **Register a new superuser and create a new tenant** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `register_super_user` | 系统自动追加的代码接口测试 |
-| **AC-A-REG** | **Register a new regular user in the tenant by a superuser** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `register_user_by_superuser` | 系统自动追加的代码接口测试 |
+| **AC-A-LOG** | **Authenticate user and provide a JWT access token** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `login_for_access_token` | システムが自動追加したAPIインターフェーステスト |
+| **AC-A-REG** | **Register a new superuser and create a new tenant** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `register_super_user` | システムが自動追加したAPIインターフェーステスト |
+| **AC-A-REG** | **Register a new regular user in the tenant by a superuser** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `register_user_by_superuser` | システムが自動追加したAPIインターフェーステスト |
 
 ---
 
@@ -53,7 +53,7 @@ nav_order: 101
 | ID | テストタイトル | 連携先 | 状态 (Status) | 匹配规则 (Function & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|:---|
 | **AC-I-001** | **MongoDBデータ永続化検証** | `MongoDB` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_operations` <br> *(# register a superuser)* | 登録されたユーザー情報が DB に永続化され、次回ログイン時に認証可能であること。 |
-|**AC-I-002**|**Register a new superuser and create a new tenant**|`Slack API`|![Implemented](https://img.shields.io/badge/Status-Implemented-green)|`register_super_user` <br> *(# Send notification to Slack)*|⚠️ 代码接口已变更：新規テナント登録時に、専用チャンネルへ通知が送信されること（Mock 経由での呼び出し検証）。| |
+|**AC-I-002**|**Register a new superuser and create a new tenant**|`Slack API`|![Implemented](https://img.shields.io/badge/Status-Implemented-green)|`register_super_user` <br> *(# Send notification to Slack)*|⚠️ コードインターフェースが変更されました：新規テナント登録時に、専用チャンネルへ通知が送信されること（Mock 経由での呼び出し検証）。| |
 
 ---
 
@@ -70,7 +70,7 @@ nav_order: 101
 ## 4. テストインフラストラクチャ & ヘルパー関数 (Test Infrastructure & Helpers)
 **目的**: テスト環境のセットアップおよび共通クレンジングを共通化する。
 
-| 関数名 (Helper Function) | 役割 (Responsibility) | 备注 (Notes) |
+| 関数名 (Helper Function) | 役割 (Responsibility) | 備考 (Notes) |
 |:---|:---|:---|
 | `test_setup_data` | システム管理者アカウントの事前作成 | 認可が必要なテスト用のベースライン |
 | `test_clean_data` | `users` コレクションの物理削除 | 冪等性確保のための後処理 |
