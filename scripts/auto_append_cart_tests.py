@@ -432,8 +432,8 @@ def generate_test_files(
 ) -> list[str]:
     """
     1 つの ApiEndpoint に対して 2 つのテストファイルを生成する：
-      - test_<func_name>_scenario_auto.py  （シナリオ+異常系）
-      - test_<func_name>_unit_auto.py       （単体テスト）
+      - tests/scenario/test_<func_name>_scenario_auto.py  （シナリオ+異常系）
+      - tests/unit/test_<func_name>_unit_auto.py           （単体テスト）
 
     戻り値：生成したファイルパスのリスト
     """
@@ -450,25 +450,36 @@ def generate_test_files(
         generated_at=generated_at,
     )
 
+    # ── 出力先サブディレクトリを決定 ─────────────────────────
+    unit_dir     = os.path.join(tests_dir_abs, "unit")
+    scenario_dir = os.path.join(tests_dir_abs, "scenario")
+
     files_to_generate = [
-        (f"test_{fn}_scenario_auto.py", SCENARIO_TEMPLATE.format(**common_vars)),
-        (f"test_{fn}_unit_auto.py",     UNIT_TEMPLATE.format(**common_vars)),
+        (scenario_dir, f"test_{fn}_scenario_auto.py", SCENARIO_TEMPLATE.format(**common_vars)),
+        (unit_dir,     f"test_{fn}_unit_auto.py",     UNIT_TEMPLATE.format(**common_vars)),
     ]
 
     generated_paths = []
-    for filename, content in files_to_generate:
-        filepath = os.path.join(tests_dir_abs, filename)
+    for target_dir, filename, content in files_to_generate:
+        # サブディレクトリが存在しない場合は作成
+        os.makedirs(target_dir, exist_ok=True)
+        init_file = os.path.join(target_dir, "__init__.py")
+        if not os.path.exists(init_file):
+            open(init_file, "w").close()
+
+        filepath = os.path.join(target_dir, filename)
+        rel_path = os.path.join(os.path.basename(target_dir), filename)
 
         if os.path.exists(filepath):
-            print(f"  [SKIP] 既に存在します: {filename}")
+            print(f"  [SKIP] 既に存在します: {rel_path}")
             continue
 
         if dry_run:
-            print(f"  [DRY-RUN] 生成予定: {filename}")
+            print(f"  [DRY-RUN] 生成予定: {rel_path}")
         else:
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
-            print(f"  [NEW ] 生成しました: {filename} ✨")
+            print(f"  [NEW ] 生成しました: {rel_path} ✨")
 
         generated_paths.append(filepath)
 
