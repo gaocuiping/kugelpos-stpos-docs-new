@@ -7,7 +7,7 @@ nav_exclude: true
 
 # Report Service - API Overview
 
-> **Auto-generated** from source code on 2026-03-10 02:50:48
+> **Auto-generated** from source code on 2026-03-10 05:56:51
 > 
 > This document is automatically generated. Do not edit manually.
 
