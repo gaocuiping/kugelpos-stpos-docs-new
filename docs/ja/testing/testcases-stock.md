@@ -41,7 +41,7 @@ nav_order: 106
 | **SK-U-002** | **StockServiceの検証** | `StockService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_update_stock_zero_change` <br> *(待追加：変化量ゼロの更新処理)* | 変化量が 0 の場合、在庫数は更新されず、履歴のみが記録される（またはスキップされる）仕様通りの動作。 |
 | **SK-U-003** | **StockServiceの検証** | `StockService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_process_transaction_with_cancelled_items` <br> *(待追加：キャンセル行のフィルタリング)* | 取引データ内に `is_cancelled: true` の行が含まれる場合、その行の在庫減算がスキップされること。 |
 | **SK-U-004** | **StockServiceの検証** | `StockService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_get_store_stocks` / `test_get_target_stores_all` | 特定エンドポイントまたは全店舗跨ぎでの在庫照会結果が、ロールとテナント権限の範囲内で抽出可能であること。 |
-| **SK-A-CRE** | **Create and set up a new tenant in the stock service.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_tenant` | 系统自动追加的代码接口测试 |
+| **SK-A-CRE** | **Create and set up a new tenant in the stock service.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | 系统自动追加的代码接口测试 |
 | **SK-A-GET** | **Get all stocks for a store** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_store_stocks` | 系统自动追加的代码接口测试 |
 | **SK-A-GET** | **Get items with low stock** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_low_stocks` | 系统自动追加的代码接口测试 |
 | **SK-A-CRE** | **Create a stock snapshot** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_snapshot` | 系统自动追加的代码接口测试 |

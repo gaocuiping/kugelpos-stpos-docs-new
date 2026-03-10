@@ -51,7 +51,7 @@ nav_order: 103
 | **JN-A-HAN** | **Handle cash in/out logs received via Dapr pub/sub.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `handle_cashlog` | 系统自动追加的代码接口测试 |
 | **JN-A-HAN** | **Handle terminal open/close logs received via Dapr pub/sub.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `handle_opencloselog` | 系统自动追加的代码接口测试 |
 | **JN-A-REC** | **Direct API endpoint for receiving transaction data.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `receive_transactions` | 系统自动追加的代码接口测试 |
-| **JN-A-CRE** | **Setup the database for the tenant. This will create the required collections and indexes.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_tenant` | 系统自动追加的代码接口测试 |
+| **JN-A-CRE** | **Setup the database for the tenant. This will create the required collections and indexes.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | 系统自动追加的代码接口测试 |
 
 ---
 

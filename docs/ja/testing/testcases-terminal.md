@@ -53,7 +53,7 @@ nav_order: 107
 | **TM-A-TER** | **Add cash to a terminal drawer** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_cash_in` | 系统自动追加的代码接口测试 |
 | **TM-A-TER** | **Remove cash from a terminal drawer** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_cash_out` | 系统自动追加的代码接口测试 |
 | **TM-A-UPD** | **Update the delivery status of a transaction** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_delivery_status` | 系统自动追加的代码接口测试 |
-| **TM-A-CRE** | **Create a new tenant** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_tenant` | 系统自动追加的代码接口测试 |
+| **TM-A-CRE** | **Create a new tenant** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | 系统自动追加的代码接口测试 |
 | **TM-A-GET** | **Get tenant information** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_tenant` | 系统自动追加的代码接口测试 |
 | **TM-A-UPD** | **Update tenant information** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_tenant` | 系统自动追加的代码接口测试 |
 | **TM-A-DEL** | **Delete a tenant** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_tenant` | 系统自动追加的代码接口测试 |

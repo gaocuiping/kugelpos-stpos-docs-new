@@ -18,6 +18,26 @@ IMPLEMENTED_BADGE = '![Implemented](https://img.shields.io/badge/Status-Implemen
 implemented_functions = set()
 implemented_comments = set()
 
+def _has_pytest_skip(func_node) -> bool:
+    """
+    函数体内是否含有 pytest.skip() 调用。
+    自动生成的骨架文件里会有 pytest.skip(...)，视为"未实现"。
+    接受 ast.FunctionDef 或 ast.AsyncFunctionDef。
+    """
+    for node in ast.walk(func_node):
+        if isinstance(node, ast.Call):
+            func = node.func
+            # pytest.skip(...)
+            if isinstance(func, ast.Attribute):
+                val = func.value
+                if isinstance(val, ast.Name) and val.id == "pytest" and func.attr == "skip":
+                    return True
+            # skip(...) —— 直接 from pytest import skip 的情况
+            if isinstance(func, ast.Name) and func.id == "skip":
+                return True
+    return False
+
+
 def scan_test_file(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -28,6 +48,10 @@ def scan_test_file(file_path):
             tree = ast.parse(content)
             for node in ast.walk(tree):
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    # ── 新增：跳过含有 pytest.skip() 的函数 ──────────────
+                    # 这表示该测试是自动生成的骨架，尚未真正实现
+                    if node.name.startswith("test_") and _has_pytest_skip(node):
+                        continue  # 不计入 implemented_functions
                     implemented_functions.add(node.name)
             
             # Extract comments (especially those following '#' in the doc cases)

@@ -46,7 +46,7 @@ nav_order: 105
 | **RP-A-HAN** | **Handle cash in/out logs received via Dapr pub/sub.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `handle_cashlog` | 系统自动追加的代码接口测试 |
 | **RP-A-HAN** | **Handle terminal open/close logs received via Dapr pub/sub.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `handle_opencloselog` | 系统自动追加的代码接口测试 |
 | **RP-A-REC** | **Direct API endpoint for receiving transaction data.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `receive_transactions` | 系统自动追加的代码接口测试 |
-| **RP-A-CRE** | **Create and set up a new tenant in the report service.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_tenant` | 系统自动追加的代码接口测试 |
+| **RP-A-CRE** | **Create and set up a new tenant in the report service.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | 系统自动追加的代码接口测试 |
 | **RP-A-GET** | **Get a report for the entire store.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_report_for_store` | 系统自动追加的代码接口测试 |
 | **RP-A-GET** | **Get a report for a specific terminal.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_report_for_terminal` | 系统自动追加的代码接口测试 |
 

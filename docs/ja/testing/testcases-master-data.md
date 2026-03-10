@@ -61,7 +61,7 @@ nav_order: 104
 | **MD-A-GET** | **Retrieve all item master records for a tenant.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_master_all_async` | 系统自动追加的代码接口测试 |
 | **MD-A-UPD** | **Update an existing item master record.** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_item_master_async` | 系统自动追加的代码接口测试 |
 | **MD-A-DEL** | **Delete an item master record.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_item_master_async` | 系统自动追加的代码接口测试 |
-| **MD-A-CRE** | **Setup the database for the tenant. This will create the required collections and indexes.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_tenant` | 系统自动追加的代码接口测试 |
+| **MD-A-CRE** | **Setup the database for the tenant. This will create the required collections and indexes.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | 系统自动追加的代码接口测试 |
 | **MD-A-CRE** | **Create a new item book record.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_item_book` | 系统自动追加的代码接口测试 |
 | **MD-A-GET** | **Retrieve an item book record by its ID.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_book_by_id` | 系统自动追加的代码接口测试 |
 | **MD-A-GET** | **Retrieve detailed information of an item book by its ID.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_item_book_detail_by_id` | 系统自动追加的代码接口测试 |
