@@ -1,26 +1,30 @@
 """
-auto_append_cart_tests.py
-=========================
-Cart サービス API 変更 → テスト骨架自動追加スクリプト
+auto_append_tests.py  (旧称: auto_append_cart_tests.py)
+==========================================================
+全サービス API 変更 → テスト骨架自動追加スクリプト
 
 【概要】
-services/cart/app/api/v1/ 配下の API ルートを静的解析し、
-services/cart/tests/ 配下の既存テストと比較して、
+services/<service>/app/api/v1/ 配下の API ルートを静的解析し、
+services/<service>/tests/ 配下の既存テストと比較して、
 未カバーのエンドポイントに対しテスト骨架ファイルを自動生成する。
 
 【test-review.md 改善方案との対応】
-  P0 → Unit テスト骨架（AsyncMock 使用, _unit_auto.py）
-  P1 → シナリオ+異常系テスト骨架（_scenario_auto.py）
+  P0 → Unit テスト骨架（AsyncMock 使用, tests/unit/*_unit_auto.py）
+  P1 → シナリオ+異常系テスト骨架（tests/scenario/*_scenario_auto.py）
 
 【使い方】
   cd /home/gaocuiping/myself/kugelpos-stpos-docs-new
-  python scripts/auto_append_cart_tests.py
+
+  # 全サービス対象
+  python scripts/auto_append_tests.py --all
+
+  # 特定サービスのみ
+  python scripts/auto_append_tests.py --service cart
+  python scripts/auto_append_tests.py --service terminal
 
   # ドライラン（ファイル作成なし、確認のみ）
-  python scripts/auto_append_cart_tests.py --dry-run
-
-  # 特定のサービスのみ対象（将来の拡張用）
-  python scripts/auto_append_cart_tests.py --service cart
+  python scripts/auto_append_tests.py --all --dry-run
+  python scripts/auto_append_tests.py --service cart --dry-run
 """
 
 import os
@@ -42,7 +46,42 @@ SERVICES_CONFIG = {
         "api_dir": "services/cart/app/api/v1",
         "tests_dir": "services/cart/tests",
         "service_id": "CT",
-        # シナリオテスト内でよく使う API endpoint プレフィックス
+        "base_path": "/api/v1",
+    },
+    "terminal": {
+        "api_dir": "services/terminal/app/api/v1",
+        "tests_dir": "services/terminal/tests",
+        "service_id": "TM",
+        "base_path": "/api/v1",
+    },
+    "account": {
+        "api_dir": "services/account/app/api/v1",
+        "tests_dir": "services/account/tests",
+        "service_id": "AC",
+        "base_path": "/api/v1",
+    },
+    "master-data": {
+        "api_dir": "services/master-data/app/api/v1",
+        "tests_dir": "services/master-data/tests",
+        "service_id": "MD",
+        "base_path": "/api/v1",
+    },
+    "report": {
+        "api_dir": "services/report/app/api/v1",
+        "tests_dir": "services/report/tests",
+        "service_id": "RP",
+        "base_path": "/api/v1",
+    },
+    "stock": {
+        "api_dir": "services/stock/app/api/v1",
+        "tests_dir": "services/stock/tests",
+        "service_id": "SK",
+        "base_path": "/api/v1",
+    },
+    "journal": {
+        "api_dir": "services/journal/app/api/v1",
+        "tests_dir": "services/journal/tests",
+        "service_id": "JN",
         "base_path": "/api/v1",
     },
 }
@@ -559,13 +598,17 @@ def run(service_name: str, dry_run: bool = False):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Cart サービス API 変更に基づくテスト骨架自動追加スクリプト"
+        description="全サービス API 変更に基づくテスト骨架自動追加スクリプト"
     )
     parser.add_argument(
         "--service",
-        default="cart",
         choices=list(SERVICES_CONFIG.keys()),
-        help="対象サービス名（デフォルト: cart）",
+        help="対象サービス名（例: cart, terminal）",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="全サービスを対象にする",
     )
     parser.add_argument(
         "--dry-run",
@@ -573,7 +616,16 @@ def main():
         help="ドライラン：ファイルを作成せず確認のみ行う",
     )
     args = parser.parse_args()
-    run(service_name=args.service, dry_run=args.dry_run)
+
+    if args.all:
+        # 全サービスを順番に処理
+        for svc in SERVICES_CONFIG.keys():
+            run(service_name=svc, dry_run=args.dry_run)
+    elif args.service:
+        run(service_name=args.service, dry_run=args.dry_run)
+    else:
+        # デフォルト: cart（後方互換性のため）
+        run(service_name="cart", dry_run=args.dry_run)
 
 
 if __name__ == "__main__":
