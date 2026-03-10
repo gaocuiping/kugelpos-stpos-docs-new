@@ -34,8 +34,9 @@ for svc in SERVICES:
     print(f"Running tests for {svc}...")
     
     # Use pipenv to run pytest if Pipfile exists, otherwise fallback to python3 -m pytest
+    pipenv_path = "/home/gaocuiping/.local/bin/pipenv"
     if os.path.exists(os.path.join(svc_dir, "Pipfile")):
-        cmd = ["pipenv", "run", "pytest", "tests/", "-q", "--disable-warnings"]
+        cmd = [pipenv_path, "run", "pytest", "tests/", "-q", "--disable-warnings"]
     else:
         cmd = ["python3", "-m", "pytest", "tests/", "-q", "--disable-warnings"]
     

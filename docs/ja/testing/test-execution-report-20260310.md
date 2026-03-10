@@ -19,7 +19,7 @@ layout: default
 | **Cart** | ERROR | - | - | - | - | 🚨 ERROR |
 | **Report** | ERROR | - | - | - | - | 🚨 ERROR |
 | **Journal** | ERROR | - | - | - | - | 🚨 ERROR |
-| **Stock** | ERROR | - | - | - | - | 🚨 ERROR |
+| **Stock** | 0 | <span style='color:green'>0</span> | <span style='color:red'>0</span> | <span style='color:gray'>0</span> | 0.00s | ⚠️ WIP |
 
 ## 💡 実行結果の考察とネクストアクション
 
