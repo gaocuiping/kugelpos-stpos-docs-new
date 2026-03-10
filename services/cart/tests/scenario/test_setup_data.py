@@ -184,6 +184,12 @@ async def test_setup_data(setup_db: AsyncIOMotorDatabase):
     print(f"tranlog_created: {tranlog_created}")
     assert tranlog_created is not None
 
+    # Ensure terminal is Opened for cart tests (terminal tests might have closed it)
+    await setup_db.terminal_info.update_one(
+        {"terminal_id": f"{os.environ.get('TENANT_ID')}-{os.environ.get('STORE_CODE')}-9"},
+        {"$set": {"status": "Opened"}}
+    )
+
 
 @pytest.mark.asyncio
 async def test_register_invoice_number(set_env_vars):

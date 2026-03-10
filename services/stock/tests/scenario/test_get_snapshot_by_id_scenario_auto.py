@@ -52,7 +52,9 @@ async def _create_and_get_snapshot_id(
         assert list_resp.status_code == status.HTTP_200_OK
         items = list_resp.json()["data"]["data"]
         assert len(items) > 0, "スナップショット一覧が空です"
-        snapshot_id = items[0].get("id") or items[0].get("snapshotId")
+        snapshot_id = items[0].get("id") or items[0].get("snapshotId") or items[0].get("_id")
+        if not snapshot_id:
+            print(f"DEBUG ITEMS: {items}")
 
     assert snapshot_id, "スナップショット ID を取得できませんでした"
     return snapshot_id
@@ -123,6 +125,9 @@ async def test_get_snapshot_by_id_not_found(
         f"/api/v1/tenants/{test_tenant_id}/stores/{test_store_code}/stock/snapshot/{nonexistent_id}",
         headers=test_auth_headers,
     )
+
+    if response.status_code != 404:
+        print(f"DEBUG 500 ERROR TEXT: {response.text}")
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
     result = response.json()

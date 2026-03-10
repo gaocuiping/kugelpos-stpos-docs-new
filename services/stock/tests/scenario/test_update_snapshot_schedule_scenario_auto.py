@@ -21,7 +21,7 @@ async def test_update_snapshot_schedule_happy_path(
     - レスポンスが success=True であること
     """
     response = await http_client.put(
-        f"/api/v1/tenants/{test_test_tenant_id}/stock/snapshot-schedule",
+        f"/api/v1/tenants/{test_tenant_id}/stock/snapshot-schedule",
         json={},  # TODO: 実際のボディを設定してください
         headers=test_auth_headers,
     )
@@ -43,7 +43,7 @@ async def test_update_snapshot_schedule_unauthorized(
 ):
     """【異常系 | 401/403 | P1-5】認証ヘッダーなしで 401 または 403 が返ること。"""
     response = await http_client.put(
-        f"/api/v1/tenants/{test_test_tenant_id}/stock/snapshot-schedule",
+        f"/api/v1/tenants/{test_tenant_id}/stock/snapshot-schedule",
         json={},  # TODO: 実際のボディを設定してください
     )
     # 認証任意設定の場合は 200/404 も許容

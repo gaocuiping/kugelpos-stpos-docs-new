@@ -11,7 +11,7 @@ for test_file in \
     tests/unit/test_terminal_cache.py \
     tests/unit/test_text_helper.py
 do
-    pipenv run pytest $test_file
+    ~/.local/bin/pipenv run pytest $test_file
 done
 
 # ── シナリオテスト（外部サービス必要・順序依存あり）──────────
@@ -24,5 +24,5 @@ for test_file in \
     tests/scenario/test_payment_cashless_error.py \
     tests/scenario/test_resume_item_entry.py
 do
-    pipenv run pytest $test_file
+    ~/.local/bin/pipenv run pytest $test_file
 done

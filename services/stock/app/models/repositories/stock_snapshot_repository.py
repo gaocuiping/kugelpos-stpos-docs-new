@@ -46,6 +46,15 @@ class StockSnapshotRepository(AbstractRepository[StockSnapshotDocument]):
         )
         return snapshots[0] if snapshots else None
 
+    async def get_by_id_async(self, doc_id: str) -> Optional[StockSnapshotDocument]:
+        """Get snapshot by ID"""
+        from bson import ObjectId
+        from bson.errors import InvalidId
+        try:
+            return await self.get_one_async({"_id": ObjectId(doc_id)})
+        except InvalidId:
+            return None
+
     async def delete_old_snapshots_async(self, tenant_id: str, store_code: str, retention_days: int = 90) -> int:
         """Delete snapshots older than retention days"""
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)

@@ -34,39 +34,39 @@ fi
 # Run tests in order
 echo ""
 echo "1. Cleaning test data..."
-pipenv run pytest tests/test_clean_data.py -v
+~/.local/bin/pipenv run pytest tests/scenario/test_clean_data.py -v
 
 echo ""
 echo "2. Setting up test data..."
-pipenv run pytest tests/test_setup_data.py -v
+~/.local/bin/pipenv run pytest tests/scenario/test_setup_data.py -v
 
 echo ""
 echo "3. Running stock tests..."
-pipenv run pytest tests/test_stock.py -v
+~/.local/bin/pipenv run pytest tests/scenario/test_stock.py -v
 
 echo ""
 echo "4. Running snapshot date range tests..."
-pipenv run pytest tests/test_snapshot_date_range.py -v
+~/.local/bin/pipenv run pytest tests/scenario/test_snapshot_date_range.py -v
 
 echo ""
 echo "5. Running snapshot schedule API tests..."
-pipenv run pytest tests/test_snapshot_schedule_api.py -v
+~/.local/bin/pipenv run pytest tests/scenario/test_snapshot_schedule_api.py -v
 
 echo ""
 echo "6. Running snapshot scheduler tests..."
-pipenv run pytest tests/test_snapshot_scheduler.py -v
+~/.local/bin/pipenv run pytest tests/scenario/test_snapshot_scheduler.py -v
 
 echo ""
 echo "7. Running reorder alerts tests..."
-pipenv run pytest tests/test_reorder_alerts.py -v
+~/.local/bin/pipenv run pytest tests/scenario/test_reorder_alerts.py -v
 
 echo ""
 echo "8. Running WebSocket alerts tests..."
-pipenv run pytest tests/test_websocket_alerts.py -v
+~/.local/bin/pipenv run pytest tests/scenario/test_websocket_alerts.py -v
 
 echo ""
 echo "9. Running WebSocket reorder tests..."
-pipenv run pytest tests/test_websocket_reorder_new.py -v
+~/.local/bin/pipenv run pytest tests/scenario/test_websocket_reorder_new.py -v
 
 echo ""
 echo "================================"

@@ -21,7 +21,7 @@ async def test_get_reorder_alerts_happy_path(
     - レスポンスが success=True であること
     """
     response = await http_client.get(
-        f"/api/v1/tenants/{test_test_tenant_id}/stores/{test_test_store_code}/stock/reorder-alerts",
+        f"/api/v1/tenants/{test_tenant_id}/stores/{test_store_code}/stock/reorder-alerts",
         headers=test_auth_headers,
     )
     # 2xx を期待（テスト環境にデータがない場合は 404 も許容）
@@ -42,7 +42,7 @@ async def test_get_reorder_alerts_unauthorized(
 ):
     """【異常系 | 401/403 | P1-5】認証ヘッダーなしで 401 または 403 が返ること。"""
     response = await http_client.get(
-        f"/api/v1/tenants/{test_test_tenant_id}/stores/{test_test_store_code}/stock/reorder-alerts",
+        f"/api/v1/tenants/{test_tenant_id}/stores/{test_store_code}/stock/reorder-alerts",
     )
     # 認証任意設定の場合は 200/404 も許容
     assert response.status_code in (401, 403, 200, 404)

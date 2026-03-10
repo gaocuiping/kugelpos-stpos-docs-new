@@ -81,6 +81,7 @@ class StockSnapshotItemResponse(BaseSchemaModel):
 class StockSnapshotResponse(BaseSchemaModel):
     """在庫スナップショットレスポンス"""
 
+    id: Optional[str] = Field(None, description="Snapshot ID")
     tenant_id: str = Field(..., description="Tenant ID")
     store_code: str = Field(..., description="Store code")
     total_items: int = Field(..., description="Total number of items")

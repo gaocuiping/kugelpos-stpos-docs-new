@@ -64,6 +64,7 @@ class SnapshotTransformer:
     def to_response(document: StockSnapshotDocument) -> StockSnapshotResponse:
         """Convert StockSnapshotDocument to StockSnapshotResponse"""
         return StockSnapshotResponse(
+            id=str(document.id) if document.id else None,
             tenant_id=document.tenant_id,
             store_code=document.store_code,
             total_items=document.total_items,

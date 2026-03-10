@@ -45,7 +45,11 @@ async def test_cross_tenant_login_isolation(http_client):
     )
     # Should fail with 401 Unauthorized
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json()["detail"] == "Incorrect username, password or tenant_id"
+    
+    # Depending on global exception handler, it might be in 'message' or 'detail'
+    resp_json = response.json()
+    error_msg = resp_json.get("message") or resp_json.get("detail")
+    assert "Incorrect username, password or tenant_id" in error_msg
 
     # 4. Attempt to login as admin_b but specifying tenant_a
     response = await http_client.post(

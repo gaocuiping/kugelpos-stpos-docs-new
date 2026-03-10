@@ -22,7 +22,7 @@ async def test_set_minimum_quantity_happy_path(
     """
     test_item_code = "ITEM001"  # TODO: 有効な値に差し替えてください
     response = await http_client.put(
-        f"/api/v1/tenants/{test_test_tenant_id}/stores/{test_test_store_code}/stock/{test_item_code}/minimum",
+        f"/api/v1/tenants/{test_tenant_id}/stores/{test_store_code}/stock/{test_item_code}/minimum",
         json={},  # TODO: 実際のボディを設定してください
         headers=test_auth_headers,
     )
@@ -45,7 +45,7 @@ async def test_set_minimum_quantity_unauthorized(
     """【異常系 | 401/403 | P1-5】認証ヘッダーなしで 401 または 403 が返ること。"""
     test_item_code = "ITEM001"  # TODO: 有効な値に差し替えてください
     response = await http_client.put(
-        f"/api/v1/tenants/{test_test_tenant_id}/stores/{test_test_store_code}/stock/{test_item_code}/minimum",
+        f"/api/v1/tenants/{test_tenant_id}/stores/{test_store_code}/stock/{test_item_code}/minimum",
         json={},  # TODO: 実際のボディを設定してください
     )
     # 認証任意設定の場合は 200/404 も許容
