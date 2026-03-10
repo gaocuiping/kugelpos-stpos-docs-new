@@ -39,7 +39,7 @@ nav_order: 107
 |:---|:---|:---|:---|:---|:---|
 | **TM-U-001** | **TerminalServiceの検証** | `TerminalService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_check_terminal_status_matrix` <br> *(待追加：状態遷移マトリクスの網羅検証)* | 現在の状態（Closed/Opened等）に対し、許可されない FunctionMode 変更が全て拒否されること。 |
 | **TM-U-002** | **TerminalServiceの検証** | `TerminalService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_open_terminal_date_rollover` <br> *(待追加：営業日付更新ロジック)* | 前回の営業日と現在日付が異なる場合、`open_counter` が 1 にリセットされ日付が更新されること。 |
-| **TM-U-003** | **TerminalServiceの検証** | `TerminalService` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_sign_in_already_signed_in` | すでにサインイン済みの端末に対し、別の StaffID でサインインを試みた際に `TerminalAlreadySignedInException` が送出されること。 |
+| **TM-U-003** | **TerminalServiceの検証** | `TerminalService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_sign_in_already_signed_in` | すでにサインイン済みの端末に対し、別の StaffID でサインインを試みた際に `TerminalAlreadySignedInException` が送出されること。 |
 | **TM-A-CRE** | **Create a new terminal** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_terminal_operations` <br> *(# Test create Terminal with token)* | システムが自動追加したAPIインターフェーステスト |
 | **TM-A-GET** | **Get a list of terminals** | `API / GET` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_terminal_operations` <br> *(# test get Terminals with token)* | システムが自動追加したAPIインターフェーステスト |
 | **TM-A-GET** | **Get terminal information** | `API / GET` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_terminal_operations` <br> *(# Test get Terminal with API Key)* | システムが自動追加したAPIインターフェーステスト |
@@ -56,7 +56,7 @@ nav_order: 107
 | **TM-A-CRE** | **Create a new tenant** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | システムが自動追加したAPIインターフェーステスト |
 | **TM-A-GET** | **Get tenant information** | `API / GET` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_terminal_operations` <br> *(# Test get Tenant with token)* | システムが自動追加したAPIインターフェーステスト |
 | **TM-A-UPD** | **Update tenant information** | `API / PUT` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_terminal_operations` <br> *(# Test update Tenant with token)* | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-DEL** | **Delete a tenant** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_tenant` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-DEL** | **Delete a tenant** | `API / DELETE` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `delete_tenant` | システムが自動追加したAPIインターフェーステスト |
 | **TM-A-ADD** | **Add a store to a tenant** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `add_store` | システムが自動追加したAPIインターフェーステスト |
 | **TM-A-GET** | **Get a list of stores for a tenant** | `API / GET` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `get_stores` | システムが自動追加したAPIインターフェーステスト |
 | **TM-A-GET** | **Get store information** | `API / GET` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `get_store` | システムが自動追加したAPIインターフェーステスト |

@@ -336,6 +336,14 @@ async def test_terminal_operations(http_client):
     assert res.get("data").get("status") == "Idle"
     assert res.get("data").get("staff").get("staffId") == "S001"
 
+    # Test Terminal Sign In already signed in
+    # This matches the documentation requirement for test_sign_in_already_signed_in
+    response = await http_client.post(
+        f"/api/v1/terminals/{terminalId}/sign-in", json={"staff_id": "S002"}, headers=headers
+    )
+    # Based on TerminalAlreadySignedInException it should be 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
     # Check terminal status before opening
     status_response = await http_client.get(f"/api/v1/terminals/{terminalId}", headers=headers)
     if status_response.status_code == status.HTTP_200_OK:
@@ -550,6 +558,14 @@ async def test_terminal_operations(http_client):
     assert res.get("success") is True
     assert res.get("data").get("terminalId") == terminalId
     assert res.get("data").get("staff") == None
+
+    # Test delete Tenant with token
+    # This matches the documentation requirement for delete_tenant
+    response = await http_client.delete(f"/api/v1/tenants/{tenant_id}", headers=header)
+    assert response.status_code == status.HTTP_200_OK
+    res = response.json()
+    assert res.get("success") is True
+    assert res.get("data").get("tenantId") == tenant_id
 
     print("Testing terminal operations completed")
 
