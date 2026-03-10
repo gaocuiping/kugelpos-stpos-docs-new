@@ -30,7 +30,7 @@ nav_order: 4
 - **触发逻辑**：每当检测到路由装饰器（如 `@router.get`）或 Pydantic 类定义时，脚本会自动提取路径、方法、函数名及源码位置。
 - **输出结果**：自动在 `docs/ja/<service>/` 目录下生成 `api-overview-generated.md`，确保接口文档永远与代码保持一致。
 
-### 2. 测试用例文档双向同步 (`sync_testcase_definitions.py` / `sync_testcases.py`)
+### 2. 测试用例文档双向同步 (`sync_testcases.py`)
 这是系统最智能的部分，它不仅能同步状态，还能**感知代码结构的变化**：
 - **自动追加 (Auto-Discovery)**：当您在 `services/*/app/api/` 中新增一个 API 接口时，脚本会自动将该接口追加到 `docs/ja/testing/testcases-*.md` 文档表格中。
 - **改动感知 (Modification Detection)**：如果您修改了代码里的 Docstring 或 HTTP 方法，脚本会自动识别冲突并更新 Markdown 中的标题和对象列。
@@ -128,7 +128,7 @@ services/<service>/tests/
 ## 📦 开启新项目的步骤
 如果您需要将这套文档基盘移植到新项目，请确保带上以下核心文件：
 1. `docs/` 目录及其结构。
-2. `scripts/` 下的所有自动同步脚本（`auto_append_tests.py`、`sync_testcase_definitions.py`、`sync_testcases.py`）。
+2. `scripts/` 下的所有自动同步脚本（`auto_append_tests.py`、`sync_testcases.py`）。
 3. `.github/workflows/` 下的全部 yml 定义（含 `auto-append-tests.yml`）。
 4. 根目录的 `Gemfile` 和 `_config.yml`。
 
