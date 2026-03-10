@@ -121,9 +121,15 @@ def update_professional_doc(file_path):
                     if not clean_rule: continue
                     
                     # Match against code
+                    # Try exact match, then try with 'test_' prefix if not present
                     if clean_rule in implemented_functions:
                         is_implemented = True
                         break
+                    
+                    if not clean_rule.startswith("test_"):
+                        if f"test_{clean_rule}" in implemented_functions:
+                            is_implemented = True
+                            break
                     
                     if clean_rule in implemented_comments:
                         is_implemented = True

@@ -44,24 +44,24 @@ nav_order: 107
 | **TM-A-GET** | **Get a list of terminals** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_terminals` | システムが自動追加したAPIインターフェーステスト |
 | **TM-A-GET** | **Get terminal information** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_terminal` | システムが自動追加したAPIインターフェーステスト |
 | **TM-A-DEL** | **Delete a terminal** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_terminal` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-UPD** | **Update terminal description** | `API / PATCH` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_terminal_description` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-UPD** | **Update terminal function mode** | `API / PATCH` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_terminal_function_mode` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-TER** | **Sign in to a terminal** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_signin` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-TER** | **Sign out from a terminal** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_signout` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-TER** | **Open a terminal for business operations** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_open` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-TER** | **Close a terminal after business operations** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_close` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-TER** | **Add cash to a terminal drawer** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_cash_in` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-TER** | **Remove cash from a terminal drawer** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `terminal_cash_out` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-UPD** | **Update the delivery status of a transaction** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_delivery_status` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-UPD** | **Update terminal description** | `API / PATCH` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `update_terminal_description` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-UPD** | **Update terminal function mode** | `API / PATCH` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `update_terminal_function_mode` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-TER** | **Sign in to a terminal** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `terminal_signin` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-TER** | **Sign out from a terminal** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `terminal_signout` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-TER** | **Open a terminal for business operations** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `terminal_open` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-TER** | **Close a terminal after business operations** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `terminal_close` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-TER** | **Add cash to a terminal drawer** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `terminal_cash_in` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-TER** | **Remove cash from a terminal drawer** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `terminal_cash_out` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-UPD** | **Update the delivery status of a transaction** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `update_delivery_status` | システムが自動追加したAPIインターフェーステスト |
 | **TM-A-CRE** | **Create a new tenant** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | システムが自動追加したAPIインターフェーステスト |
 | **TM-A-GET** | **Get tenant information** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_tenant` | システムが自動追加したAPIインターフェーステスト |
 | **TM-A-UPD** | **Update tenant information** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_tenant` | システムが自動追加したAPIインターフェーステスト |
 | **TM-A-DEL** | **Delete a tenant** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_tenant` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-ADD** | **Add a store to a tenant** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `add_store` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-GET** | **Get a list of stores for a tenant** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_stores` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-GET** | **Get store information** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_store` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-UPD** | **Update store information** | `API / PUT` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `update_store` | システムが自動追加したAPIインターフェーステスト |
-| **TM-A-DEL** | **Delete a store** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `delete_store` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-ADD** | **Add a store to a tenant** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `add_store` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-GET** | **Get a list of stores for a tenant** | `API / GET` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `get_stores` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-GET** | **Get store information** | `API / GET` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `get_store` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-UPD** | **Update store information** | `API / PUT` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `update_store` | システムが自動追加したAPIインターフェーステスト |
+| **TM-A-DEL** | **Delete a store** | `API / DELETE` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `delete_store` | システムが自動追加したAPIインターフェーステスト |
 
 ### 1.2 通信レジリエンス (`PubsubManager`)
 

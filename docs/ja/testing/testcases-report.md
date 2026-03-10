@@ -42,13 +42,13 @@ nav_order: 105
 | **RP-U-003** | **レポートサービスの汎用検証** | `ReportService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_multiple_tax_rates_no_cartesian_product` / `test_mixed_tax_types` / `test_store_wide_multi_terminal_with_cartesian_product_risk` | 複数税率(8%, 10%)や非課税アイテムが混在する巨大ジャーナル集計時に、デカルト積（直積）爆発を起こさず正確な全件レポートが生成される。 |
 | **RP-U-004** | **レポートサービスの汎用検証** | `ReportService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_complex_void_scenario` / `test_multiple_returns_same_day` / `test_void_vs_cancelled_difference` | 返品(Return)、取消(Void)、またはフラグ上での Cancelled の違いを正確に解釈し、純売上から正しく控除（または無視）されること。 |
 | **RP-U-005** | **レポートサービスの汎用検証** | `ReportService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_flash_report_rejects_date_range_store` / `test_flash_report_accepts_single_date` | リアルタイムフラッシュレポート取得時、仕様外となる複数日（Range）指定が API レベルで安全に遮断されること。 |
-| **RP-A-HAN** | **Handle transaction logs received via Dapr pub/sub.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `handle_tranlog` | システムが自動追加したAPIインターフェーステスト |
-| **RP-A-HAN** | **Handle cash in/out logs received via Dapr pub/sub.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `handle_cashlog` | システムが自動追加したAPIインターフェーステスト |
-| **RP-A-HAN** | **Handle terminal open/close logs received via Dapr pub/sub.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `handle_opencloselog` | システムが自動追加したAPIインターフェーステスト |
-| **RP-A-REC** | **Direct API endpoint for receiving transaction data.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `receive_transactions` | システムが自動追加したAPIインターフェーステスト |
+| **RP-A-HAN** | **Handle transaction logs received via Dapr pub/sub.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `handle_tranlog` | システムが自動追加したAPIインターフェーステスト |
+| **RP-A-HAN** | **Handle cash in/out logs received via Dapr pub/sub.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `handle_cashlog` | システムが自動追加したAPIインターフェーステスト |
+| **RP-A-HAN** | **Handle terminal open/close logs received via Dapr pub/sub.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `handle_opencloselog` | システムが自動追加したAPIインターフェーステスト |
+| **RP-A-REC** | **Direct API endpoint for receiving transaction data.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `receive_transactions` | システムが自動追加したAPIインターフェーステスト |
 | **RP-A-CRE** | **Create and set up a new tenant in the report service.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | システムが自動追加したAPIインターフェーステスト |
-| **RP-A-GET** | **Get a report for the entire store.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_report_for_store` | システムが自動追加したAPIインターフェーステスト |
-| **RP-A-GET** | **Get a report for a specific terminal.** | `API / GET` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `get_report_for_terminal` | システムが自動追加したAPIインターフェーステスト |
+| **RP-A-GET** | **Get a report for the entire store.** | `API / GET` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `get_report_for_store` | システムが自動追加したAPIインターフェーステスト |
+| **RP-A-GET** | **Get a report for a specific terminal.** | `API / GET` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `get_report_for_terminal` | システムが自動追加したAPIインターフェーステスト |
 
 ### 1.2 プラグイン管理 (`ReportPluginManager`)
 
