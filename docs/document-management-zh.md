@@ -36,20 +36,20 @@ nav_order: 4
 - **改动感知 (Modification Detection)**：如果您修改了代码里的 Docstring 或 HTTP 方法，脚本会自动识别冲突并更新 Markdown 中的标题和对象列。
 - **质量门控 (Quality Gate)**：`sync_testcases.py` 会检查测试函数体内是否含有 `pytest.skip()`。只有**真正实现**的测试（无 skip）才会从 ❌ `Missing` 变为 ✅ `Implemented`，空骨架不会计入已完成。
 
-### 3. 🆕 测试骨架自动追加 (`auto_append_tests.py`)
-当 API 代码发生变更时，自动为所有**未覆盖的新接口**生成 Python 测试骨架文件，直接对应 `test-review.md` 的改善方案：
+### 3. 🆕 测试代码自动生成 (`auto_append_tests.py`)
+当 API 代码发生变更时，系统不再仅仅生成骨架，而是自动为所有**未覆盖的新接口**生成**功能完备的初始测试代码**：
 
-| 生成文件 | 目标目录 | 对应改善优先级 |
+| 生成文件 | 目标目录 | 生成内容 |
 | :--- | :--- | :--- |
-| `test_<func>_scenario_auto.py` | `tests/scenario/` | **P1**：场景测试 + 4xx/5xx 异常系 |
-| `test_<func>_unit_auto.py` | `tests/unit/` | **P0**：Service 层 AsyncMock 单体测试 |
+| `test_<func>_scenario_auto.py` | `tests/scenario/` | **全自动实现**：包含 Happy Path (200/201)、404 (GET) 和 401/403 权限验证。 |
+| `test_<func>_unit_auto.py` | `tests/unit/` | **结构化代码**：基于 `async_client` 的路由结构验证。 |
 
 **覆盖检测（三级匹配）**：
-1. 已有 `# AUTO-GENERATED: func_name=xxx` 标记 → 跳过
-2. 已有 `def test_<func_name>` 函数 → 跳过
-3. 已有调用该接口的 URL 路径的 HTTP 请求 → 跳过
+1. 已有 `# AUTO-GENERATED` 标记 → 跳过
+2. 已有 `test_<func_name>` 函数名一致 → 跳过
+3. 已有调用该接口 URL 路径的 HTTP 请求 → 跳过
 
-生成文件中统一使用 `pytest.skip()` 占位，不影响现有 CI——等开发者实现后，文档会自动变绿。
+生成的文件包含通用的基于路径参数的变量定义，支持 push 后立即运行。开发者仅需根据具体业务需求微调断言即可使文档变绿。
 
 ```bash
 # 手动运行（全服务）
@@ -82,14 +82,15 @@ python3 scripts/auto_append_tests.py --service terminal
   └─→ [auto-append-tests.yml]
         │  检测变更的服务
         │  运行 auto_append_tests.py --service <svc>
-        │  生成 tests/unit/*_unit_auto.py
-        │       tests/scenario/*_scenario_auto.py
+        │  直接生成功能性测试：
+        │    tests/unit/*_unit_auto.py
+        │    tests/scenario/*_scenario_auto.py
         └─→ git commit [skip ci] & push
               │
-              └─→ [sync-test-docs.yml]   → testcases-*.md ❌ 保持 Missing
-                    开发者实现测试（删除 pytest.skip）
-                    push → testcases-*.md ✅ 变为 Implemented
-                    └─→ [jekyll-gh-pages.yml] → 网站更新发布
+              └─→ [sync-test-docs.yml]   → 自动扫描新测试
+                    由于生成的测试已具备基本逻辑且无 skip
+                    push 后文档可能直接变为 ✅ Implemented
+                    开发者按需优化断言 → 网站同步发布
 ```
 
 ---
