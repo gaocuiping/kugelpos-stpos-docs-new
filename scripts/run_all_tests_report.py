@@ -33,7 +33,12 @@ for svc in SERVICES:
     svc_dir = os.path.join(BASE_DIR, "services", svc)
     print(f"Running tests for {svc}...")
     
-    cmd = ["python3", "-m", "pytest", "tests/", "-q", "--disable-warnings"]
+    # Use pipenv to run pytest if Pipfile exists, otherwise fallback to python3 -m pytest
+    if os.path.exists(os.path.join(svc_dir, "Pipfile")):
+        cmd = ["pipenv", "run", "pytest", "tests/", "-q", "--disable-warnings"]
+    else:
+        cmd = ["python3", "-m", "pytest", "tests/", "-q", "--disable-warnings"]
+    
     try:
         process = subprocess.run(cmd, cwd=svc_dir, capture_output=True, text=True)
         out = process.stdout

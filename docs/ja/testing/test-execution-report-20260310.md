@@ -13,13 +13,13 @@ layout: default
 
 | サービス名 | 総テスト数 | 成功 (Passed) | 失敗 (Failed) | スキップ (Skipped) | 実行時間 | 状態 |
 |:---|:---:|:---:|:---:|:---:|:---|:---|
-| **Account** | 0 | <span style='color:green'>0</span> | <span style='color:red'>0</span> | <span style='color:gray'>0</span> | 0.00s | ⚠️ WIP |
-| **Terminal** | 0 | <span style='color:green'>0</span> | <span style='color:red'>0</span> | <span style='color:gray'>0</span> | 0.00s | ⚠️ WIP |
-| **Master-data** | 0 | <span style='color:green'>0</span> | <span style='color:red'>0</span> | <span style='color:gray'>0</span> | 0.00s | ⚠️ WIP |
-| **Cart** | 0 | <span style='color:green'>0</span> | <span style='color:red'>0</span> | <span style='color:gray'>0</span> | 0.00s | ⚠️ WIP |
-| **Report** | 0 | <span style='color:green'>0</span> | <span style='color:red'>0</span> | <span style='color:gray'>0</span> | 0.00s | ⚠️ WIP |
-| **Journal** | 0 | <span style='color:green'>0</span> | <span style='color:red'>0</span> | <span style='color:gray'>0</span> | 0.00s | ⚠️ WIP |
-| **Stock** | 0 | <span style='color:green'>0</span> | <span style='color:red'>0</span> | <span style='color:gray'>0</span> | 0.00s | ⚠️ WIP |
+| **Account** | ERROR | - | - | - | - | 🚨 ERROR |
+| **Terminal** | ERROR | - | - | - | - | 🚨 ERROR |
+| **Master-data** | ERROR | - | - | - | - | 🚨 ERROR |
+| **Cart** | ERROR | - | - | - | - | 🚨 ERROR |
+| **Report** | ERROR | - | - | - | - | 🚨 ERROR |
+| **Journal** | ERROR | - | - | - | - | 🚨 ERROR |
+| **Stock** | ERROR | - | - | - | - | 🚨 ERROR |
 
 ## 💡 実行結果の考察とネクストアクション
 
