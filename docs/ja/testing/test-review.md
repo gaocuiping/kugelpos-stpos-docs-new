@@ -1,7 +1,7 @@
 ---
 title: "自動化テスト総合評審レポート"
 parent: テスト
-nav_exclude: true
+nav_order: 6
 layout: default
 ---
 
