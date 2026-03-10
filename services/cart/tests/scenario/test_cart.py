@@ -189,6 +189,7 @@ async def test_cart_operations(http_client):
     api_key = terminal_info.get("apiKey")
     header = {"X-API-KEY": api_key}
 
+    # create_cart
     # カートの作成
     response = await http_client.post(
         f"/api/v1/carts?terminal_id={terminal_id}",
@@ -241,6 +242,7 @@ async def test_line_item_operations(http_client):
     if current_status != "Opened":
         await open_terminal(tenant_id)
 
+    # create_cart
     # 新しいカートの作成
     response = await http_client.post(
         f"/api/v1/carts?terminal_id={terminal_id}",
@@ -251,6 +253,7 @@ async def test_line_item_operations(http_client):
     res = response.json()
     cartId = res.get("data").get("cartId")
 
+    # add_items
     # 商品の追加
     response = await http_client.post(
         f"/api/v1/carts/{cartId}/lineItems?terminal_id={terminal_id}",

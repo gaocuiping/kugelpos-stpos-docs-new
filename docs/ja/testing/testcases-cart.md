@@ -45,9 +45,10 @@ nav_order: 102
 | **CT-U-007** | **CartServiceの検証** | `CartService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_cashless_payment_simple` / `test_cashless_payment_with_detailed_receipt_info` | 異常な明細情報に対するキャッシュレス決済処理の安全性確保。 |
 | **CT-U-008** | **CartServiceの検証** | `CartService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_payment_by_others` / `test_multiple_payment_methods` | 複数・他者支払いの異常系・正常系遷移の確保。 |
 | **CT-U-009** | **取引サービス統合の検証** | `TranService` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_void_return_resets_original_refund_status` / `test_return_voided_transaction_prevention` | 排他的な（相容れない）キャンセル操作の衝突と二重精算を防ぐ。 |
-| **CT-A-CRE** | **Retrieve a cart by its ID.** | `API / POST` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `create_cart` | システムが自動追加したAPIインターフェーステスト |
+| **CT-A-CRE** | **Create a new shopping cart.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_cart` | システムが自動追加したAPIインターフェーステスト |
+| **CT-A-GET** | **Retrieve a cart by its ID.** | `API / GET` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `get_cart` | システムが自動追加したAPIインターフェーステスト |
 | **CT-A-CAN** | **Cancel a transaction/cart.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `cancel_transaction` | システムが自動追加したAPIインターフェーステスト |
-|**CT-A-ADD**|**Add items to a cart.**|`API / POST`| ![Modified](https://img.shields.io/badge/Status-Modified-orange) |`add_items`|⚠️ コードインターフェースが変更されました：システムが自動追加したAPIインターフェーステスト|| |
+|**CT-A-ADD**|**Add items to a cart.**|`API / POST`| ![Implemented](https://img.shields.io/badge/Status-Implemented-green) |`add_items`| システムが自動追加したAPIインターフェーステスト|| |
 | **CT-A-CAN** | **Cancel a specific line item in a cart.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `cancel_line_item` | システムが自動追加したAPIインターフェーステスト |
 | **CT-A-UPD** | **Update the unit price of a cart line item.** | `API / PATCH` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `update_item_unit_price` | システムが自動追加したAPIインターフェーステスト |
 | **CT-A-UPD** | **Update the quantity of a cart line item.** | `API / PATCH` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `update_item_quantity` | システムが自動追加したAPIインターフェーステスト |
@@ -64,14 +65,14 @@ nav_order: 102
 | **CT-A-NOT** | **Notify the delivery status of a transaction.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `notify_delivery_status` | システムが自動追加したAPIインターフェーステスト |
 | **CT-A-CRE** | **Create a new tenant with the specified tenant ID.** | `API / POST` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `create_tenant` | システムが自動追加したAPIインターフェーステスト |
 | **CT-A-GET** | **Get the current status of the terminal cache for the authenticated user's tenant.** | `API / GET` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `get_cache_status` | システムが自動追加したAPIインターフェーステスト |
-| **CT-A-CLE** | **Clear terminal cache entries for the authenticated user's tenant.** | `API / DELETE` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `clear_cache` | システムが自動追加したAPIインターフェーステスト |
+| **CT-A-CLE** | **Clear terminal cache entries for the authenticated user's tenant.** | `API / DELETE` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `clear_cache` | システムが自動追加したAPIインターフェーステスト |
 
 ### 1.2 計算エンジン (`logics/`)
 
 | ID | テストタイトル | テスト対象 | 状态 (Status) | 匹配规则 (Mapping Rules / Function Name & Comments) | 期待される結果 |
 |:---|:---|:---|:---|:---|:---|
 | **CT-U-101** | **calc_tax_logicの検証** | `calc_tax_logic` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_calc_subtotal_async` / `test_calc_subtotal_skips_cancelled_items` | 取消されたアイテムを除外して、各税区分の `tax_amount` が正確に計算されること。 |
-| **CT-U-102** | **calc_tax_logicの検証** | `calc_tax_logic` | ![Missing](https://img.shields.io/badge/Status-Missing-red) | `test_calc_tax_rounding_ceil` <br> *(待追加：端数処理モードの網羅検証)* | `RoundMethod.Ceil/Floor` に従い正しく丸められること。 |
+| **CT-U-102** | **calc_tax_logicの検証** | `calc_tax_logic` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_calc_tax_rounding_ceil` <br> *(待追加：端数処理モードの網羅検証)* | `RoundMethod.Ceil/Floor` に従い正しく丸められること。 |
 | **CT-U-103** | **calc_line_itemの検証** | `calc_line_item` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_update_sales_info_async_with_discounts` / `test_update_sales_info_async_with_cancelled_items` | %割引 -> 定額割引 の順序での算出と、赤黒処理が独立して行われること。 |
 | **CT-U-104** | **calc_discountの検証** | `calc_discount` | ![Implemented](https://img.shields.io/badge/Status-Implemented-green) | `test_discount_engine` | 各種割引計算エンジンの内部状態推移の正確性。 |
 
