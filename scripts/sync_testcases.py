@@ -88,8 +88,24 @@ def update_professional_doc(file_path):
     new_lines = []
     header_indices = {}
 
+    # Define stats dictionary
+    stats = {
+        'Unit': {'total': 0, 'impl': 0, 'miss': 0},
+        'Integration': {'total': 0, 'impl': 0, 'miss': 0},
+        'Scenario': {'total': 0, 'impl': 0, 'miss': 0}
+    }
+    current_section = None
+
     for line in lines:
         stripped = line.strip()
+        
+        # Track current section
+        if stripped.startswith('## 1. 単体テスト') or stripped.startswith('## 1. Unit Tests'):
+            current_section = 'Unit'
+        elif stripped.startswith('## 2. 結合テスト') or stripped.startswith('## 2. Integration Tests'):
+            current_section = 'Integration'
+        elif stripped.startswith('## 3. シナリオテスト') or stripped.startswith('## 3. Scenario Tests'):
+            current_section = 'Scenario'
         
         # Detect table headers to find column indices
         if stripped.startswith('|') and ('ID' in stripped):
@@ -147,11 +163,53 @@ def update_professional_doc(file_path):
                     line = '|'.join(parts)
                     updated = True
 
+        # Track stats for the final table update
+        current_status = None
+        if stripped.startswith('|') and IMPLEMENTED_BADGE in line:
+            current_status = 'impl'
+        elif stripped.startswith('|') and re.search(MISSING_BADGE, line):
+            current_status = 'miss'
+
+        if current_status and current_section:
+            stats[current_section][current_status] += 1
+            stats[current_section]['total'] += 1
+
         new_lines.append(line)
+
+    # 3. Post-process to update the top summary table if exists
+    final_lines = []
+    for line in new_lines:
+        stripped = line.strip()
+        
+        def _update_row(label, key):
+            t = stats[key]['total']
+            i = stats[key]['impl']
+            m = stats[key]['miss']
+            cov = f"{(i/t*100):.1f}%" if t > 0 else "0.0%"
+            return f"| **{label}** | {t} | {i} | {m} | **{cov}** |\n"
+        
+        if stripped.startswith('| **単体テスト (Unit)** |'):
+            line = _update_row('単体テスト (Unit)', 'Unit')
+            updated = True
+        elif stripped.startswith('| **結合テスト (Integration)** |'):
+            line = _update_row('結合テスト (Integration)', 'Integration')
+            updated = True
+        elif stripped.startswith('| **シナリオテスト (Scenario)** |'):
+            line = _update_row('シナリオテスト (Scenario)', 'Scenario')
+            updated = True
+        elif stripped.startswith('| **全体合計 (Total)** |'):
+            t = sum(s['total'] for s in stats.values())
+            i = sum(s['impl'] for s in stats.values())
+            m = sum(s['miss'] for s in stats.values())
+            cov = f"{(i/t*100):.1f}%" if t > 0 else "0.0%"
+            line = f"| **全体合計 (Total)** | **{t}** | **{i}** | **{m}** | **{cov}** |\n"
+            updated = True
+            
+        final_lines.append(line)
 
     if updated:
         with open(file_path, 'w', encoding='utf-8') as f:
-            f.writelines(new_lines)
+            f.writelines(final_lines)
         return True
     return False
 
