@@ -47,21 +47,14 @@ for svc in SERVICES:
         lines = out.strip().split("\n")
         summary_line = lines[-1] if lines else "No output"
         
-        passed = 0
-        failed = 0
-        skipped = 0
-        duration = "0.00s"
+        import re
+        passed = sum(int(m.group(1)) for m in re.finditer(r'(\d+)\s+passed', out))
+        failed = sum(int(m.group(1)) for m in re.finditer(r'(\d+)\s+failed', out))
+        failed += sum(int(m.group(1)) for m in re.finditer(r'(\d+)\s+error', out))
+        skipped = sum(int(m.group(1)) for m in re.finditer(r'(\d+)\s+skipped', out))
         
-        if "in " in summary_line:
-            parts = summary_line.split(" in ")
-            duration = parts[-1]
-            status_parts = parts[0].split(", ")
-            for p in status_parts:
-                p = p.strip()
-                if "passed" in p: passed = int(p.split()[0])
-                elif "failed" in p: failed = int(p.split()[0])
-                elif "skipped" in p: skipped = int(p.split()[0])
-                elif "error" in p: failed += int(p.split()[0])
+        duration_match = re.search(r'in\s+([\d\.]+s)', out)
+        duration = duration_match.group(1) if duration_match else "0.00s"
                 
         total = passed + failed + skipped
         state = "✅ PASS" if failed == 0 and total > 0 else ("⚠️ WIP" if total == 0 else "❌ FAIL")
