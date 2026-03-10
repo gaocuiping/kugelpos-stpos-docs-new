@@ -23,6 +23,7 @@ async def test_operations(http_client):
     print("Running Account test_operations...")
     tenant_id = os.environ.get("TENANT_ID")
 
+    # register_super_user
     # superuser registration
     response = await http_client.post(
         "/api/v1/accounts/register", json={"username": "admin", "password": "admin", "tenant_id": tenant_id}
@@ -84,6 +85,7 @@ async def test_operations(http_client):
         print(e)
     assert drop_result is True
 
+    # login_for_access_token
     # superuser login
     response = await http_client.post(
         "/api/v1/accounts/token",
@@ -103,6 +105,7 @@ async def test_operations(http_client):
     assert response_data["token_type"] == "bearer"
     access_token = response_data["access_token"]
 
+    # register_user_by_superuser
     # user registration by superuser
     response = await http_client.post(
         f"/api/v1/accounts/register/user?tenant_id={tenant_id}",
