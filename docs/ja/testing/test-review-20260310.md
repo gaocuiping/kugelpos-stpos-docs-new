@@ -1,5 +1,7 @@
 ---
 title: "自動化テスト総合評審レポート (2026-03-10)"
+parent: テスト
+grand_parent: 日本語
 nav_order: 7
 layout: default
 ---
